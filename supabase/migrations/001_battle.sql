@@ -215,6 +215,8 @@ begin
   if v_name = '' then
     raise exception 'NAME_REQUIRED';
   end if;
+  -- 同時に押した人どうしが互いの新しい部屋を見られず別々に待つのを防ぐため、マッチングだけ直列化する
+  perform pg_advisory_xact_lock(hashtext('find_match'));
   delete from matches where created_at < now() - interval '1 day';
   select id into v_id from matches
   where status = 'waiting' and code is null and player_count < 8 and last_active > now() - interval '15 seconds'

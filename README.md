@@ -8,7 +8,7 @@
 ## 構成
 
 - 静的サイト（Vite + TypeScript）を GitHub Pages で配信。`npm run deploy` でビルドして `gh-pages` ブランチへ push（.env.local の Supabase 設定が埋め込まれる）
-- Supabase: 判定・進行はすべて `supabase/migrations/001_battle.sql` の RPC。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
+- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/001_battle.sql` の RPC。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
 - 公開している `public/questions.json` には正解・解説を入れていない。正解と簡略版の解説はDBにあり、決着した問題だけ返す
 
 ## 問題の更新
@@ -20,6 +20,8 @@ node scripts/import-questions.mjs   # questions.json・図・supabase/seed.gener
 ```
 
 `seed.generated.sql`（正解キー入りのため Git 管理外）を Supabase の SQL Editor で実行（upsert なので何度でも可）。
+
+新しいプロジェクトでは、Realtime に一度クライアントが接続するまで `realtime.send` が作られない。SQL適用後にアプリを一度開いてから動作確認する。
 
 ## 動作確認
 
