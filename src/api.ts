@@ -15,6 +15,8 @@ export interface Player {
 export interface MatchState {
   id: string;
   code: string | null;
+  is_private: boolean;
+  invite_token?: string | null;
   status: "waiting" | "playing" | "finished";
   phase: "countdown" | "question" | "reveal" | null;
   q_index: number;

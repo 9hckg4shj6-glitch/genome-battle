@@ -78,13 +78,13 @@ try {
   const internal=await sb.rpc('_solo_state',{p_session:s.id});assert.ok(internal.error);
   console.log('PASS permissions: direct rows and internal functions are inaccessible to guests');
   const guest=randomUUID();
-  let room=await rpc('create_room',{p_device:device,p_name:'test-host',p_capacity:2,p_seconds:5});
+  let room=await rpc('create_room',{p_device:device,p_name:'test-host',p_capacity:2,p_seconds:5,p_private:true});
   createdMatches.push(room.id);
   await assert.rejects(()=>rpc('start_room',{p_match:room.id,p_device:device}),/NEED_PLAYERS/);
-  const joined=await rpc('join_room',{p_code:room.code,p_device:guest,p_name:'test-guest'});
+  const joined=await rpc('join_room',{p_code:room.code,p_device:guest,p_name:'test-guest',p_invite:room.invite_token});
   assert.equal(joined.players.length,2);assert.equal(joined.my_seat,1);
   await assert.rejects(()=>rpc('start_room',{p_match:room.id,p_device:guest}),/HOST_ONLY/);
-  await assert.rejects(()=>rpc('join_room',{p_code:room.code,p_device:randomUUID(),p_name:'test-extra'}),/ROOM_FULL/);
+  await assert.rejects(()=>rpc('join_room',{p_code:room.code,p_device:randomUUID(),p_name:'test-extra',p_invite:room.invite_token}),/ROOM_FULL/);
   room=await rpc('start_room',{p_match:room.id,p_device:device});assert.equal(room.phase,'countdown');
   await sql("update public.matches set phase_ends_at=now()-interval '1 second' where id=$1::uuid",[room.id]);
   room=await rpc('tick',{p_match:room.id,p_device:device});assert.equal(room.phase,'question');
@@ -96,6 +96,53 @@ try {
   }
   assert.equal((await rpc('get_review',{p_match:room.id,p_device:device})).length,1);
   console.log('PASS private room: creation, join, capacity, host permission, countdown, concurrent winner and review');
+
+  const host=randomUUID(), peer=randomUUID(), outsider=randomUUID();
+  let open=await rpc('create_room',{p_device:host,p_name:'public-host',p_capacity:3,p_seconds:20});
+  createdMatches.push(open.id);
+  const listed=async()=> (await rpc('list_public_rooms',{})).find(r=>r.id===open.id);
+  assert.equal(open.is_private,false);assert.equal(open.invite_token,null);
+  let item=await listed();assert.equal(item.host_name,'public-host');assert.equal(item.player_count,1);
+  assert.deepEqual(Object.keys(item).sort(),['answer_seconds','capacity','host_name','id','player_count']);
+  let peerState=await rpc('join_public_room',{p_match:open.id,p_device:peer,p_name:'public-peer'});
+  assert.equal(peerState.my_seat,1);assert.equal(peerState.players.length,2);
+  await assert.rejects(()=>rpc('set_room_private',{p_match:open.id,p_device:peer,p_private:true}),/HOST_ONLY/);
+  open=await rpc('set_room_private',{p_match:open.id,p_device:host,p_private:true});
+  const firstInvite=open.invite_token;assert.ok(firstInvite);assert.equal(await listed(),undefined);
+  await assert.rejects(()=>rpc('join_public_room',{p_match:open.id,p_device:outsider,p_name:'outsider'}),/ROOM_NOT_FOUND/);
+  await assert.rejects(()=>rpc('join_room',{p_code:open.code,p_device:outsider,p_name:'outsider'}),/INVITE_REQUIRED/);
+  await assert.rejects(()=>rpc('join_room',{p_code:open.code,p_device:outsider,p_name:'outsider',p_invite:'incorrect'}),/INVITE_REQUIRED/);
+  assert.equal(await rpc('get_match',{p_match:open.id,p_device:outsider}),null);
+  await assert.rejects(()=>rpc('tick',{p_match:open.id,p_device:outsider}),/NOT_IN_MATCH/);
+  const peerPrivate=await rpc('get_match',{p_match:open.id,p_device:peer});assert.equal(peerPrivate.invite_token,null);
+  const [broadcast]=await sql('select public._state($1::uuid) as state',[open.id]);assert.ok(!('invite_token' in broadcast.state));
+  const invited=await rpc('join_room',{p_code:open.code,p_device:outsider,p_name:'invited',p_invite:firstInvite});
+  assert.equal(invited.players.length,3);assert.equal(invited.invite_token,null);
+  await rpc('leave_match',{p_match:open.id,p_device:outsider});
+  open=await rpc('set_room_private',{p_match:open.id,p_device:host,p_private:false});
+  assert.equal(open.invite_token,null);assert.ok(await listed());
+  open=await rpc('set_room_private',{p_match:open.id,p_device:host,p_private:true});assert.notEqual(open.invite_token,firstInvite);
+  await assert.rejects(()=>rpc('join_room',{p_code:open.code,p_device:outsider,p_name:'old-invite',p_invite:firstInvite}),/INVITE_REQUIRED/);
+  await rpc('tick',{p_match:open.id,p_device:peer});
+  open=await rpc('set_room_private',{p_match:open.id,p_device:host,p_private:false});
+  const contenders=[randomUUID(),randomUUID()];
+  const admissions=await Promise.allSettled(contenders.map(d=>rpc('join_public_room',{p_match:open.id,p_device:d,p_name:'contender'})));
+  assert.equal(admissions.filter(r=>r.status==='fulfilled').length,1);
+  assert.ok(admissions.some(r=>r.status==='rejected' && /ROOM_FULL/.test(r.reason.message)));
+  item=await listed();assert.equal(item.player_count,3);
+  await rpc('tick',{p_match:open.id,p_device:host});
+  open=await rpc('start_room',{p_match:open.id,p_device:host});assert.equal(open.phase,'countdown');
+  assert.equal(await listed(),undefined);
+  await assert.rejects(()=>rpc('set_room_private',{p_match:open.id,p_device:host,p_private:true}),/ROOM_STARTED/);
+  await assert.rejects(()=>rpc('join_public_room',{p_match:open.id,p_device:randomUUID(),p_name:'late'}),/ROOM_NOT_FOUND/);
+  const stale=await rpc('create_room',{p_device:host,p_name:'stale-room'});createdMatches.push(stale.id);
+  await sql("update public.matches set last_active=now()-interval '20 seconds' where id=$1::uuid",[stale.id]);
+  assert.ok(!(await rpc('list_public_rooms',{})).some(r=>r.id===stale.id));
+  await assert.rejects(()=>rpc('join_public_room',{p_match:stale.id,p_device:peer,p_name:'stale-join'}),/ROOM_NOT_FOUND/);
+  const auto=await rpc('find_match',{p_device:randomUUID(),p_name:'queue-test',p_capacity:7,p_seconds:119});createdMatches.push(auto.id);
+  assert.ok(!(await rpc('list_public_rooms',{})).some(r=>r.id===auto.id));
+  console.log('PASS public rooms: default visibility, list selection, host locking, invitation privacy/rotation, concurrent capacity, started/stale exclusion');
+
 
 } finally {
   if(createdMatches.length) await sql('delete from public.matches where id=any($1::uuid[])',[createdMatches]);

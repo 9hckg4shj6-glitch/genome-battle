@@ -9,12 +9,14 @@ const BASE = import.meta.env.BASE_URL;
 const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
 const ERRORS: Record<string, string> = {
   NAME_REQUIRED: "名前を入力してください",
-  ROOM_NOT_FOUND: "その合言葉の部屋は見つかりません（開始済みか、締め切られています）",
+  ROOM_NOT_FOUND: "その部屋は見つかりません（開始済み・鍵付き・待機終了の可能性があります）",
+  INVITE_REQUIRED: "鍵付きルームです。作成者の招待リンクから参加してください",
+  ROOM_STARTED: "対戦開始後は公開設定を変更できません",
   ROOM_FULL: "その部屋は満員です",
   BAD_SETTINGS: "制限時間は5〜120秒、人数は2〜8人で指定してください",
   NEED_PLAYERS: "対戦を始めるには2人以上の参加が必要です",
-  ROOM_ONLY: "この操作は合言葉の対戦室でのみ使えます",
-  HOST_ONLY: "開始できるのは部屋を作った人だけです",
+  ROOM_ONLY: "この操作は作成した対戦室でのみ使えます",
+  HOST_ONLY: "この操作ができるのは部屋を作った人だけです",
   NOT_IN_MATCH: "この対戦には参加していません",
   BAD_SOLO_SETTINGS: "問題と設定を選び直してください",
   SOLO_NOT_FOUND: "この学習セッションは見つかりません。もう一度開始してください",
@@ -29,6 +31,8 @@ let playerName = readStore("gb.name") ?? "";
 // null は「おまかせ」（2人以上そろって10秒後、8人で即開始）
 let capacity: number | null = Number(readStore("gb.capacity")) || null;
 let answerSeconds = Number(readStore("gb.seconds")) || 20;
+let roomPrivateDraft = false;
+let roomInviteDraft = new URLSearchParams(location.search).get("invite") ?? "";
 let roomCodeDraft = new URLSearchParams(location.search).get("room") ?? "";
 const questions = new Map<string, Question>();
 let match: MatchState | null = null;
@@ -53,10 +57,10 @@ let tickJitter = 0;
 
 const solo = new SoloController(deviceId, questions, render, () => playerName);
 const modeInfo = {
-  matchmaking: {title:"マッチング対戦",sub:"MATCHMAKING",icon:"swords",description:"全国の学習者と、知識で競う。",label:"対戦相手を探す"},
+  matchmaking: {title:"マッチング対戦",sub:"MATCHMAKING",icon:"swords",description:"同級生と対戦",label:"対戦相手を探す"},
   study: {title:"一人で学習",sub:"SOLO STUDY",icon:"book",description:"焦らず、着実に。理解を深める時間。",label:"学習をはじめる"},
   ai: {title:"AI対戦",sub:"AI BATTLE",icon:"bot",description:"いつでも挑戦できる、あなたの練習相手。",label:"AIと対戦する"},
-  room: {title:"対戦室作成",sub:"PRIVATE ROOM",icon:"room",description:"仲間を誘って、同じ問題に挑もう。",label:"対戦室を作成する"},
+  room: {title:"対戦室作成",sub:"BATTLE ROOMS",icon:"room",description:"仲間を誘って、同じ問題に挑もう。",label:"対戦室を作成する"},
 } as const;
 
 const errorText = (e: unknown): string => {
@@ -75,6 +79,7 @@ function applyState(s: MatchState | null): void {
     tickJitter = Math.random() * 400; // 全員が同時に tick しないよう少しずらす
     error = "";
   }
+  if (match?.id === s.id && s.invite_token === undefined) s = {...s, invite_token: s.is_private ? match.invite_token : null};
   match = s;
   if (s.status === "finished") writeStore("gb.match", null, sessionStorage);
   render();
@@ -86,7 +91,7 @@ function subscribe(matchId: string): void {
   channel = listen(matchId, (s) => { if (match?.id === matchId) applyState(s); }, (ok) => { if (match?.id === matchId) live = ok; });
 }
 
-async function enter(fn: "find_match" | "create_room" | "join_room"): Promise<void> {
+async function enter(fn: "find_match" | "create_room" | "join_room" | "join_public_room", publicRoomId?: string): Promise<void> {
   if (busy) return;
   const generation = ++battleGeneration;
   const nameInput = document.querySelector<HTMLInputElement>("#name");
@@ -94,12 +99,13 @@ async function enter(fn: "find_match" | "create_room" | "join_room"): Promise<vo
   if (!playerName) {
     error = ERRORS.NAME_REQUIRED;
     render();
+    document.querySelector<HTMLInputElement>("#name")?.focus();
     return;
   }
   writeStore("gb.name", playerName);
   const capacityInput = document.querySelector<HTMLSelectElement>("#capacity");
   const secondsInput = document.querySelector<HTMLInputElement>("#seconds");
-  if (fn !== "join_room" && capacityInput && secondsInput) {
+  if ((fn === "find_match" || fn === "create_room") && capacityInput && secondsInput) {
     capacity = Number(capacityInput.value) || null;
     answerSeconds = Number(secondsInput.value);
     if (!Number.isInteger(answerSeconds) || answerSeconds < 5 || answerSeconds > 120) {
@@ -111,17 +117,22 @@ async function enter(fn: "find_match" | "create_room" | "join_room"): Promise<vo
     writeStore("gb.seconds", String(answerSeconds));
   }
   const args: Record<string, unknown> = { p_device: deviceId, p_name: playerName };
-  if (fn !== "join_room") {
+  if (fn === "find_match" || fn === "create_room") {
     args.p_capacity = capacity;
     args.p_seconds = answerSeconds;
+    if (fn === "create_room") args.p_private = roomPrivateDraft;
+  } else if (fn === "join_public_room") {
+    if (!publicRoomId) return;
+    args.p_match = publicRoomId;
   } else {
     roomCodeDraft = (document.querySelector<HTMLInputElement>("#code")?.value ?? "").trim();
     if (!/^\d{4}$/.test(roomCodeDraft)) {
-      error = "合言葉は4桁の数字です";
+      error = "部屋番号は4桁の数字です";
       render();
       return;
     }
     args.p_code = roomCodeDraft;
+    args.p_invite = roomInviteDraft || null;
   }
   busy = true;
   error = "";
@@ -226,9 +237,62 @@ async function openReview(): Promise<void> {
 
 function shareRoom(): void {
   if (!match?.code) return;
-  const link = `${location.origin}${BASE}?room=${match.code}&openExternalBrowser=1`;
+  const link = roomLink();
+  if (!link) return;
   const text = `ゲノム対戦の部屋を作りました！\n合言葉：${match.code}\n${link}`;
   window.open(`https://line.me/R/share?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+}
+
+function roomLink(): string | null {
+  if (!match?.code || (match.is_private && !match.invite_token)) return null;
+  const params = new URLSearchParams({room:match.code,openExternalBrowser:"1"});
+  if (match.is_private && match.invite_token) params.set("invite",match.invite_token);
+  return `${location.origin}${BASE}?${params}`;
+}
+
+async function copyRoomLink(): Promise<void> {
+  const link=roomLink(); if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    const button=document.querySelector<HTMLButtonElement>('[data-act="copy-room"]');
+    if (button) button.textContent="招待リンクをコピーしました";
+  } catch { error="コピーできませんでした。「LINEで誘う」から招待してください。";render(); }
+}
+
+async function toggleRoomPrivacy(): Promise<void> {
+  if (!match || busy) return;
+  busy=true;error="";render();
+  try { applyState(await call("set_room_private",{p_match:match.id,p_device:deviceId,p_private:!match.is_private})); }
+  catch(e) {error=errorText(e);}
+  finally {busy=false;render();}
+}
+
+interface PublicRoom {id:string;host_name:string;player_count:number;capacity:number;answer_seconds:number;}
+let publicRooms:PublicRoom[]=[];
+let roomsLoading=false;
+let roomsLoaded=false;
+let roomsError="";
+let lastRoomsFetch=0;
+function renderPublicRooms(): string {
+  return `<div class="public-rooms-heading"><div><p class="eyebrow">OPEN ROOMS</p><h2>公開ルーム</h2></div><button class="btn ghost" data-act="refresh-rooms" ${roomsLoading || busy ? "disabled" : ""}>${roomsLoading ? "更新中…" : "更新"}</button></div><p class="rooms-hint">同級生の部屋を選んで参加。名前を入力するだけで入れます。</p>
+    ${roomsError ? `<p class="error" role="alert">${esc(roomsError)}</p>` : ""}
+    ${!roomsLoaded && roomsLoading ? '<p class="rooms-empty" role="status">公開ルームを探しています…</p>' : publicRooms.length ? `<div class="room-list">${publicRooms.map(r=>`<button class="room-row" data-public-room="${esc(r.id)}" ${busy || r.player_count>=r.capacity ? "disabled" : ""}><span class="room-row-icon">${icon("room")}</span><span class="room-row-copy"><strong>${esc(r.host_name)}の対戦室</strong><span>${r.player_count} / ${r.capacity}人 · 1問${r.answer_seconds}秒</span></span><span class="room-row-join">${r.player_count>=r.capacity ? "満員" : "参加する"}${icon("arrow")}</span></button>`).join("")}</div>` : '<div class="rooms-empty"><span>'+icon("room")+'</span><p>いま待機中の公開ルームはありません。</p><small>公開ルームを作成して、同級生の参加を待とう。</small></div>'}`;
+}
+function updatePublicRooms():void {
+  if (view!=="setup" || selectedMode!=="room") return;
+  const region=document.querySelector<HTMLElement>("#public-rooms");
+  if (region) region.innerHTML=renderPublicRooms();
+}
+async function refreshPublicRooms():Promise<void> {
+  if (roomsLoading) return;
+  roomsLoading=true;lastRoomsFetch=Date.now();
+  if (!roomsLoaded) updatePublicRooms();
+  try {
+    const next=await call<PublicRoom[]>("list_public_rooms",{});
+    const changed=JSON.stringify(next)!==JSON.stringify(publicRooms) || !!roomsError || !roomsLoaded;
+    publicRooms=next;roomsError="";roomsLoaded=true;roomsLoading=false;
+    if (changed) updatePublicRooms();
+  } catch {roomsError="一覧を更新できませんでした。接続を確認して更新してください。";roomsLoading=false;updatePublicRooms();}
 }
 
 // 期限切れの進行・待機中の生存通知・配信が届かないときの取り直しを1本のループで行う。
@@ -236,6 +300,7 @@ setInterval(() => {
   updateClock();
   solo.updateClock();
   if (solo.active) void solo.tick();
+  if (view === "setup" && selectedMode === "room" && !busy && !solo.active && document.visibilityState === "visible" && Date.now()-lastRoomsFetch>5000) void refreshPublicRooms();
   if (!match || view !== "match" || match.status === "finished") return;
   const sinceTick = Date.now() - lastTickAt;
   const overdue = match.phase_ends_at !== null && serverNow() >= Date.parse(match.phase_ends_at) + tickJitter;
@@ -248,6 +313,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     if (match && view === "match") void tick();
     if (solo.active) void solo.tick();
+    if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
   }
 });
 
@@ -291,7 +357,7 @@ function renderHeader(lobby: boolean): string {
 function renderHome(): string {
   const p = progress();
   return `<section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
-  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 早押し" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "合言葉で参加"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
+  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 早押し" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   <section class="progress-panel"><div class="progress-intro"><span class="progress-icon">${icon("target")}</span><div><p class="eyebrow">YOUR PROGRESS</p><h2>小さな一歩が、確かな実力に。</h2><p>この端末での学習・AI対戦の記録</p></div></div><div class="progress-stats"><div><strong>${p.answered}<small>問</small></strong><span>学習した問題</span></div><div><strong>${p.answered ? Math.round(p.correct / p.answered * 100) : "—"}<small>${p.answered ? "%" : ""}</small></strong><span>正答率</span></div><div><strong>${p.aiWins}<small>勝</small></strong><span>AI対戦の勝利</span></div></div></section>
   <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。いちばん早く正解した人に1点、お手つきはその問題の解答終了。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
@@ -302,10 +368,11 @@ function renderSetup(): string {
   const ai = selectedMode === "ai";
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   return `<header class="setup-title mode-${selectedMode}"><span class="mode-icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1>${m.title}</h1><p class="lead">${m.description}</p></div></header><section class="panel setup-panel"><label class="field"><span>プレイヤー名${study ? "（任意）" : ""}</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
-    ${study ? `<div class="settings"><label class="field"><span>学習する分野</span><select id="study-field" aria-label="学習する分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===studyField ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label><label class="field"><span>問題数</span><select id="study-count" aria-label="問題数">${[5,10,20,100].map(n=>`<option value="${n}" ${n===studyCount ? "selected" : ""}>${n===100 ? "すべて" : n+"問"}</option>`).join("")}</select></label></div><p class="setup-hint">時間制限なし。解答後の解説を読んで、自分のペースで進められます。選んだ分野の問題数が少ない場合は、その分野の全問を出題します。</p>` : `<div class="settings">${ai ? `<label class="field"><span>AIの難易度</span><select id="difficulty" aria-label="AIの難易度">${(["easy","normal","hard"] as Difficulty[]).map(d=>`<option value="${d}" ${d===difficulty ? "selected" : ""}>${difficultyName[d]}</option>`).join("")}</select></label>` : `<label class="field"><span>${selectedMode==="room" ? "部屋の定員" : "対戦人数"}</span><select id="capacity" aria-label="${selectedMode === "room" ? "部屋の定員" : "対戦人数"}"><option value="">${selectedMode==="room" ? "8人まで" : "おまかせ（2〜8人）"}</option>${[2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===capacity ? "selected" : ""}>${n}人</option>`).join("")}</select></label>`}<label class="field"><span>1問の制限時間</span><input id="seconds" aria-label="1問の制限時間" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}"/><small>5〜120秒</small></label></div><p class="setup-hint">${ai ? "AIの回答速度と正答率が難易度で変化します。5問先取・最大15問の早押し対戦です。" : selectedMode==="room" ? "4桁の合言葉を発行します。招待した友だちが集まったら、ホストが対戦を開始できます。" : "同じ人数・制限時間の人どうしでマッチング。おまかせは2人以上そろうと10秒後、8人で即開始します。"}</p>`}
+    ${study ? `<div class="settings"><label class="field"><span>学習する分野</span><select id="study-field" aria-label="学習する分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===studyField ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label><label class="field"><span>問題数</span><select id="study-count" aria-label="問題数">${[5,10,20,100].map(n=>`<option value="${n}" ${n===studyCount ? "selected" : ""}>${n===100 ? "すべて" : n+"問"}</option>`).join("")}</select></label></div><p class="setup-hint">時間制限なし。解答後の解説を読んで、自分のペースで進められます。選んだ分野の問題数が少ない場合は、その分野の全問を出題します。</p>` : `<div class="settings">${ai ? `<label class="field"><span>AIの難易度</span><select id="difficulty" aria-label="AIの難易度">${(["easy","normal","hard"] as Difficulty[]).map(d=>`<option value="${d}" ${d===difficulty ? "selected" : ""}>${difficultyName[d]}</option>`).join("")}</select></label>` : `<label class="field"><span>${selectedMode==="room" ? "部屋の定員" : "対戦人数"}</span><select id="capacity" aria-label="${selectedMode === "room" ? "部屋の定員" : "対戦人数"}"><option value="">${selectedMode==="room" ? "8人まで" : "おまかせ（2〜8人）"}</option>${[2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===capacity ? "selected" : ""}>${n}人</option>`).join("")}</select></label>`}<label class="field"><span>1問の制限時間</span><input id="seconds" aria-label="1問の制限時間" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}"/><small>5〜120秒</small></label></div><p class="setup-hint">${ai ? "AIの回答速度と正答率が難易度で変化します。5問先取・最大15問の早押し対戦です。" : selectedMode==="room" ? "作成した部屋は標準で公開ルーム一覧に表示されます。鍵をかけると、招待リンクを持つ人だけが参加できます。" : "同じ人数・制限時間の人どうしでマッチング。おまかせは2人以上そろうと10秒後、8人で即開始します。"}</p>`}
+    ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
     <button class="btn primary" data-act="${study || ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>
-    ${selectedMode==="room" ? `<div class="divider"><span>合言葉を持っている方はこちら</span></div><label class="field"><span>合言葉（4桁）</span><div class="join"><input id="code" aria-label="合言葉（4桁）" inputmode="numeric" maxlength="4" placeholder="0000" value="${esc(roomCodeDraft)}"/><button class="btn" data-act="join" ${busy ? "disabled" : ""}>対戦室に参加</button></div></label>` : ""}
-    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"}</p>`;
+    ${selectedMode==="room" ? `<div class="divider"><span>部屋番号・招待リンクで参加</span></div><label class="field"><span>部屋番号（4桁）</span><div class="join"><input id="code" aria-label="部屋番号（4桁）" inputmode="numeric" maxlength="4" placeholder="0000" value="${esc(roomCodeDraft)}"/><button class="btn" data-act="join" ${busy ? "disabled" : ""}>対戦室に参加</button></div></label><label class="field"><span>招待キー（鍵付きルームのみ）</span><input id="invite-key" type="password" autocomplete="off" aria-label="招待キー" placeholder="招待リンクから開くと自動入力" value="${esc(roomInviteDraft)}"/></label>` : ""}
+    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"}</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
 }
 
 async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study", retryIds?: string[]): Promise<void> {
@@ -343,8 +410,9 @@ function renderPlayers(m: MatchState, withMarks: boolean): string {
 function renderWaiting(m: MatchState): string {
   const isHost = m.code !== null && (m.host_seat === mySeat || m.host_seat === null);
   const head = m.code
-    ? `<p class="eyebrow">合言葉</p><div class="code">${m.code}</div>
-       <button class="btn line" data-act="share">LINEで誘う</button>`
+    ? `<span class="room-status ${m.is_private ? "locked" : "open"}">${icon(m.is_private ? "lock" : "globe")}${m.is_private ? "鍵付きルーム · 招待のみ" : "公開ルーム · 誰でも参加"}</span><p class="eyebrow">部屋番号</p><div class="code">${m.code}</div>
+       ${!m.is_private || m.invite_token ? `<div class="room-invite-actions"><button class="btn line" data-act="share">LINEで誘う</button><button class="btn" data-act="copy-room">招待リンクをコピー</button></div>` : ""}
+       ${isHost ? `<button class="btn room-lock-btn" data-act="toggle-private" ${busy ? "disabled" : ""}>${icon(m.is_private ? "globe" : "lock")}${m.is_private ? "鍵を外して公開する" : "鍵をかけて招待制にする"}</button><p class="room-privacy-note">${m.is_private ? "公開一覧には表示されません。招待リンクで同級生を誘えます。" : "公開一覧に表示されています。鍵をかけると、これからの参加は招待リンクが必要になります。"}参加済みの人はそのまま遊べます。</p>` : ""}`
     : `<h2>対戦相手を探しています</h2>
        <p class="lead">${
          m.capacity !== null
@@ -361,7 +429,7 @@ function renderWaiting(m: MatchState): string {
     : "";
   return `
     <section class="panel center waiting-panel">
-      <p class="eyebrow">${m.code ? "PRIVATE ROOM" : "MATCHMAKING"}</p>
+      <p class="eyebrow">${m.code ? "BATTLE ROOM" : "MATCHMAKING"}</p>
       ${head}
       <p class="count-label">参加者 ${m.players.length} / ${m.capacity ?? 8}・1問${m.answer_seconds}秒</p>
       ${renderPlayers(m, false)}
@@ -470,10 +538,12 @@ app.addEventListener("input", (e) => {
   const input = e.target as HTMLInputElement;
   if (input.id === "name") playerName = input.value;
   if (input.id === "code") roomCodeDraft = input.value;
+  if (input.id === "invite-key") roomInviteDraft = input.value;
   if (input.id === "seconds") answerSeconds = Number(input.value);
 });
 app.addEventListener("change", (e) => {
-  const input = e.target as HTMLSelectElement;
+  const input = e.target as HTMLInputElement;
+  if (input.id === "room-private") roomPrivateDraft = input.checked;
   if (input.id === "capacity") capacity = Number(input.value) || null;
   if (input.id === "study-field") studyField = input.value;
   if (input.id === "study-count") studyCount = Number(input.value);
@@ -483,13 +553,18 @@ app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest<HTMLButtonElement>("button")?.disabled) return;
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;
-  if (mode && mode in modeInfo) {selectedMode=mode;view="setup";error="";render();window.scrollTo(0,0);return;}
+  if (mode && mode in modeInfo) {selectedMode=mode;view="setup";error="";render();window.scrollTo(0,0);if (mode === "room") void refreshPublicRooms();return;}
   const soloChoice = target.closest<HTMLElement>("[data-solo-choice]");
   if (soloChoice) return void solo.act("answer",Number(soloChoice.dataset.soloChoice));
   const choice = target.closest<HTMLElement>("[data-choice]");
   if (choice) return void answer(Number(choice.dataset.choice));
   const act = target.closest<HTMLElement>("[data-act]")?.dataset.act;
   if (busy) return;
+  const publicRoomId=target.closest<HTMLElement>("[data-public-room]")?.dataset.publicRoom;
+  if (publicRoomId) return void enter("join_public_room",publicRoomId);
+  if (act === "refresh-rooms") return void refreshPublicRooms();
+  if (act === "toggle-private") return void toggleRoomPrivacy();
+  if (act === "copy-room") return void copyRoomLink();
   if (act === "random") void enter("find_match");
   else if (act === "create") void enter("create_room");
   else if (act === "join") void enter("join_room");
@@ -510,7 +585,7 @@ app.addEventListener("keydown", (e) => {
     if (selectedMode === "study" || selectedMode === "ai") void startSolo();
     else void enter(selectedMode === "room" ? "create_room" : "find_match");
   }
-  if (e.key === "Enter" && id === "code") void enter("join_room");
+  if (e.key === "Enter" && (id === "code" || id === "invite-key")) void enter("join_room");
 });
 
 async function boot(): Promise<void> {
@@ -535,6 +610,7 @@ async function boot(): Promise<void> {
     }
   }
   render();
+  if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
 }
 
 void boot().catch(() => {

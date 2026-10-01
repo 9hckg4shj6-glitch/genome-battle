@@ -14,6 +14,8 @@ const paths: Record<string,string> = {
   swords:'<path d="m4 3 7 7-3 3-5-7V3h1Zm16 0-7 7 3 3 5-7V3h-1ZM3 16l5 5M5 18l6-6M16 16l3 3M16 21l5-5M18 18l-6-6"/>',
   book:'<path d="M12 5v16M3 4c4-1 7 0 9 2 2-2 5-3 9-2v15c-4-1-7 0-9 2-2-2-5-3-9-2V4Z"/>',
   bot:'<rect x="4" y="7" width="16" height="14" rx="4"/><path d="M12 3v4M9 16h6M1 12v5M23 12v5"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/>',
+  lock:'<rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
   room:'<path d="M3 21h18M5 21V5l10-2v18M15 7h4v14M11 12h.01"/>',
   arrow:'<path d="M4 12h16m-6-6 6 6-6 6"/>',
   back:'<path d="M20 12H4m6-6-6 6 6 6"/>',
