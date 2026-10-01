@@ -65,6 +65,7 @@ try {
   await rpc('join_room',{p_code:m.code,p_invite:m.invite_token,p_device:peer,p_name:'metrics-peer'});
   await rpc('join_room',{p_code:m.code,p_invite:m.invite_token,p_device:third,p_name:'metrics-third'});
   await sql('update public.matches set q_ids=$2::text[] where id=$1::uuid',[m.id,ids]);
+  await sql('update players set ready=true,last_seen=now() where match_id=$1::uuid',[m.id]);
   await rpc('start_room',{p_match:m.id,p_device:device});
   // 両問とも全員未解答で時間切れにし、実際の進行RPCで完了させる。
   for(let i=0;i<5;i++) {
@@ -86,5 +87,6 @@ try {
 } finally {
   if(createdMatches.length)await sql('delete from public.matches where id=any($1::uuid[])',[createdMatches]);
   if(createdSolo.length)await sql('delete from public.solo_sessions where id=any($1::uuid[])',[createdSolo]);
+  await sql('delete from study_attempts where device_id=$1::uuid',[device]);
   await sb.removeAllChannels();console.log('Cleaned only fixtures created by this check');
 }

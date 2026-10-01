@@ -23,6 +23,7 @@ async function bot(i) {
     return data;
   };
   let s = await rpc("find_match", { p_device: device, p_name: `bot${i}`, p_capacity: CAPACITY, p_seconds: SECONDS });
+  s = await rpc("set_ready", { p_match:s.id,p_device:device,p_ready:true });
   stats.match = s.id;
   const apply = (n) => n && n.version >= s.version && (s = { ...n, my_seat: n.my_seat ?? s.my_seat });
   const ch = sb.channel(`battle:${s.id}`).on("broadcast", { event: "state" }, (m) => {

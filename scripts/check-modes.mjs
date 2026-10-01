@@ -85,6 +85,7 @@ try {
   assert.equal(joined.players.length,2);assert.equal(joined.my_seat,1);
   await assert.rejects(()=>rpc('start_room',{p_match:room.id,p_device:guest}),/HOST_ONLY/);
   await assert.rejects(()=>rpc('join_room',{p_code:room.code,p_device:randomUUID(),p_name:'test-extra',p_invite:room.invite_token}),/ROOM_FULL/);
+  await sql('update players set ready=true,last_seen=now() where match_id=$1::uuid',[room.id]);
   room=await rpc('start_room',{p_match:room.id,p_device:device});assert.equal(room.phase,'countdown');
   await sql("update public.matches set phase_ends_at=now()-interval '1 second' where id=$1::uuid",[room.id]);
   room=await rpc('tick',{p_match:room.id,p_device:device});assert.equal(room.phase,'question');
@@ -131,6 +132,7 @@ try {
   assert.ok(admissions.some(r=>r.status==='rejected' && /ROOM_FULL/.test(r.reason.message)));
   item=await listed();assert.equal(item.player_count,3);
   await rpc('tick',{p_match:open.id,p_device:host});
+  await sql('update players set ready=true,last_seen=now() where match_id=$1::uuid',[open.id]);
   open=await rpc('start_room',{p_match:open.id,p_device:host});assert.equal(open.phase,'countdown');
   assert.equal(await listed(),undefined);
   await assert.rejects(()=>rpc('set_room_private',{p_match:open.id,p_device:host,p_private:true}),/ROOM_STARTED/);
@@ -147,6 +149,7 @@ try {
 } finally {
   if(createdMatches.length) await sql('delete from public.matches where id=any($1::uuid[])',[createdMatches]);
   if(created.length) await sql('delete from public.solo_sessions where id=any($1::uuid[])',[created]);
+  await sql('delete from study_attempts where device_id=$1::uuid',[device]);
   await sb.removeAllChannels();
   console.log(`Cleaned ${created.length} test sessions`);
 }

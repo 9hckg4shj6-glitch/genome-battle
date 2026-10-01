@@ -1,0 +1,14 @@
+/* 学習の出題方法と、参加者全員の準備確認。明暗の共通変数を使う。 */
+.study-start-actions {display:grid;grid-template-columns:1fr;gap:12px;margin-top:22px;}
+.study-start-actions .btn {width:100%;white-space:normal;line-height:1.6;min-height:52px;}
+.study-order-help,.defer-actions p,.ready-actions p,.rematch-actions p {font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;}
+.study-order-help {margin-top:16px;}.study-score {flex-wrap:wrap;gap:8px;}.study-score > span {font-size:12px;color:var(--muted);}
+.defer-actions {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:18px;}.defer-actions p {margin:0;flex:1;min-width:180px;}
+.defer-notice {border-left:3px solid var(--accent);padding:10px 14px;background:var(--surface-2);border-radius:6px;font-size:14px;}
+.ready-badge {display:inline-flex;align-items:center;flex-shrink:0;font-size:11px;font-style:normal;font-weight:500;line-height:1.6;padding:4px 8px;border:1px solid var(--line);border-radius:6px;color:var(--muted);background:var(--surface-2);}
+.ready-badge.is-ready {color:var(--accent-text);background:var(--accent);border-color:var(--accent);}
+.players li:has(.ready-badge) {flex-wrap:wrap;gap:8px;}.players li:has(.ready-badge) b {overflow-wrap:anywhere;}
+.ready-actions {margin:24px 0 18px;}.ready-actions .btn {min-height:48px;}.ready-actions p {margin:12px 0;}
+.rematch-roster {list-style:none;padding:0;display:grid;gap:8px;margin:24px auto;max-width:480px;}.rematch-roster li {display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);}.rematch-roster b {font-size:14px;overflow-wrap:anywhere;min-width:0;}
+.rematch-actions {margin:24px 0;padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);text-align:center;}.rematch-actions .btn {max-width:100%;white-space:normal;}.rematch-actions p {margin-bottom:0;}
+@media(max-width:440px){.defer-actions {display:block;}.defer-actions .btn {width:100%;}.defer-actions p {margin-top:10px;}.rematch-actions {padding:14px;}.study-score > span {width:100%;}}

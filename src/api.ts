@@ -12,6 +12,7 @@ export interface Player {
   name: string;
   score: number;
   mark: "o" | "x" | null;
+  ready?: boolean;
 }
 
 export interface MatchState {
@@ -19,6 +20,12 @@ export interface MatchState {
   code: string | null;
   is_private: boolean;
   room_field?: string | null;
+  rematch_of?: string | null;
+  can_rematch?: boolean;
+  rematch_requested?: boolean;
+  rematch_joined?: number;
+  rematch_total?: number;
+  rematch_roster?: {seat:number;name:string;joined:boolean;ready:boolean}[];
   invite_token?: string | null;
   status: "waiting" | "playing" | "finished";
   phase: "countdown" | "question" | "reveal" | null;
@@ -44,6 +51,7 @@ export interface ReviewItem {
   explanation: string;
   my_choice: number | null;
   choice_order?: number[];
+  choice_index?: number;
 }
 
 // サーバ時刻 − 端末時刻。カウントダウン表示にだけ使う（勝敗は常にサーバが決める）。
