@@ -15,7 +15,7 @@ export function setTheme(theme: Theme, persist = true): void {
 
 export function renderThemeSwitch(): string {
   const theme = currentTheme();
-  return `<div class="theme-switch" role="group" aria-label="画面の明るさ"><button type="button" data-theme-choice="light" aria-label="明るいデザイン" aria-pressed="${theme === 'light'}" title="明るいデザイン">${icon('sun')}<span>明</span></button><button type="button" data-theme-choice="dark" aria-label="暗いデザイン" aria-pressed="${theme === 'dark'}" title="暗いデザイン">${icon('moon')}<span>暗</span></button></div>`;
+  return `<div class="theme-switch" role="group" aria-label="画面の明るさ"><button type="button" data-theme-choice="light" aria-label="ライトモード" aria-pressed="${theme === 'light'}" title="ライトモード（明るい画面）">${icon('sun')}<span>ライト</span></button><button type="button" data-theme-choice="dark" aria-label="ダークモード" aria-pressed="${theme === 'dark'}" title="ダークモード（暗い画面）">${icon('moon')}<span>ダーク</span></button></div>`;
 }
 
 setTheme(readStore('gb.theme') === 'light' ? 'light' : 'dark', false);
