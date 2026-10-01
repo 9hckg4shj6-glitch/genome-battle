@@ -12,11 +12,12 @@ interface Question {
 }
 
 const BASE = import.meta.env.BASE_URL;
-const PHASE_SECONDS = { countdown: 3, question: 20, reveal: 7, waiting: 10 } as const;
+const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
 const ERRORS: Record<string, string> = {
   NAME_REQUIRED: "名前を入力してください",
   ROOM_NOT_FOUND: "その合言葉の部屋は見つかりません（開始済みか、締め切られています）",
-  ROOM_FULL: "その部屋は満員です（8人まで）",
+  ROOM_FULL: "その部屋は満員です",
+  BAD_SETTINGS: "制限時間は5〜120秒、人数は2〜8人で指定してください",
   HOST_ONLY: "開始できるのは部屋を作った人だけです",
   NOT_IN_MATCH: "この対戦には参加していません",
 };
@@ -43,6 +44,9 @@ const deviceId = readStore("gb.device") ?? crypto.randomUUID();
 writeStore("gb.device", deviceId);
 
 let playerName = readStore("gb.name") ?? "";
+// null は「おまかせ」（2人以上そろって10秒後、8人で即開始）
+let capacity: number | null = Number(readStore("gb.capacity")) || null;
+let answerSeconds = Number(readStore("gb.seconds")) || 20;
 let roomCodeDraft = new URLSearchParams(location.search).get("room") ?? "";
 let questions = new Map<string, Question>();
 let match: MatchState | null = null;
@@ -104,8 +108,24 @@ async function enter(fn: "find_match" | "create_room" | "join_room"): Promise<vo
     return;
   }
   writeStore("gb.name", playerName);
+  const capacityInput = document.querySelector<HTMLSelectElement>("#capacity");
+  const secondsInput = document.querySelector<HTMLInputElement>("#seconds");
+  if (capacityInput && secondsInput) {
+    capacity = Number(capacityInput.value) || null;
+    answerSeconds = Number(secondsInput.value);
+    if (!Number.isInteger(answerSeconds) || answerSeconds < 5 || answerSeconds > 120) {
+      error = ERRORS.BAD_SETTINGS;
+      render();
+      return;
+    }
+    writeStore("gb.capacity", capacity === null ? null : String(capacity));
+    writeStore("gb.seconds", String(answerSeconds));
+  }
   const args: Record<string, unknown> = { p_device: deviceId, p_name: playerName };
-  if (fn === "join_room") {
+  if (fn !== "join_room") {
+    args.p_capacity = capacity;
+    args.p_seconds = answerSeconds;
+  } else {
     roomCodeDraft = (document.querySelector<HTMLInputElement>("#code")?.value ?? "").trim();
     if (!/^\d{4}$/.test(roomCodeDraft)) {
       error = "合言葉は4桁の数字です";
@@ -227,7 +247,7 @@ const nameOf = (seat: number | null): string => match?.players.find((p) => p.sea
 function updateClock(): void {
   if (!match?.phase_ends_at) return;
   const left = Math.max(0, (Date.parse(match.phase_ends_at) - serverNow()) / 1000);
-  const total = PHASE_SECONDS[match.phase ?? "waiting"];
+  const total = match.phase === "question" ? match.answer_seconds : PHASE_SECONDS[match.phase ?? "waiting"];
   document.querySelectorAll<HTMLElement>("[data-count]").forEach((el) => (el.textContent = String(Math.ceil(left))));
   document.querySelectorAll<HTMLElement>("[data-bar]").forEach((el) => {
     el.style.width = `${Math.min(100, (left / total) * 100)}%`;
@@ -256,6 +276,19 @@ function renderHome(): string {
         <span>表示名（12文字まで）</span>
         <input id="name" maxlength="12" autocomplete="nickname" placeholder="例：ゲノム太郎" value="${esc(playerName)}" />
       </label>
+      <div class="settings">
+        <label class="field">
+          <span>人数</span>
+          <select id="capacity">
+            <option value="">おまかせ（2〜8人）</option>
+            ${[2, 3, 4, 5, 6, 7, 8].map((n) => `<option value="${n}" ${n === capacity ? "selected" : ""}>${n}人</option>`).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>1問の制限時間（秒）</span>
+          <input id="seconds" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}" />
+        </label>
+      </div>
       <button class="btn primary" data-act="random" ${busy ? "disabled" : ""}>ランダム対戦</button>
       <div class="divider"><span>友だちと遊ぶ</span></div>
       <button class="btn" data-act="create" ${busy ? "disabled" : ""}>部屋を作る（合言葉を発行）</button>
@@ -270,7 +303,8 @@ function renderHome(): string {
       <ul>
         <li>問題と5つの選択肢が同時に出ます。<strong>いちばん早く正解した人だけ</strong>に1点。</li>
         <li>まちがえるとその問題はもう答えられません（お手つき）。</li>
-        <li>制限時間は1問20秒。${5}問先取か、15問終了時点の得点で順位が決まります。</li>
+        <li>人数と1問の制限時間（5〜120秒）は自分で決められます。ランダム対戦は同じ設定の人どうしで組みます。部屋を作るときは、その設定が部屋の定員と制限時間になります。</li>
+        <li>${5}問先取か、15問終了時点の得点で順位が決まります。</li>
         <li>毎問の決着後に正解と解説が出ます。試合後は全問を振り返れます。</li>
       </ul>
     </section>`;
@@ -293,7 +327,13 @@ function renderWaiting(m: MatchState): string {
     ? `<p class="eyebrow">合言葉</p><div class="code">${m.code}</div>
        <button class="btn line" data-act="share">LINEで誘う</button>`
     : `<h2>対戦相手を探しています</h2>
-       <p class="lead">${m.phase_ends_at ? `あと<span data-count></span>秒で開始` : "もう1人そろうと10秒後に開始します"}</p>
+       <p class="lead">${
+         m.capacity !== null
+           ? `あと${m.capacity - m.players.length}人そろうと開始します`
+           : m.phase_ends_at
+             ? `あと<span data-count></span>秒で開始`
+             : "もう1人そろうと10秒後に開始します"
+       }</p>
        ${m.phase_ends_at ? `<div class="timer"><i data-bar></i></div>` : `<div class="spinner"></div>`}`;
   const action = m.code
     ? isHost
@@ -303,7 +343,7 @@ function renderWaiting(m: MatchState): string {
   return `
     <section class="panel center">
       ${head}
-      <p class="count-label">参加者 ${m.players.length} / 8</p>
+      <p class="count-label">参加者 ${m.players.length} / ${m.capacity ?? 8}・1問${m.answer_seconds}秒</p>
       ${renderPlayers(m, false)}
       ${action}
       ${error ? `<p class="error">${esc(error)}</p>` : ""}

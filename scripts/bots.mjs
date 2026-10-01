@@ -1,5 +1,5 @@
 // 負荷・競合テスト用のボット。本番と同じRPC・Realtimeを使って同時にランダム対戦へ入る。
-//   node scripts/bots.mjs [人数=16]
+//   node scripts/bots.mjs [人数=16] [1部屋の人数=おまかせ] [1問の秒数=20]
 // .env.local の VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY を使う。
 // 確認すること: 全試合が finished になる／1問に正解者（○）が2人以上いない／配信が届いている。
 import { readFileSync } from "node:fs";
@@ -9,6 +9,8 @@ const env = Object.fromEntries(
   readFileSync(".env.local", "utf8").split("\n").filter((l) => l.includes("=")).map((l) => l.split(/=(.*)/s).slice(0, 2)),
 );
 const N = Number(process.argv[2] ?? 16);
+const CAPACITY = process.argv[3] ? Number(process.argv[3]) : null;
+const SECONDS = Number(process.argv[4] ?? 20);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function bot(i) {
@@ -20,7 +22,7 @@ async function bot(i) {
     if (error) throw new Error(`${fn}: ${error.message}`);
     return data;
   };
-  let s = await rpc("find_match", { p_device: device, p_name: `bot${i}` });
+  let s = await rpc("find_match", { p_device: device, p_name: `bot${i}`, p_capacity: CAPACITY, p_seconds: SECONDS });
   stats.match = s.id;
   const apply = (n) => n && n.version >= s.version && (s = { ...n, my_seat: n.my_seat ?? s.my_seat });
   const ch = sb.channel(`battle:${s.id}`).on("broadcast", { event: "state" }, (m) => {
@@ -42,6 +44,7 @@ async function bot(i) {
     }
   }
   stats.final = s.status;
+  stats.size = s.players.length;
   stats.score = s.players.find((p) => p.seat === s.my_seat)?.score;
   await sb.removeChannel(ch);
   return stats;
@@ -53,6 +56,7 @@ const matches = new Set(results.map((r) => r.match));
 console.log(JSON.stringify({
   bots: N,
   matches: matches.size,
+  sizes: [...matches].map((m) => results.find((r) => r.match === m).size),
   allFinished: results.every((r) => r.final === "finished"),
   doubleWinners: results.reduce((a, r) => a + r.doubleWinners, 0),
   broadcastsPerBot: Math.round(results.reduce((a, r) => a + r.broadcasts, 0) / N),

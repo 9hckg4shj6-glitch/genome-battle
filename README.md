@@ -8,7 +8,7 @@
 ## 構成
 
 - 静的サイト（Vite + TypeScript）を GitHub Pages で配信。`npm run deploy` でビルドして `gh-pages` ブランチへ push（.env.local の Supabase 設定が埋め込まれる）
-- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/001_battle.sql` の RPC。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
+- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/` の RPC（001 本体・002 人数と制限時間の設定）。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
 - 公開している `public/questions.json` には正解・解説を入れていない。正解と簡略版の解説はDBにあり、決着した問題だけ返す
 
 ## 問題の更新
@@ -29,6 +29,7 @@ node scripts/import-questions.mjs   # questions.json・図・supabase/seed.gener
 # .env.local に VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 npm run dev
 node scripts/bots.mjs 16   # ボット16人で同時にランダム対戦（競合・配信・完走の確認）
+node scripts/bots.mjs 9 3 6   # 3人部屋・1問6秒の設定で9体（3部屋に分かれることの確認）
 ```
 
 ## 無料枠の目安（Supabase Free）

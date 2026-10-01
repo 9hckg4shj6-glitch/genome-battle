@@ -24,6 +24,8 @@ export interface MatchState {
   server_now: string;
   winner_seat: number | null;
   win_score: number;
+  capacity: number | null;
+  answer_seconds: number;
   version: number;
   host_seat: number | null;
   players: Player[];
