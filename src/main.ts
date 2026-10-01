@@ -1,6 +1,8 @@
 import "./style.css";
 import "./learning.css";
 import "./social.css";
+import "./readability.css";
+import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
 import { FriendsController, friendsIcon } from "./friends";
@@ -9,7 +11,7 @@ import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
-import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, type Question } from "./ui";
+import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 
 const BASE = import.meta.env.BASE_URL;
@@ -20,6 +22,7 @@ const ERRORS: Record<string, string> = {
   INVITE_REQUIRED: "鍵付きルームです。作成者の招待リンクから参加してください",
   ROOM_STARTED: "対戦開始後は公開設定を変更できません",
   ROOM_FULL: "その部屋は満員です",
+  BAD_ROOM_FIELD: "この分野の問題はありません。分野を選び直してください",
   BAD_SETTINGS: "制限時間は5〜120秒、人数は2〜8人で指定してください",
   NEED_PLAYERS: "対戦を始めるには2人以上の参加が必要です",
   ROOM_ONLY: "この操作は作成した対戦室でのみ使えます",
@@ -39,6 +42,7 @@ let playerName = readStore("gb.name") ?? "";
 let capacity: number | null = Number(readStore("gb.capacity")) || null;
 let answerSeconds = Number(readStore("gb.seconds")) || 20;
 let roomPrivateDraft = false;
+let roomFieldDraft = readStore("gb.room-field") ?? "";
 let roomInviteDraft = new URLSearchParams(location.search).get("invite") ?? "";
 let roomCodeDraft = new URLSearchParams(location.search).get("room") ?? "";
 const questions = new Map<string, Question>();
@@ -66,6 +70,7 @@ let ticking = false;
 let lastTickAt = 0;
 let tickJitter = 0;
 
+const imageViewer = new ImageViewer();
 const solo = new SoloController(deviceId, questions, render, () => playerName, () => {void refreshPerformance();});
 const friends=new FriendsController(deviceId,()=>playerName,(name)=>{playerName=name;writeStore("gb.name",name);render();},()=>match?{...match,my_seat:mySeat}:null,(s)=>{
   if(match?.status==="waiting" && match.id!==s.id)void call("leave_match",{p_match:match.id,p_device:deviceId}).catch(()=>{});
@@ -151,7 +156,7 @@ async function enter(fn: "find_match" | "create_room" | "join_room" | "join_publ
   if (fn === "find_match" || fn === "create_room") {
     args.p_capacity = capacity;
     args.p_seconds = answerSeconds;
-    if (fn === "create_room") args.p_private = roomPrivateDraft;
+    if (fn === "create_room") {args.p_private = roomPrivateDraft;args.p_field=roomFieldDraft||null;writeStore("gb.room-field",roomFieldDraft||null);}
   } else if (fn === "join_public_room") {
     if (!publicRoomId) return;
     args.p_match = publicRoomId;
@@ -330,7 +335,7 @@ async function toggleRoomPrivacy(): Promise<void> {
   finally {busy=false;render();}
 }
 
-interface PublicRoom {id:string;host_name:string;player_count:number;capacity:number;answer_seconds:number;}
+interface PublicRoom {id:string;host_name:string;player_count:number;capacity:number;answer_seconds:number;field?:string|null;q_total?:number;}
 let publicRooms:PublicRoom[]=[];
 let roomsLoading=false;
 let roomsLoaded=false;
@@ -339,7 +344,7 @@ let lastRoomsFetch=0;
 function renderPublicRooms(): string {
   return `<div class="public-rooms-heading"><div><p class="eyebrow">OPEN ROOMS</p><h2>公開ルーム</h2></div><button class="btn ghost" data-act="refresh-rooms" ${roomsLoading || busy ? "disabled" : ""}>${roomsLoading ? "更新中…" : "更新"}</button></div><p class="rooms-hint">同級生の部屋を選んで参加。名前を入力するだけで入れます。</p>
     ${roomsError ? `<p class="error" role="alert">${esc(roomsError)}</p>` : ""}
-    ${!roomsLoaded && roomsLoading ? '<p class="rooms-empty" role="status">公開ルームを探しています…</p>' : publicRooms.length ? `<div class="room-list">${publicRooms.map(r=>`<button class="room-row" data-public-room="${esc(r.id)}" ${busy || r.player_count>=r.capacity ? "disabled" : ""}><span class="room-row-icon">${icon("room")}</span><span class="room-row-copy"><strong>${esc(r.host_name)}の対戦室</strong><span>${r.player_count} / ${r.capacity}人 · 1問${r.answer_seconds}秒</span></span><span class="room-row-join">${r.player_count>=r.capacity ? "満員" : "参加する"}${icon("arrow")}</span></button>`).join("")}</div>` : '<div class="rooms-empty"><span>'+icon("room")+'</span><p>いま待機中の公開ルームはありません。</p><small>公開ルームを作成して、同級生の参加を待とう。</small></div>'}`;
+    ${!roomsLoaded && roomsLoading ? '<p class="rooms-empty" role="status">公開ルームを探しています…</p>' : publicRooms.length ? `<div class="room-list">${publicRooms.map(r=>`<button class="room-row" data-public-room="${esc(r.id)}" ${busy || r.player_count>=r.capacity ? "disabled" : ""}><span class="room-row-icon">${icon("room")}</span><span class="room-row-copy"><strong>${esc(r.host_name)}の対戦室</strong><span>${r.player_count} / ${r.capacity}人 · 1問${r.answer_seconds}秒<br>${esc(r.field||"すべての分野")}${r.q_total?` · 最大${r.q_total}問`:""}</span></span><span class="room-row-join">${r.player_count>=r.capacity ? "満員" : "参加する"}${icon("arrow")}</span></button>`).join("")}</div>` : '<div class="rooms-empty"><span>'+icon("room")+'</span><p>いま待機中の公開ルームはありません。</p><small>公開ルームを作成して、同級生の参加を待とう。</small></div>'}`;
 }
 function updatePublicRooms():void {
   if (view!=="setup" || selectedMode!=="room") return;
@@ -414,7 +419,7 @@ function render(): void {
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
   else body = renderResult(match);
-  app.innerHTML = `${renderHeader(lobby)}<div id="connection-status" class="connection-strip">${renderConnection()}</div><div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
+  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div id="connection-status" class="connection-strip">${renderConnection()}</div></div><div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
   updateClock();
   solo.updateClock();friends.update();
 }
@@ -436,8 +441,10 @@ function renderSetup(): string {
   const study = selectedMode === "study";
   const ai = selectedMode === "ai";
   const fields = [...new Set([...questions.values()].map(q => q.field))];
+  const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
   const fieldTotal = [...questions.values()].filter(q => !studyField || q.field === studyField).length;
   return `<header class="setup-title mode-${selectedMode}"><span class="mode-icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1>${m.title}</h1><p class="lead">${m.description}</p></div></header><section class="panel setup-panel"><label class="field"><span>プレイヤー名${study ? "（任意）" : ""}</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
+    ${selectedMode==="room"?`<label class="field"><span>対戦室の分野</span><select id="room-field" aria-label="対戦室の分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===roomFieldDraft?"selected":""}>${esc(f)}（${[...questions.values()].filter(q=>q.field===f).length}問）</option>`).join("")}</select></label><p class="room-field-summary">${esc(roomFieldDraft||"すべての分野")}から最大${Math.min(15,roomTotal)}問を出題。5問先取、問題が終わった場合は得点で決着します。</p>`:""}
     ${study ? `<div class="settings"><label class="field"><span>学習する分野</span><select id="study-field" aria-label="学習する分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===studyField ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label><div class="field count-field"><span>問題数（1〜${fieldTotal}問）</span><div class="count-row"><input id="study-count" type="range" aria-label="問題数" min="1" max="${fieldTotal}" step="1" value="${Math.min(studyCount,fieldTotal)}"/><input id="study-count-value" type="number" inputmode="numeric" aria-label="問題数（数字で入力）" min="1" max="${fieldTotal}" step="1" value="${Math.min(studyCount,fieldTotal)}"/><span>問</span></div></div></div><p class="setup-hint">時間制限なし。解答後の解説を読んで、自分のペースで進められます。</p>` : `<div class="settings">${ai ? `<label class="field"><span>AIの難易度</span><select id="difficulty" aria-label="AIの難易度">${(["easy","normal","hard"] as Difficulty[]).map(d=>`<option value="${d}" ${d===difficulty ? "selected" : ""}>${difficultyName[d]}</option>`).join("")}</select></label>` : `<label class="field"><span>${selectedMode==="room" ? "部屋の定員" : "対戦人数"}</span><select id="capacity" aria-label="${selectedMode === "room" ? "部屋の定員" : "対戦人数"}"><option value="">${selectedMode==="room" ? "8人まで" : "おまかせ（2〜8人）"}</option>${[2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===capacity ? "selected" : ""}>${n}人</option>`).join("")}</select></label>`}<label class="field"><span>1問の制限時間</span><input id="seconds" aria-label="1問の制限時間" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}"/><small>5〜120秒</small></label></div><p class="setup-hint">${ai ? "AIの回答速度と正答率が難易度で変化します。5問先取・最大15問の早押し対戦です。" : selectedMode==="room" ? "作成した部屋は標準で公開ルーム一覧に表示されます。鍵をかけると、招待リンクを持つ人だけが参加できます。" : "同じ人数・制限時間の人どうしでマッチング。おまかせは2人以上そろうと10秒後、8人で即開始します。"}</p>`}
     ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
     <button class="btn primary" data-act="${study || ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>
@@ -503,6 +510,7 @@ function renderWaiting(m: MatchState): string {
     <section class="panel center waiting-panel">
       <p class="eyebrow">${m.code ? "BATTLE ROOM" : "MATCHMAKING"}</p>
       ${head}
+      ${m.code?`<p class="room-field-summary">出題分野：${esc(m.room_field||"すべての分野")} · 最大${m.q_total}問</p>`:""}
       <p class="count-label">参加者 ${m.players.length} / ${m.capacity ?? 8}・1問${m.answer_seconds}秒</p>
       ${renderPlayers(m, false)}
       ${action}
@@ -555,7 +563,7 @@ function renderPlay(m: MatchState): string {
   return `${top}
     <section class="question">
       <p>${esc(q.question)}</p>
-      ${q.image ? `<img src="${BASE}${q.image}" alt="${esc(q.imageAlt ?? "")}" />` : ""}
+      ${questionImage(q)}
     </section>
     <ol class="choices">${choices}</ol>
     ${footer}
@@ -641,6 +649,7 @@ app.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
   if (input.id === "room-private") roomPrivateDraft = input.checked;
   if (input.id === "capacity") capacity = Number(input.value) || null;
+  if (input.id === "room-field") {roomFieldDraft=input.value;render();}
   if (input.id === "study-field") {studyField = input.value; render();}
   // 範囲外・空欄のまま離れたら、直前の有効な値に戻す。
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
@@ -649,6 +658,10 @@ app.addEventListener("change", (e) => {
 app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest<HTMLButtonElement>("button")?.disabled) return;
+  const sizeChoice=target.closest<HTMLElement>("[data-read-size]")?.dataset.readSize;
+  if(sizeChoice==="standard"||sizeChoice==="large"||sizeChoice==="xlarge"){setReadSize(sizeChoice);return;}
+  const imageId=target.closest<HTMLElement>("[data-image-id]")?.dataset.imageId;
+  if(imageId){const q=questions.get(imageId);if(q)imageViewer.open(q,solo.active?solo.state?.mode==="ai"&&solo.state.phase!=="finished":match?.status==="playing");return;}
   const themeChoice = target.closest<HTMLElement>("[data-theme-choice]")?.dataset.themeChoice;
   if (themeChoice === "light" || themeChoice === "dark") {setTheme(themeChoice); return;}
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;

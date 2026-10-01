@@ -27,12 +27,12 @@ writeFileSync("public/questions.json", JSON.stringify(publicQuestions));
 const sqlText = (s) => `'${s.replaceAll("'", "''")}'`;
 const rows = all.map((q) => {
   const explanation = q.explanation.split("【試験のツボ】")[0].trim();
-  return `  (${sqlText(q.id)}, ${q.answer}, ${sqlText(explanation)})`;
+  return `  (${sqlText(q.id)}, ${q.answer}, ${sqlText(explanation)}, ${sqlText(q.field)})`;
 });
 writeFileSync(
   "supabase/seed.generated.sql",
   `-- scripts/import-questions.mjs が生成。手で直さない。\n` +
-    `insert into public.questions (id, answer, explanation) values\n${rows.join(",\n")}\n` +
-    `on conflict (id) do update set answer = excluded.answer, explanation = excluded.explanation;\n`,
+    `insert into public.questions (id, answer, explanation, field) values\n${rows.join(",\n")}\n` +
+    `on conflict (id) do update set answer = excluded.answer, explanation = excluded.explanation, field = excluded.field;\n`,
 );
 console.log(`questions: ${publicQuestions.length}, images: ${new Set(publicQuestions.map((q) => q.image).filter(Boolean)).size}`);

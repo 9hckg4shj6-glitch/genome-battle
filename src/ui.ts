@@ -28,6 +28,7 @@ const paths: Record<string,string> = {
   check:'<path d="m5 12 4 4L19 6"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
   bookmark:'<path d="M6 3h12v18l-6-4-6 4V3Z"/>',
+  zoom:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6M10 7v6M7 10h6"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
 };
 export const icon = (name: string): string => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.dna}</svg>`;
@@ -39,6 +40,9 @@ export function helix(): string {
     if (i%2===0) rungs.push(`<line x1="${a}" y1="${y}" x2="${b}" y2="${y}" opacity="${0.2+Math.abs(Math.cos(i*0.23))*0.4}"/><circle cx="${a}" cy="${y}" r="3"/><circle cx="${b}" cy="${y}" r="3"/>`);
   }
   return `<svg class="helix" viewBox="0 0 250 350" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1">${rungs.join('')}</g><polyline points="${left.join(' ')}" stroke="currentColor" stroke-width="2.5"/><polyline points="${right.join(' ')}" stroke="currentColor" stroke-width="2.5"/></svg>`;
+}
+export function questionImage(q:Question,lazy=false):string {
+  return q.image?`<figure class="question-figure"><button class="image-open" data-image-id="${esc(q.id)}" aria-label="図を拡大：${esc(q.imageAlt??'問題の図')}"><img src="${import.meta.env.BASE_URL}${esc(q.image)}" alt="${esc(q.imageAlt??'問題の図')}" ${lazy?'loading="lazy"':''}/><span>${icon('zoom')}図を拡大</span></button></figure>`:'';
 }
 export interface Progress { sessions: string[]; answered: number; correct: number; aiWins: number; }
 export function progress(): Progress {
@@ -87,5 +91,5 @@ export function uncertainButton(r:ReviewItem):string {
   return `<button class="btn ghost uncertain-btn ${on?'on':''}" data-uncertain="${esc(r.id)}" aria-pressed="${on}">${icon('target')}${on?'迷った問題に記録済み':'正解したけど迷った'}</button>`;
 }
 export function reviewCard(q: Question, r: ReviewItem, label: string, saved: boolean, extra = '', order=r.choice_order): string {
-  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${q.image?`<img src="${import.meta.env.BASE_URL}${q.image}" alt="${esc(q.imageAlt??'問題の図')}" loading="lazy"/>`:''}<ol class="review-choices">${validChoiceOrder(order,q.choices.length).map((n,pos)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${pos+1}</span>${esc(q.choices[n])}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${uncertainButton(r)}${extra}</div></article>`;
+  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${questionImage(q,true)}<ol class="review-choices">${validChoiceOrder(order,q.choices.length).map((n,pos)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${pos+1}</span>${esc(q.choices[n])}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${uncertainButton(r)}${extra}</div></article>`;
 }

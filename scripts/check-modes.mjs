@@ -103,7 +103,7 @@ try {
   const listed=async()=> (await rpc('list_public_rooms',{})).find(r=>r.id===open.id);
   assert.equal(open.is_private,false);assert.equal(open.invite_token,null);
   let item=await listed();assert.equal(item.host_name,'public-host');assert.equal(item.player_count,1);
-  assert.deepEqual(Object.keys(item).sort(),['answer_seconds','capacity','host_name','id','player_count']);
+  assert.deepEqual(Object.keys(item).sort(),['answer_seconds','capacity','field','host_name','id','player_count','q_total']);
   let peerState=await rpc('join_public_room',{p_match:open.id,p_device:peer,p_name:'public-peer'});
   assert.equal(peerState.my_seat,1);assert.equal(peerState.players.length,2);
   await assert.rejects(()=>rpc('set_room_private',{p_match:open.id,p_device:peer,p_private:true}),/HOST_ONLY/);

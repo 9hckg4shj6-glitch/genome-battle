@@ -18,6 +18,7 @@ export interface MatchState {
   id: string;
   code: string | null;
   is_private: boolean;
+  room_field?: string | null;
   invite_token?: string | null;
   status: "waiting" | "playing" | "finished";
   phase: "countdown" | "question" | "reveal" | null;

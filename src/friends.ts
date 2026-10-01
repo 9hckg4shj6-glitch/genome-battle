@@ -1,7 +1,7 @@
 import {call,type MatchState} from './api';
 import {esc,icon} from './ui';
 interface Friend {id:string;code:string;name:string;online?:boolean;}
-interface Invite {id:string;name:string;is_private:boolean;player_count:number;capacity:number;}
+interface Invite {id:string;name:string;is_private:boolean;field?:string|null;q_total?:number;player_count:number;capacity:number;}
 export interface FriendState {profile:{code:string;name:string};friends:Friend[];incoming:Friend[];outgoing:Friend[];invites:Invite[];}
 const messages:Record<string,string>={FRIEND_NOT_FOUND:'そのフレンドコードは見つかりません。',FRIEND_SELF:'自分のコードは追加できません。',FRIEND_LIMIT:'フレンド・申請は100人までです。',FRIEND_ACTION_DENIED:'この申請は承認できません。更新してください。',FRIEND_NOT_ACCEPTED:'承認済みのフレンドを選んでください。',FRIEND_ALREADY_IN_ROOM:'そのフレンドは参加済みです。',FRIEND_INVITE_EXPIRED:'招待の期限が切れたか、部屋が開始・終了しました。',ROOM_FULL:'部屋が満員です。',ROOM_NOT_FOUND:'部屋が開始・終了しました。',HOST_ONLY:'部屋の作成者だけが招待できます。'};
 export class FriendsController {
@@ -40,7 +40,7 @@ export class FriendsController {
     const button=(action:string,id:string,label:string)=>`<button class="btn ${action==='accept' || action==='join'?'primary':'ghost'}" data-friend-action="${action}" data-id="${esc(id)}" ${this.mutating?'disabled':''}>${label}</button>`;
     const row=(f:Friend,actions:string)=>`<li><div><strong>${esc(f.name)}</strong><small>${esc(f.code)}${f.online!==undefined?` · ${f.online?'オンライン':'オフライン'}`:''}</small></div><div class="friend-row-actions">${actions}</div></li>`;
     const room=this.room();const canInvite=room?.status==='waiting' && room.code && room.my_seat===room.host_seat;
-    lists.innerHTML=`${s.invites.length?`<section><h2>対戦室への招待 ${s.invites.length}件</h2><ul class="friend-list">${s.invites.map(i=>`<li><div><strong>${esc(i.name)}からの招待</strong><small>${i.is_private?'鍵付き':'公開'}ルーム · ${i.player_count}/${i.capacity}人</small></div><div class="friend-row-actions">${button('join',i.id,'参加する')}${button('dismiss',i.id,'辞退')}</div></li>`).join('')}</ul></section>`:''}
+    lists.innerHTML=`${s.invites.length?`<section><h2>対戦室への招待 ${s.invites.length}件</h2><ul class="friend-list">${s.invites.map(i=>`<li><div><strong>${esc(i.name)}からの招待</strong><small>${i.is_private?'鍵付き':'公開'}ルーム · ${esc(i.field||'すべての分野')}${i.q_total?` · 最大${i.q_total}問`:''} · ${i.player_count}/${i.capacity}人</small></div><div class="friend-row-actions">${button('join',i.id,'参加する')}${button('dismiss',i.id,'辞退')}</div></li>`).join('')}</ul></section>`:''}
       <section><h2>届いた申請 ${s.incoming.length}件</h2>${s.incoming.length?`<ul class="friend-list">${s.incoming.map(f=>row(f,button('accept',f.id,'承認')+button('remove',f.id,'拒否'))).join('')}</ul>`:'<p class="friend-empty">届いた申請はありません。</p>'}</section>
       <section><h2>フレンド ${s.friends.length}人</h2><p class="friend-help">${canInvite?'この部屋へフレンドを招待できます。':'対戦室を作成し、待機中にフレンドを招待できます。'}</p>${s.friends.length?`<ul class="friend-list">${s.friends.map(f=>row(f,(canInvite?button('invite',f.code,'この部屋に招待'):'')+button('remove',f.id,'解除'))).join('')}</ul>`:'<p class="friend-empty">コードを交換して、フレンドを追加しましょう。</p>'}</section>
       ${s.outgoing.length?`<section><h2>承認待ち ${s.outgoing.length}件</h2><ul class="friend-list">${s.outgoing.map(f=>row(f,button('remove',f.id,'申請を取り消す'))).join('')}</ul></section>`:''}`;

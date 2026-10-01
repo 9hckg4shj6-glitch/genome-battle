@@ -42,10 +42,18 @@
 
 `src/choices.ts`が順序と元の解答番号の対応、`src/connection.ts`が通信表示、`src/friends.ts`がフレンド画面を担当します。`007_friends.sql`のRLS付きテーブルとRPCに申請・承認・招待を保存します。
 
+## 文字サイズ・図の拡大・対戦室の分野指定
+
+- **文字サイズ**：画面上部の「標準・大・特大」で問題文・選択肢・長い解説・振り返りの文字を拡大します。選択は端末に保存し、別タブと再読み込み後にも反映。学習・対戦の進行を維持したまま切り替えられます。
+- **図の拡大**：問題や復習ノートの図をタップすると拡大画面を開きます。＋／−で全体表示の1〜4倍に拡大し、スマートフォンでは指で上下左右に移動できます。「全体表示」で戻し、「閉じる」またはEscapeで元の画面へ。対戦中は制限時間が進み続けることも表示します。
+- **対戦室の分野指定**：「対戦室作成」の「対戦室の分野」で全分野または13分野から選びます。例：DNA複製は6問の中だけで出題。サーバーでも分野を検証し、最大15問を重複なく選びます。5問先取、問題が先に終わった場合は最高得点で決着。同点は引き分けです。分野と最大問題数は公開一覧・待機画面・フレンド招待にも表示し、公開／鍵付きどちらでも使えます。既存の部屋とマッチング対戦は全分野のままです。
+
+`src/readability.ts`と`src/readability.css`が文字サイズと拡大画面を管理します。`008_room_fields.sql`は問題の分野情報・対戦室の指定分野・短い試合の完了記録を追加します。
+
 ## 構成
 
 - 静的サイト（Vite + TypeScript）を GitHub Pages で配信。`npm run deploy` でビルドして `gh-pages` ブランチへ push（.env.local の Supabase 設定が埋め込まれる）
-- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/` の RPC（001 本体・002 人数と制限時間・003 一人学習とAI対戦・004 対戦室の開始条件・005 公開ルームと鍵付き招待・006 成績の分離・007 フレンドと通信確認）。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
+- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/` の RPC（001 本体・002 人数と制限時間・003 一人学習とAI対戦・004 対戦室の開始条件・005 公開ルームと鍵付き招待・006 成績の分離・007 フレンドと通信確認・008 対戦室の分野指定）。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
 - 画面：`src/main.ts` はロビーと対人対戦、`src/solo.ts` は一人学習・AI対戦、`src/ui.ts` は共通描画と端末の記録。
 - AI対戦は約1秒ごとにRPCで状態を確認します。正誤・勝敗・時間切れをサーバ時刻で判定し、相手の回答予定はクライアントへ返しません。
 - 公開している `public/questions.json` には正解・解説を入れていない。正解と簡略版の解説はDBにあり、決着した問題だけ返す
@@ -58,7 +66,7 @@
 node scripts/import-questions.mjs   # questions.json・図・supabase/seed.generated.sql を再生成
 ```
 
-`seed.generated.sql`（正解キー入りのため Git 管理外）を Supabase の SQL Editor で実行（upsert なので何度でも可）。
+008適用後、分野情報も含む `seed.generated.sql`（正解キー入りのため Git 管理外）を Supabase の SQL Editor で実行（upsert なので何度でも可）。
 
 新しいプロジェクトでは、Realtime に一度クライアントが接続するまで `realtime.send` が作られない。SQL適用後にアプリを一度開いてから動作確認する。
 
@@ -68,6 +76,7 @@ node scripts/import-questions.mjs   # questions.json・図・supabase/seed.gener
 # .env.local に VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 npm run dev
 npm run build  # 型チェックと本番ビルド
+node scripts/check-reading-rooms.mjs # 文字サイズ・図の描画・13分野の出題・短い試合の完走
 node scripts/check-social.mjs # 並び替え・通信状態・フレンドと招待の回帰確認
 node scripts/check-learning.mjs # 成績集計・迷った記録・復習対象の回帰確認
 node scripts/check-modes.mjs # 一人学習・AI対戦・対戦室の回帰確認
@@ -81,9 +90,11 @@ node scripts/bots.mjs 9 3 6   # 3人部屋・1問6秒の設定で9体（3部屋�
 
 `check-social.mjs` は並び替えと採点番号、順序の保存、通信失敗・復帰、申請と承認の権限、公開コードの保持、オンライン表示、鍵付き招待・再試行、期限切れ・鍵変更・解除後の失効、RLSを確認します。他の回帰スクリプトと同じ設定を使い、テスト自身が作成したデータだけを操作・削除します。
 
+`check-reading-rooms.mjs` は文字サイズの検証、問題・振り返りの図の拡大ボタン、100問の分野情報、全13分野での絞り込みと重複除去、全分野の既定値、不正分野の拒否、公開一覧・入室・再取得への分野反映、問題数が少ない対戦の完走と成績、正解キーの非公開を確認します。同じ設定でテスト自身の部屋だけを操作・削除します。文字サイズの保持と320px幅での表示・拡大操作はブラウザでも確認してください。
+
 ## サーバ更新と公開
 
-新規環境では `supabase/migrations/001_battle.sql` から `007_friends.sql` まで番号順に適用し、問題のseedを取り込んでください。既存環境では未適用のマイグレーションだけを先に適用します。2026年10月1日の更新で003・004・005・006・007を既存Supabaseに適用しました。005適用前に作成された招待ルームは非公開のまま引き継ぎます。公開一覧は5秒ごとに更新し、満員の部屋は参加できない表示にします。鍵を一度外してから再びかけると招待キーを更新します。
+新規環境では `supabase/migrations/001_battle.sql` から `008_room_fields.sql` まで番号順に適用し、問題のseedを取り込んでください。既存環境では未適用のマイグレーションだけを先に適用します。2026年10月1日の更新で003・004・005・006・007・008を既存Supabaseに適用しました。005適用前に作成された招待ルームは非公開のまま引き継ぎます。公開一覧は5秒ごとに更新し、満員の部屋は参加できない表示にします。鍵を一度外してから再びかけると招待キーを更新します。
 
 `npm run deploy` はフロントの配信のみを行います。サーバ更新と動作確認を先に済ませてから実行してください。
 

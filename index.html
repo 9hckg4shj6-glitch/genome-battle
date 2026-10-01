@@ -13,6 +13,8 @@
       try {
         const theme = localStorage.getItem('gb.theme') === 'light' ? 'light' : 'dark';
         document.documentElement.dataset.theme = theme;
+        const readSize = localStorage.getItem('gb.read-size');
+        document.documentElement.dataset.readingSize = readSize === 'large' || readSize === 'xlarge' ? readSize : 'standard';
         document.querySelector('meta[name="theme-color"]').content = theme === 'light' ? '#f6f7ef' : '#101311';
       } catch { document.documentElement.dataset.theme = 'dark'; }
     </script>
