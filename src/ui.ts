@@ -11,6 +11,8 @@ export function writeStore(key: string, value: string | null, storage: Storage =
   try { if (value === null) storage.removeItem(key); else storage.setItem(key,value); } catch { /* 保存不可でも遊べる */ }
 }
 const paths: Record<string,string> = {
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/>',
+  moon:'<path d="M20.5 13.3A9 9 0 0 1 10.7 3.5 9 9 0 1 0 20.5 13.3Z"/>',
   dna:'<path d="M7 3c0 8 10 10 10 18M17 3C17 11 7 13 7 21M8 6h8M10 10h4M10 14h4M8 18h8"/>',
   swords:'<path d="m4 3 7 7-3 3-5-7V3h1Zm16 0-7 7 3 3 5-7V3h-1ZM3 16l5 5M5 18l6-6M16 16l3 3M16 21l5-5M18 18l-6-6"/>',
   book:'<path d="M12 5v16M3 4c4-1 7 0 9 2 2-2 5-3 9-2v15c-4-1-7 0-9 2-2-2-5-3-9-2V4Z"/>',

@@ -1,4 +1,5 @@
 import "./style.css";
+import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
@@ -356,7 +357,7 @@ function render(): void {
 }
 
 function renderHeader(lobby: boolean): string {
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${busy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${busy ? "disabled" : ""}>${icon("back")}ホームへ</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span></header>`;
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${busy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${busy ? "disabled" : ""}>${icon("back")}ホームへ</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span>${renderThemeSwitch()}</header>`;
 }
 
 function renderHome(): string {
@@ -579,6 +580,8 @@ app.addEventListener("change", (e) => {
 app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest<HTMLButtonElement>("button")?.disabled) return;
+  const themeChoice = target.closest<HTMLElement>("[data-theme-choice]")?.dataset.themeChoice;
+  if (themeChoice === "light" || themeChoice === "dark") {setTheme(themeChoice); return;}
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;
   if (mode && mode in modeInfo) {selectedMode=mode;view="setup";error="";render();window.scrollTo(0,0);if (mode === "room") void refreshPublicRooms();return;}
   const soloChoice = target.closest<HTMLElement>("[data-solo-choice]");
