@@ -1,0 +1,6 @@
+node_modules
+dist
+.env.local
+*.local
+# 正解キー入り。公開リポジトリに載せない（scripts/import-questions.mjs で再生成）
+supabase/seed.generated.sql
