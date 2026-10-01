@@ -49,12 +49,12 @@ export function progress(): Progress {
 
 // 復習ノート。正解と解説はサーバにしか無いので、解答確定時に受け取った内容ごと端末へ保存する。
 export interface Note extends ReviewItem { at: number; misses: number; key: string; }
-export interface Notebook { missed: Record<string,Note>; saved: Record<string,Note>; }
+export interface Notebook { missed: Record<string,Note>; saved: Record<string,Note>; uncertain: Record<string,Note>; }
 export function notebook(): Notebook {
   try {
     const n=JSON.parse(readStore('gb.notebook') ?? '{}');
-    return { missed:n.missed ?? {}, saved:n.saved ?? {} };
-  } catch { return {missed:{},saved:{}}; }
+    return { missed:n.missed ?? {}, saved:n.saved ?? {}, uncertain:n.uncertain ?? {} };
+  } catch { return {missed:{},saved:{},uncertain:{}}; }
 }
 const saveNotebook = (n: Notebook): void => writeStore('gb.notebook',JSON.stringify(n));
 const note = (r: ReviewItem, misses: number, key: string): Note => ({id:r.id,answer:r.answer,explanation:r.explanation,my_choice:r.my_choice,at:Date.now(),misses,key});
@@ -73,6 +73,18 @@ export function toggleSaved(r: ReviewItem): void {
 export function removeMissed(id: string): void {
   const n=notebook(); delete n.missed[id]; saveNotebook(n);
 }
+// 正解した問題だけを「迷った問題」として記録。以前の誤答・保存問題は維持する。
+export function toggleUncertain(r:ReviewItem):void {
+  if (r.my_choice!==r.answer) return;
+  const n=notebook();
+  if (n.uncertain[r.id]) delete n.uncertain[r.id]; else n.uncertain[r.id]=note(r,0,'');
+  saveNotebook(n);
+}
+export function uncertainButton(r:ReviewItem):string {
+  if (r.my_choice!==r.answer) return '';
+  const on=!!notebook().uncertain[r.id];
+  return `<button class="btn ghost uncertain-btn ${on?'on':''}" data-uncertain="${esc(r.id)}" aria-pressed="${on}">${icon('target')}${on?'迷った問題に記録済み':'正解したけど迷った'}</button>`;
+}
 export function reviewCard(q: Question, r: ReviewItem, label: string, saved: boolean, extra = ''): string {
-  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${q.image?`<img src="${import.meta.env.BASE_URL}${q.image}" alt="${esc(q.imageAlt??'問題の図')}" loading="lazy"/>`:''}<ol class="review-choices">${q.choices.map((c,n)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${n+1}</span>${esc(c)}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${extra}</div></article>`;
+  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${q.image?`<img src="${import.meta.env.BASE_URL}${q.image}" alt="${esc(q.imageAlt??'問題の図')}" loading="lazy"/>`:''}<ol class="review-choices">${q.choices.map((c,n)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${n+1}</span>${esc(c)}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${uncertainButton(r)}${extra}</div></article>`;
 }

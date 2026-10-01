@@ -1,0 +1,30 @@
+/* 学習と対戦の記録、迷った問題、対戦直後の復習。テーマの色を引き継ぐ。 */
+.performance-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px; }
+.performance-card { display:flex;flex-direction:column;align-items:stretch;gap:18px;margin-bottom:0;padding:22px 18px;min-width:0; }
+.performance-card .progress-intro { gap:12px; }
+.performance-card h2 { font-size:16px; }
+.performance-card .progress-stats { width:100%; }
+.performance-card .progress-stats > div { min-width:0;flex:1;padding:0 6px; }
+.performance-card .progress-stats > div:first-child { border-left:0; }
+.performance-card .progress-stats strong { font-size:25px; }
+.performance-caption { margin:0;text-align:center;font-size:11px;color:var(--muted); }
+.performance-note { margin:12px 0 28px;text-align:center;font-size:10px;color:var(--muted); }
+.performance-loading { font-size:12px;color:var(--muted); }
+.review-course { display:grid;gap:11px;justify-items:stretch;width:100%;min-width:0;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);text-align:left;margin:0 0 18px; }
+.review-course .eyebrow { margin:0;color:var(--accent); }
+.review-course h2 { font-size:18px;margin:0; }
+.review-course p { margin:0;font-size:12px;color:var(--muted);line-height:1.8; }
+.review-course .course-breakdown { color:var(--text);font-size:13px; }
+.review-course .btn { width:100%;font-size:13px; }
+.panel.center .review-course { margin-bottom:0; }
+.confidence-actions { display:flex;flex-wrap:wrap;gap:8px; }
+.confidence-actions:empty { display:none; }
+.confidence-actions .btn { width:auto;margin-top:4px;min-height:42px;padding:9px 12px;font-size:12px; }
+.uncertain-btn { white-space:normal;text-align:left; }
+.uncertain-btn.on { color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));border-color:var(--accent); }
+@media (max-width:1060px) { .performance-grid { grid-template-columns:1fr; }.performance-card { padding:22px; }.performance-card .progress-stats > div { padding:0 12px; } }
+@media (max-width:440px) {
+  .notebook-tabs { gap:5px; }.notebook-tab { font-size:11px;gap:4px;flex-wrap:wrap;padding:8px 4px; }.notebook-tab b { padding:1px 5px; }
+  .review-course { padding:17px; }.review-course h2 { font-size:16px; }.review-course .btn { gap:7px;padding:12px 9px;font-size:12px; }
+  .course-breakdown { font-size:11px !important; }.performance-card { padding:20px 16px; }
+}

@@ -1,9 +1,11 @@
 import "./style.css";
+import "./learning.css";
+import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
 import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
-import { esc, richText, readStore, writeStore, icon, helix, progress, notebook, recordMiss, toggleSaved, removeMissed, reviewCard, type Question } from "./ui";
+import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, type Question } from "./ui";
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 
 const BASE = import.meta.env.BASE_URL;
@@ -41,7 +43,7 @@ let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
 let view: "home" | "setup" | "match" | "review" | "notebook" = roomCodeDraft ? "setup" : "home";
-let notebookTab: "missed" | "saved" = "missed";
+let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
 let studyField = "";
@@ -49,6 +51,9 @@ let studyCount = 10;
 let difficulty: Difficulty = "normal";
 let battleGeneration = 0;
 let review: ReviewItem[] = [];
+let reviewLoaded=false;
+let reviewLoading=false;
+let battleReviewPromise:Promise<void>|null=null;
 let myChoices = new Map<number, number>();
 let sending = false;
 let busy = false;
@@ -57,7 +62,11 @@ let ticking = false;
 let lastTickAt = 0;
 let tickJitter = 0;
 
-const solo = new SoloController(deviceId, questions, render, () => playerName);
+const solo = new SoloController(deviceId, questions, render, () => playerName, () => {void refreshPerformance();});
+let performance=cachedPerformance(deviceId);
+let performanceError="";
+let performanceLoading=false;
+let performanceAgain=false;
 const modeInfo = {
   matchmaking: {title:"マッチング対戦",sub:"MATCHMAKING",icon:"swords",description:"同級生と対戦",label:"対戦相手を探す"},
   study: {title:"一人で学習",sub:"SOLO STUDY",icon:"book",description:"焦らず、着実に。理解を深める時間。",label:"学習をはじめる"},
@@ -82,11 +91,12 @@ function applyState(s: MatchState | null): void {
     error = "";
   }
   if (match?.id === s.id && s.invite_token === undefined) s = {...s, invite_token: s.is_private ? match.invite_token : null};
+  const newlyFinished=s.status === "finished" && match?.status !== "finished";
   match = s;
   const mine = myChoices.get(s.q_index);
   if (s.phase === "reveal" && s.reveal && s.q_id && mine !== undefined && mine !== s.reveal.answer)
     recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine });
-  if (s.status === "finished") writeStore("gb.match", null, sessionStorage);
+  if (newlyFinished) {void refreshPerformance();void prepareBattleReview();}
   render();
 }
 
@@ -148,7 +158,7 @@ async function enter(fn: "find_match" | "create_room" | "join_room" | "join_publ
     solo.stop();
     match = s;
     myChoices = new Map();
-    review = [];
+    review = [];reviewLoaded=false;reviewLoading=false;battleReviewPromise=null;
     subscribe(s.id);
     writeStore("gb.match", s.id, sessionStorage);
     view = "match";
@@ -173,6 +183,7 @@ async function leave(): Promise<void> {
   view = "home";
   writeStore("gb.match", null, sessionStorage);
   render();
+  void refreshPerformance();
   window.scrollTo(0, 0);
 }
 
@@ -224,20 +235,50 @@ async function startRoom(): Promise<void> {
   }
 }
 
-async function openReview(): Promise<void> {
-  if (!match || busy) return;
-  busy = true;
-  render();
+async function refreshPerformance():Promise<void> {
+  if (performanceLoading) {performanceAgain=true;return;}
+  performanceLoading=true;
   try {
-    review = await call<ReviewItem[]>("get_review", { p_match: match.id, p_device: deviceId });
-    view = "review";
-    window.scrollTo(0, 0);
-  } catch (e) {
-    error = errorText(e);
-  } finally {
-    busy = false;
-    render();
+    const next=await call<Performance>("get_performance",{p_device:deviceId});
+    performance=next;performanceError="";cachePerformance(deviceId,next);
+  } catch {performanceError="学習・対戦の記録を取得できませんでした。";}
+  finally {
+    performanceLoading=false;
+    if (view==="home" && !solo.active) {
+      const region=document.querySelector<HTMLElement>("#performance-panels");
+      if (region) region.innerHTML=renderPerformance(performance,performanceError);
+    }
+    if (performanceAgain) {performanceAgain=false;void refreshPerformance();}
   }
+}
+async function prepareBattleReview():Promise<void> {
+  const m=match;if (!m || m.status!=="finished" || reviewLoaded) return;
+  if (battleReviewPromise) return battleReviewPromise;
+  const generation=battleGeneration;reviewLoading=true;error="";render();
+  battleReviewPromise=(async()=>{
+    try {
+      const items=await call<ReviewItem[]>("get_review",{p_match:m.id,p_device:deviceId});
+      if (generation!==battleGeneration || match?.id!==m.id) return;
+      review=items;reviewLoaded=true;
+    } catch(e) {if (generation===battleGeneration && match?.id===m.id) error=errorText(e);}
+    finally {if (generation===battleGeneration && match?.id===m.id) {reviewLoading=false;battleReviewPromise=null;render();}}
+  })();
+  return battleReviewPromise;
+}
+async function openReview():Promise<void> {
+  if (!match || busy) return;
+  busy=true;render();
+  try {await prepareBattleReview();if (reviewLoaded) {view="review";window.scrollTo(0,0);}}
+  finally {busy=false;render();}
+}
+function currentBattleItem():ReviewItem|null {
+  if (!match?.reveal || !match.q_id || myMark()!=="o") return null;
+  return {id:match.q_id,answer:match.reveal.answer,explanation:match.reveal.explanation,my_choice:match.reveal.answer};
+}
+async function startBattleCourse():Promise<void> {
+  const items=solo.state?.mode==="ai" && solo.state.phase==="finished"?solo.review:review;
+  const ids=reviewCourse(items).ids;
+  if (ids.length) await startSolo("study",ids,true);
 }
 
 function shareRoom(): void {
@@ -361,11 +402,10 @@ function renderHeader(lobby: boolean): string {
 }
 
 function renderHome(): string {
-  const p = progress();
   return `<section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 早押し" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   ${renderNotebookEntry()}
-  <section class="progress-panel"><div class="progress-intro"><span class="progress-icon">${icon("target")}</span><div><p class="eyebrow">YOUR PROGRESS</p><h2>小さな一歩が、確かな実力に。</h2><p>この端末での学習・AI対戦の記録</p></div></div><div class="progress-stats"><div><strong>${p.answered}<small>問</small></strong><span>学習した問題</span></div><div><strong>${p.answered ? Math.round(p.correct / p.answered * 100) : "—"}<small>${p.answered ? "%" : ""}</small></strong><span>正答率</span></div><div><strong>${p.aiWins}<small>勝</small></strong><span>AI対戦の勝利</span></div></div></section>
+  <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
   <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。いちばん早く正解した人に1点、お手つきはその問題の解答終了。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
@@ -383,7 +423,7 @@ function renderSetup(): string {
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"}</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
 }
 
-async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study", retryIds?: string[]): Promise<void> {
+async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study", retryIds?: string[], course=false): Promise<void> {
   if (busy) return;
   playerName = playerName.trim().slice(0, 12);
   if (mode === "ai" && !playerName) {error=ERRORS.NAME_REQUIRED; render(); return;}
@@ -397,7 +437,9 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   if (!ids.length) {error="この分野の問題はありません";render();return;}
   busy=true; error=""; render();
   try {
-    await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty);
+    await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course);
+    if (channel) void supabase.removeChannel(channel);
+    channel=null;match=null;mySeat=null;writeStore("gb.match",null,sessionStorage);
     view="home";
     window.scrollTo(0,0);
   } catch (e) {error=errorText(e); if (solo.active) solo.error=error;}
@@ -482,6 +524,7 @@ function renderPlay(m: MatchState): string {
       <section class="reveal ${m.winner_seat === mySeat ? "win" : ""}">
         <p class="banner">${banner}</p>
         <div class="expl">${richText(head)}${body[0] ? richText(body[0]) : ""}</div>
+        <div class="confidence-actions">${currentBattleItem()?uncertainButton(currentBattleItem()!):""}</div>
         <p class="next">次へ <span data-count></span>秒（解説の全文は試合後に読めます）</p>
       </section>`;
   } else if (myMark() === "x") {
@@ -507,11 +550,12 @@ function renderResult(m: MatchState): string {
     <section class="panel center">
       <p class="eyebrow">試合終了</p>
       <h2 class="result-title">${title}</h2>
-      ${mine ? `<p class="lead">あなたは ${rankOf(mine)}位（${mine.score}問正解）</p>` : ""}
+      ${mine ? `<p class="lead">あなたは ${rankOf(mine)}位（獲得得点 ${mine.score}点）</p>` : ""}
       <ol class="ranking">${ranked
         .map((p) => `<li class="seat-${p.seat % 8} ${p.seat === mySeat ? "me" : ""}"><span class="rank">${rankOf(p)}</span><b>${esc(p.name)}</b><span class="pts">${p.score}</span></li>`)
         .join("")}</ol>
-      <button class="btn primary" data-act="review" ${busy ? "disabled" : ""}>解説を振り返る</button>
+      ${renderReviewCourse(review,"battle-retry",reviewLoaded,reviewLoading)}
+      <button class="btn" data-act="review" ${busy ? "disabled" : ""}>解説を振り返る</button>
       <button class="btn" data-act="random">もう一度ランダム対戦</button>
       <button class="btn ghost" data-act="leave">トップへ</button>
     </section>`;
@@ -527,6 +571,7 @@ function renderReview(): string {
     .join("");
   return `
     <header class="hero small"><p class="eyebrow">振り返り</p><h1>今回の${review.length}問</h1></header>
+    ${renderReviewCourse(review,"battle-retry",reviewLoaded,reviewLoading)}
     ${items}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}
     <div class="panel"><button class="btn primary" data-act="random">もう一度ランダム対戦</button><button class="btn ghost" data-act="leave">トップへ</button></div>`;
@@ -535,7 +580,9 @@ function renderReview(): string {
 function renderNotebookEntry(): string {
   const n = notebook();
   const missed = Object.keys(n.missed).length;
-  return `<button class="progress-panel notebook-entry" data-act="notebook"><div class="progress-intro"><span class="progress-icon">${icon("bookmark")}</span><div><p class="eyebrow">REVIEW NOTEBOOK<span class="notebook-badge">${missed ? `復習待ち ${missed}問` : "苦手克服"}</span></p><h2>復習ノートで、間違えた問題を得点源に。</h2><p>対戦・学習で間違えた問題が自動で集まります。解き直して弱点をつぶそう。</p></div></div><div class="progress-stats"><div><strong>${missed}<small>問</small></strong><span>間違えた問題</span></div><div><strong>${Object.keys(n.saved).length}<small>問</small></strong><span>保存した問題</span></div></div><span class="notebook-cta">復習する${icon("arrow")}</span></button>`;
+  const uncertain = Object.keys(n.uncertain).length;
+  const waiting = new Set([...Object.keys(n.missed),...Object.keys(n.uncertain)]).size;
+  return `<button class="progress-panel notebook-entry" data-act="notebook"><div class="progress-intro"><span class="progress-icon">${icon("bookmark")}</span><div><p class="eyebrow">REVIEW NOTEBOOK<span class="notebook-badge">${waiting ? `復習待ち ${waiting}問` : "苦手克服"}</span></p><h2>復習ノートで、間違えた問題を得点源に。</h2><p>間違えた問題と、正解しても迷った問題を集めます。解き直して弱点をつぶそう。</p></div></div><div class="progress-stats"><div><strong>${missed}<small>問</small></strong><span>間違えた問題</span></div><div><strong>${uncertain}<small>問</small></strong><span>迷った問題</span></div><div><strong>${Object.keys(n.saved).length}<small>問</small></strong><span>保存した問題</span></div></div><span class="notebook-cta">復習する${icon("arrow")}</span></button>`;
 }
 
 function renderNotebook(): string {
@@ -546,16 +593,16 @@ function renderNotebook(): string {
   const items = notes
     .map((r) => {
       const q = questions.get(r.id)!;
-      const label = notebookTab === "missed" ? `${esc(q.field)} · ${r.misses}回まちがえた` : esc(q.field);
+      const label = notebookTab === "missed" ? `${esc(q.field)} · ${r.misses}回まちがえた` : notebookTab === "uncertain" ? `${esc(q.field)} · 正解したけど迷った` : esc(q.field);
       const remove = notebookTab === "missed" ? `<button class="btn ghost" data-note-remove="${esc(r.id)}">リストから外す</button>` : "";
       return reviewCard(q, r, label, !!n.saved[r.id], remove);
     })
     .join("");
-  return `<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題は自動で、気になった問題は振り返り画面の「保存」で追加されます。</p></header>
-    <div class="notebook-tabs">${tab("missed", "間違えた問題")}${tab("saved", "保存した問題")}</div>
+  return `<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題は自動で追加されます。正解後の「正解したけど迷った」と、振り返り画面の「保存」も使えます。</p></header>
+    <div class="notebook-tabs">${tab("missed", "間違えた問題")}${tab("uncertain", "迷った問題")}${tab("saved", "保存した問題")}</div>
     ${notes.length
       ? `<div class="panel"><button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${notes.length}問を演習する${icon("arrow")}</button></div>${items}`
-      : `<div class="rooms-empty"><span>${icon("bookmark")}</span><p>${notebookTab === "missed" ? "まだ間違えた問題はありません。" : "まだ保存した問題はありません。"}</p><small>${notebookTab === "missed" ? "対戦・学習で間違えると、ここに自動で集まります。" : "振り返り画面の「この問題を保存」から追加できます。"}</small></div>`}
+      : `<div class="rooms-empty"><span>${icon("bookmark")}</span><p>${notebookTab === "missed" ? "まだ間違えた問題はありません。" : notebookTab === "uncertain" ? "まだ迷った問題はありません。" : "まだ保存した問題はありません。"}</p><small>${notebookTab === "missed" ? "対戦・学習で間違えると、ここに自動で集まります。" : notebookTab === "uncertain" ? "正解後や解説画面の「正解したけど迷った」から記録できます。" : "振り返り画面の「この問題を保存」から追加できます。"}</small></div>`}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
@@ -589,21 +636,32 @@ app.addEventListener("click", (e) => {
   const choice = target.closest<HTMLElement>("[data-choice]");
   if (choice) return void answer(Number(choice.dataset.choice));
   const act = target.closest<HTMLElement>("[data-act]")?.dataset.act;
+  const uncertainId=target.closest<HTMLElement>("[data-uncertain]")?.dataset.uncertain;
+  if (uncertainId) {
+    const current=solo.active?solo.currentReviewItem():currentBattleItem();
+    const pool=solo.active?[...(current?[current]:[]),...solo.review]:view==="review" || view==="match"?[...(current?[current]:[]),...review]:Object.values(notebook()[notebookTab]);
+    const item=pool.find(r=>r.id===uncertainId);
+    if (item) toggleUncertain(item);
+    render();return;
+  }
   const saveId = target.closest<HTMLElement>("[data-save]")?.dataset.save;
   if (saveId) {
     const n = notebook();
-    const pool = solo.reviewing ? solo.review : view === "review" ? review : [...Object.values(n.missed), ...Object.values(n.saved)];
+    const pool = solo.reviewing ? solo.review : view === "review" ? review : Object.values(n[notebookTab]);
     const item = pool.find((r) => r.id === saveId);
     if (item) toggleSaved(item);
     return render();
   }
   const tab = target.closest<HTMLElement>("[data-tab]")?.dataset.tab;
-  if (tab === "missed" || tab === "saved") {notebookTab = tab; return render();}
+  if (tab === "missed" || tab === "saved" || tab === "uncertain") {notebookTab = tab; return render();}
   const removeId = target.closest<HTMLElement>("[data-note-remove]")?.dataset.noteRemove;
   if (removeId) {removeMissed(removeId); return render();}
   if (busy) return;
   const publicRoomId=target.closest<HTMLElement>("[data-public-room]")?.dataset.publicRoom;
   if (publicRoomId) return void enter("join_public_room",publicRoomId);
+  if (act === "refresh-performance") return void refreshPerformance();
+  if (act === "battle-retry") return void startBattleCourse();
+  if (act === "reload-battle-review") return void (solo.active?solo.loadReview():prepareBattleReview());
   if (act === "refresh-rooms") return void refreshPublicRooms();
   if (act === "toggle-private") return void toggleRoomPrivacy();
   if (act === "copy-room") return void copyRoomLink();
@@ -641,12 +699,13 @@ async function boot(): Promise<void> {
   list.forEach(q => questions.set(q.id, q));
   // 図は計300KB程度なので先読みして、出題時に待たせない
   list.forEach((q) => q.image && (new Image().src = `${BASE}${q.image}`));
+  void refreshPerformance();
   await solo.resume();
   if (solo.active) {render();return;}
   const resumeId = readStore("gb.match", sessionStorage);
   if (resumeId) {
     const s = await call<MatchState | null>("get_match", { p_match: resumeId, p_device: deviceId }).catch(() => null);
-    if (s && s.my_seat !== null && s.status !== "finished") {
+    if (s && s.my_seat !== null) {
       subscribe(s.id);
       view = "match";
       applyState(s);
