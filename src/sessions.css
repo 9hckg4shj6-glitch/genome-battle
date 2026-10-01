@@ -4,6 +4,9 @@
 .study-order-help,.defer-actions p,.ready-actions p,.rematch-actions p {font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;}
 .study-order-help {margin-top:16px;}.study-score {flex-wrap:wrap;gap:8px;}.study-score > span {font-size:12px;color:var(--muted);}
 .defer-actions {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:18px;}.defer-actions p {margin:0;flex:1;min-width:180px;}
+.defer-actions .defer-button {min-height:56px;min-width:180px;padding:15px 22px;font-size:16px;font-weight:800;border-width:2px;box-shadow:0 4px 0 color-mix(in srgb,var(--accent-text) 55%,transparent);transition:background .15s,transform .15s,box-shadow .15s;}
+.defer-actions .defer-button:active:not(:disabled) {transform:translateY(3px);box-shadow:0 1px 0 color-mix(in srgb,var(--accent-text) 55%,transparent);}
+.defer-actions .defer-button:disabled {background:var(--surface-2);color:var(--muted);border-color:var(--line);box-shadow:none;opacity:.7;}
 .defer-notice {border-left:3px solid var(--accent);padding:10px 14px;background:var(--surface-2);border-radius:6px;font-size:14px;}
 .ready-badge {display:inline-flex;align-items:center;flex-shrink:0;font-size:11px;font-style:normal;font-weight:500;line-height:1.6;padding:4px 8px;border:1px solid var(--line);border-radius:6px;color:var(--muted);background:var(--surface-2);}
 .ready-badge.is-ready {color:var(--accent-text);background:var(--accent);border-color:var(--accent);}
