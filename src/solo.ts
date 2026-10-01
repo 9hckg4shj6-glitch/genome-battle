@@ -1,5 +1,5 @@
 import { call, serverNow, type ReviewItem } from './api';
-import { esc, richText, icon, readStore, writeStore, progress, type Question } from './ui';
+import { esc, richText, icon, readStore, writeStore, progress, notebook, recordMiss, reviewCard, type Question } from './ui';
 export type SoloMode = 'study' | 'ai';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 interface SoloState {
@@ -32,6 +32,8 @@ export class SoloController {
     if (this.state?.id===s.id && this.state.version>s.version) return;
     const same=this.state?.id===s.id && this.state.version===s.version;
     this.state=s;
+    if (s.phase==='reveal' && s.reveal && s.my_choice!==null && s.my_choice!==s.reveal.answer)
+      recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice});
     if (s.phase==='finished') {
       writeStore('gb.solo',null,sessionStorage);
       const p=progress();
@@ -103,6 +105,6 @@ export class SoloController {
   }
   private renderReview(r:ReviewItem,i:number):string {
     const q=this.questions.get(r.id); if (!q) return '';
-    return `<article class="review-item"><p class="eyebrow">第${i+1}問 · ${esc(q.field)}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${q.image?`<img src="${import.meta.env.BASE_URL}${q.image}" alt="${esc(q.imageAlt??'問題の図')}" loading="lazy"/>`:''}<ol class="review-choices">${q.choices.map((c,n)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${n+1}</span>${esc(c)}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div></article>`;
+    return reviewCard(q,r,`第${i+1}問 · ${esc(q.field)}`,!!notebook().saved[r.id]);
   }
 }

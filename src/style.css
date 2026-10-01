@@ -326,3 +326,15 @@ input::placeholder { color:#87917d; }
   .room-row-copy strong { font-size:12px; }.room-row-join { font-size:10px;gap:4px; }
   .room-privacy { padding:15px 12px;gap:8px; }.room-privacy strong { font-size:12px; }
 }
+/* 復習ノート */
+.notebook-entry { width:100%;color:var(--text);text-align:left;cursor:pointer; }
+.notebook-entry:hover { border-color:#8e9e72; }
+.notebook-entry > .icon { color:var(--accent); }
+.notebook-tabs { display:flex;gap:8px;margin-bottom:18px; }
+.notebook-tab { flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--muted);font-weight:600; }
+.notebook-tab b { font-size:11px;padding:1px 8px;border-radius:99px;background:var(--surface-2); }
+.notebook-tab.on { background:var(--surface-2);color:var(--text);border-color:var(--accent); }
+.review-actions { display:flex;flex-wrap:wrap;gap:4px;margin-top:12px; }
+.review-actions .btn { min-height:40px;padding:8px 12px;font-size:13px; }
+.save-btn.on { color:var(--accent); }
+.save-btn.on .icon { fill:currentColor; }

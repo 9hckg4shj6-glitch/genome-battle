@@ -1,3 +1,4 @@
+import type { ReviewItem } from './api';
 export interface Question {
   id: string; field: string; question: string; choices: string[]; image?: string; imageAlt?: string;
 }
@@ -23,6 +24,7 @@ const paths: Record<string,string> = {
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   check:'<path d="m5 12 4 4L19 6"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
+  bookmark:'<path d="M6 3h12v18l-6-4-6 4V3Z"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
 };
 export const icon = (name: string): string => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.dna}</svg>`;
@@ -41,4 +43,34 @@ export function progress(): Progress {
     const p=JSON.parse(readStore('gb.progress') ?? '{}');
     return { sessions:Array.isArray(p.sessions)?p.sessions:[], answered:Number(p.answered)||0, correct:Number(p.correct)||0, aiWins:Number(p.aiWins)||0 };
   } catch { return {sessions:[],answered:0,correct:0,aiWins:0}; }
+}
+
+// 復習ノート。正解と解説はサーバにしか無いので、解答確定時に受け取った内容ごと端末へ保存する。
+export interface Note extends ReviewItem { at: number; misses: number; key: string; }
+export interface Notebook { missed: Record<string,Note>; saved: Record<string,Note>; }
+export function notebook(): Notebook {
+  try {
+    const n=JSON.parse(readStore('gb.notebook') ?? '{}');
+    return { missed:n.missed ?? {}, saved:n.saved ?? {} };
+  } catch { return {missed:{},saved:{}}; }
+}
+const saveNotebook = (n: Notebook): void => writeStore('gb.notebook',JSON.stringify(n));
+const note = (r: ReviewItem, misses: number, key: string): Note => ({id:r.id,answer:r.answer,explanation:r.explanation,my_choice:r.my_choice,at:Date.now(),misses,key});
+// key は「セッションID:問番号」。同じ解答確定の再配信や再読み込みで二重に数えない。
+export function recordMiss(key: string, r: ReviewItem): void {
+  const n=notebook(); const prev=n.missed[r.id];
+  if (prev?.key===key) return;
+  n.missed[r.id]=note(r,(prev?.misses ?? 0)+1,key);
+  saveNotebook(n);
+}
+export function toggleSaved(r: ReviewItem): void {
+  const n=notebook();
+  if (n.saved[r.id]) delete n.saved[r.id]; else n.saved[r.id]=note(r,0,'');
+  saveNotebook(n);
+}
+export function removeMissed(id: string): void {
+  const n=notebook(); delete n.missed[id]; saveNotebook(n);
+}
+export function reviewCard(q: Question, r: ReviewItem, label: string, saved: boolean, extra = ''): string {
+  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${q.image?`<img src="${import.meta.env.BASE_URL}${q.image}" alt="${esc(q.imageAlt??'問題の図')}" loading="lazy"/>`:''}<ol class="review-choices">${q.choices.map((c,n)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${n+1}</span>${esc(c)}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${extra}</div></article>`;
 }

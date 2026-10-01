@@ -2,7 +2,7 @@ import "./style.css";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
-import { esc, richText, readStore, writeStore, icon, helix, progress, type Question } from "./ui";
+import { esc, richText, readStore, writeStore, icon, helix, progress, notebook, recordMiss, toggleSaved, removeMissed, reviewCard, type Question } from "./ui";
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 
 const BASE = import.meta.env.BASE_URL;
@@ -39,7 +39,8 @@ let match: MatchState | null = null;
 let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
-let view: "home" | "setup" | "match" | "review" = roomCodeDraft ? "setup" : "home";
+let view: "home" | "setup" | "match" | "review" | "notebook" = roomCodeDraft ? "setup" : "home";
+let notebookTab: "missed" | "saved" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
 let studyField = "";
@@ -81,6 +82,9 @@ function applyState(s: MatchState | null): void {
   }
   if (match?.id === s.id && s.invite_token === undefined) s = {...s, invite_token: s.is_private ? match.invite_token : null};
   match = s;
+  const mine = myChoices.get(s.q_index);
+  if (s.phase === "reveal" && s.reveal && s.q_id && mine !== undefined && mine !== s.reveal.answer)
+    recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine });
   if (s.status === "finished") writeStore("gb.match", null, sessionStorage);
   render();
 }
@@ -341,6 +345,7 @@ function render(): void {
   if (solo.active) body = solo.render();
   else if (view === "setup") body = renderSetup();
   else if (view === "review") body = renderReview();
+  else if (view === "notebook") body = renderNotebook();
   else if (!match || view === "home") body = renderHome();
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
@@ -359,6 +364,7 @@ function renderHome(): string {
   return `<section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 早押し" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   <section class="progress-panel"><div class="progress-intro"><span class="progress-icon">${icon("target")}</span><div><p class="eyebrow">YOUR PROGRESS</p><h2>小さな一歩が、確かな実力に。</h2><p>この端末での学習・AI対戦の記録</p></div></div><div class="progress-stats"><div><strong>${p.answered}<small>問</small></strong><span>学習した問題</span></div><div><strong>${p.answered ? Math.round(p.correct / p.answered * 100) : "—"}<small>${p.answered ? "%" : ""}</small></strong><span>正答率</span></div><div><strong>${p.aiWins}<small>勝</small></strong><span>AI対戦の勝利</span></div></div></section>
+  ${renderNotebookEntry()}
   <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。いちばん早く正解した人に1点、お手つきはその問題の解答終了。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
@@ -386,7 +392,7 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   const available = [...questions.values()].filter(q => retryIds ? retryIds.includes(q.id) : mode === "ai" || !studyField || q.field === studyField).map(q=>q.id);
   // Fisher–Yates。特定の問題に偏らないようシャッフルする。
   for (let i=available.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]];}
-  const ids=available.slice(0,retryIds ? available.length : mode === "ai" ? 15 : studyCount);
+  const ids=available.slice(0,retryIds ? 100 : mode === "ai" ? 15 : studyCount); // サーバ側の上限は100問
   if (!ids.length) {error="この分野の問題はありません";render();return;}
   busy=true; error=""; render();
   try {
@@ -511,21 +517,11 @@ function renderResult(m: MatchState): string {
 }
 
 function renderReview(): string {
+  const saved = notebook().saved;
   const items = review
     .map((r, n) => {
       const q = questions.get(r.id);
-      if (!q) return "";
-      const verdict = r.my_choice === null ? "未解答" : r.my_choice === r.answer ? "○ 正解" : "× 不正解";
-      return `
-        <article class="review-item">
-          <p class="eyebrow">第${n + 1}問・${esc(q.field)}<span class="verdict ${r.my_choice === r.answer ? "ok" : ""}">${verdict}</span></p>
-          <p class="review-q">${esc(q.question)}</p>
-          ${q.image ? `<img src="${BASE}${q.image}" alt="${esc(q.imageAlt ?? "")}" loading="lazy" />` : ""}
-          <ol class="review-choices">${q.choices
-            .map((c, i) => `<li class="${i === r.answer ? "correct" : ""} ${i === r.my_choice && i !== r.answer ? "wrong" : ""}"><span class="num">${i + 1}</span>${esc(c)}</li>`)
-            .join("")}</ol>
-          <div class="expl">${richText(r.explanation)}</div>
-        </article>`;
+      return q ? reviewCard(q, r, `第${n + 1}問・${esc(q.field)}`, !!saved[r.id]) : "";
     })
     .join("");
   return `
@@ -533,6 +529,32 @@ function renderReview(): string {
     ${items}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}
     <div class="panel"><button class="btn primary" data-act="random">もう一度ランダム対戦</button><button class="btn ghost" data-act="leave">トップへ</button></div>`;
+}
+
+function renderNotebookEntry(): string {
+  const n = notebook();
+  return `<button class="progress-panel notebook-entry" data-act="notebook"><div class="progress-intro"><span class="progress-icon">${icon("bookmark")}</span><div><p class="eyebrow">REVIEW NOTEBOOK</p><h2>復習ノート</h2><p>対戦・学習で間違えた問題と、保存した問題</p></div></div><div class="progress-stats"><div><strong>${Object.keys(n.missed).length}<small>問</small></strong><span>間違えた問題</span></div><div><strong>${Object.keys(n.saved).length}<small>問</small></strong><span>保存した問題</span></div></div>${icon("arrow")}</button>`;
+}
+
+function renderNotebook(): string {
+  const n = notebook();
+  const notes = Object.values(n[notebookTab]).filter((r) => questions.has(r.id)).sort((a, b) => b.at - a.at);
+  const tab = (t: typeof notebookTab, label: string): string =>
+    `<button class="notebook-tab ${t === notebookTab ? "on" : ""}" data-tab="${t}" aria-pressed="${t === notebookTab}">${label}<b>${Object.keys(n[t]).length}</b></button>`;
+  const items = notes
+    .map((r) => {
+      const q = questions.get(r.id)!;
+      const label = notebookTab === "missed" ? `${esc(q.field)} · ${r.misses}回まちがえた` : esc(q.field);
+      const remove = notebookTab === "missed" ? `<button class="btn ghost" data-note-remove="${esc(r.id)}">リストから外す</button>` : "";
+      return reviewCard(q, r, label, !!n.saved[r.id], remove);
+    })
+    .join("");
+  return `<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題は自動で、気になった問題は振り返り画面の「保存」で追加されます。</p></header>
+    <div class="notebook-tabs">${tab("missed", "間違えた問題")}${tab("saved", "保存した問題")}</div>
+    ${notes.length
+      ? `<div class="panel"><button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${notes.length}問を演習する${icon("arrow")}</button></div>${items}`
+      : `<div class="rooms-empty"><span>${icon("bookmark")}</span><p>${notebookTab === "missed" ? "まだ間違えた問題はありません。" : "まだ保存した問題はありません。"}</p><small>${notebookTab === "missed" ? "対戦・学習で間違えると、ここに自動で集まります。" : "振り返り画面の「この問題を保存」から追加できます。"}</small></div>`}
+    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
 app.addEventListener("input", (e) => {
@@ -563,6 +585,18 @@ app.addEventListener("click", (e) => {
   const choice = target.closest<HTMLElement>("[data-choice]");
   if (choice) return void answer(Number(choice.dataset.choice));
   const act = target.closest<HTMLElement>("[data-act]")?.dataset.act;
+  const saveId = target.closest<HTMLElement>("[data-save]")?.dataset.save;
+  if (saveId) {
+    const n = notebook();
+    const pool = solo.reviewing ? solo.review : view === "review" ? review : [...Object.values(n.missed), ...Object.values(n.saved)];
+    const item = pool.find((r) => r.id === saveId);
+    if (item) toggleSaved(item);
+    return render();
+  }
+  const tab = target.closest<HTMLElement>("[data-tab]")?.dataset.tab;
+  if (tab === "missed" || tab === "saved") {notebookTab = tab; return render();}
+  const removeId = target.closest<HTMLElement>("[data-note-remove]")?.dataset.noteRemove;
+  if (removeId) {removeMissed(removeId); return render();}
   if (busy) return;
   const publicRoomId=target.closest<HTMLElement>("[data-public-room]")?.dataset.publicRoom;
   if (publicRoomId) return void enter("join_public_room",publicRoomId);
@@ -576,6 +610,8 @@ app.addEventListener("click", (e) => {
   else if (act === "share") shareRoom();
   else if (act === "review") void openReview();
   else if (act === "leave") void leave();
+  else if (act === "notebook") {view = "notebook"; error = ""; render(); window.scrollTo(0, 0);}
+  else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
   else if (act === "solo-start") void startSolo();
   else if (act === "solo-next") {void solo.act("next");window.scrollTo(0,0);}
   else if (act === "solo-review") {void solo.act("review");window.scrollTo(0,0);}
