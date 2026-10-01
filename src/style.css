@@ -117,8 +117,9 @@ input::placeholder { color:#87917d; }
 .field small { font-size:10px; color:var(--muted); }
 .settings { display:grid;grid-template-columns:1fr 1fr;gap:18px; }
 .count-field { grid-column:1/-1; }
-.count-field output { color:var(--accent);font-size:15px;font-weight:700; }
+.count-row { display:grid;grid-template-columns:minmax(0,1fr) 88px auto;gap:10px;align-items:center;font-size:15px;color:var(--text); }
 .count-field input[type=range] { padding:0;min-height:32px;border:0;background:none;accent-color:var(--accent);cursor:pointer; }
+.count-field input[type=number] { text-align:center;padding:12px 8px; }
 .setup-hint { font-size:12px;color:var(--muted);margin:0;line-height:1.9; }
 .setup-panel > .btn.primary { margin-top:6px; }
 .setup-footnote { text-align:center;font-size:11px;color:var(--muted); }
