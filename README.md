@@ -1,14 +1,25 @@
 # ゲノム対戦
 
-ゲノム解析学 2025年度の過去問100問を使った、2〜8人の早押し5択対戦（ゲスト参加・名前だけ）。
+ゲノム解析学 2025年度の過去問100問を使った学習・クイズ対戦アプリ。ゲスト参加で、ゲームロビーから4つのモードを選べます。
 
 - 公開URL: https://9hckg4shj6-glitch.github.io/genome-battle/
 - LINEに流すときは末尾に `?openExternalBrowser=1` を付ける（外部ブラウザで開く方が安定）
 
+## 4つのモード
+
+- **マッチング対戦**：同じ人数・制限時間の参加者を自動で組み合わせる、2〜8人の早押し対戦。
+- **一人で学習**：分野・問題数を選び、時間制限なしで解答。正解と解説を読んでから次へ進み、終了後は誤答だけを再学習できます。
+- **AI対戦**：ビギナー／スタンダード／エキスパートの3段階。回答速度・正答率をサーバ側で決める自動対戦相手です（外部の生成AIや追加のAPIキーは使いません）。先に5問正解するか、最大15問で決着。
+- **対戦室作成**：4桁の合言葉で友だちを招待。2人以上集まったらホストが開始できます。ホームの「対戦室作成」から既存の対戦室にも参加できます。
+
+学習・AI対戦は再読み込み後も同じ問題から復帰できます。終了したセッションの問題数・正答率・AI勝利数をこの端末に記録します。
+
 ## 構成
 
 - 静的サイト（Vite + TypeScript）を GitHub Pages で配信。`npm run deploy` でビルドして `gh-pages` ブランチへ push（.env.local の Supabase 設定が埋め込まれる）
-- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/` の RPC（001 本体・002 人数と制限時間の設定）。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
+- Supabase: プロジェクト `genome-battle`（ref `hfuixjjfhjjvvzcnlfhv`・東京・Free）。判定・進行はすべて `supabase/migrations/` の RPC（001 本体・002 人数と制限時間・003 一人学習とAI対戦・004 対戦室の開始条件）。状態が変わると Realtime Broadcast（`battle:<match_id>`）で配信
+- 画面：`src/main.ts` はロビーと対人対戦、`src/solo.ts` は一人学習・AI対戦、`src/ui.ts` は共通描画と端末の記録。
+- AI対戦は約1秒ごとにRPCで状態を確認します。正誤・勝敗・時間切れをサーバ時刻で判定し、相手の回答予定はクライアントへ返しません。
 - 公開している `public/questions.json` には正解・解説を入れていない。正解と簡略版の解説はDBにあり、決着した問題だけ返す
 
 ## 問題の更新
@@ -28,9 +39,19 @@ node scripts/import-questions.mjs   # questions.json・図・supabase/seed.gener
 ```bash
 # .env.local に VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 npm run dev
+npm run build  # 型チェックと本番ビルド
+node scripts/check-modes.mjs # 一人学習・AI対戦・対戦室の回帰確認
 node scripts/bots.mjs 16   # ボット16人で同時にランダム対戦（競合・配信・完走の確認）
 node scripts/bots.mjs 9 3 6   # 3人部屋・1問6秒の設定で9体（3部屋に分かれることの確認）
 ```
+
+`check-modes.mjs` は `.env.local` と、fixture操作用の `~/.supabase-token` を使います。独自に作成したテスト用セッションだけを操作・削除し、正解キーや認証情報は出力しません。所有者確認、正解の非公開、二重送信、AIの先着判定、時間切れ、5問先取、ルーム定員・ホスト権限を検証します。
+
+## サーバ更新と公開
+
+新規環境では `supabase/migrations/001_battle.sql` から `004_room_start.sql` まで番号順に適用し、問題のseedを取り込んでください。既存環境では未適用のマイグレーションだけを先に適用します。2026年10月1日の更新で003・004を既存Supabaseに適用しました。
+
+`npm run deploy` はフロントの配信のみを行います。サーバ更新と動作確認を先に済ませてから実行してください。
 
 ## 無料枠の目安（Supabase Free）
 
