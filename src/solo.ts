@@ -1,3 +1,4 @@
+import { choiceOrder } from './choices';
 import { call, serverNow, type ReviewItem } from './api';
 import { esc, richText, icon, readStore, writeStore, notebook, recordMiss, reviewCard, uncertainButton, type Question } from './ui';
 import { reviewCourse, renderReviewCourse } from './learning';
@@ -42,7 +43,7 @@ export class SoloController {
     const same=this.state?.id===s.id && this.state.version===s.version;
     this.state=s;
     if (s.phase==='reveal' && s.reveal && s.my_choice!==null && s.my_choice!==s.reveal.answer)
-      recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice});
+      recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice,choice_order:choiceOrder(s.id,s.q_index,s.q_id,this.questions.get(s.q_id)?.choices.length??5)});
     if (s.phase==='finished') {
       if (s.mode==='study') writeStore('gb.solo',null,sessionStorage);
       if (!same) {this.finished();void this.loadReview();}
@@ -51,7 +52,7 @@ export class SoloController {
   }
   currentReviewItem():ReviewItem|null {
     const s=this.state;
-    return s?.phase==='reveal' && s.reveal?{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice}:null;
+    return s?.phase==='reveal' && s.reveal?{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice,choice_order:choiceOrder(s.id,s.q_index,s.q_id,this.questions.get(s.q_id)?.choices.length??5)}:null;
   }
   async loadReview():Promise<void> {
     const s=this.state; if (!s || s.phase!=='finished' || this.reviewLoaded) return;
@@ -62,7 +63,7 @@ export class SoloController {
         const items=await call<ReviewItem[]|null>('review_solo',{p_session:s.id,p_device:this.device});
         if (generation!==this.generation || this.state?.id!==s.id) return;
         if (!items) throw new Error('REVIEW_UNAVAILABLE');
-        this.review=items;this.reviewLoaded=true;
+        this.review=items.map((r,i)=>({...r,choice_order:choiceOrder(s.id,i,r.id,this.questions.get(r.id)?.choices.length??5)}));this.reviewLoaded=true;
       } catch(e) {if (generation===this.generation) this.error=this.message(e);}
       finally {if (generation===this.generation) {this.reviewLoading=false;this.reviewPromise=null;this.changed();}}
     })();
@@ -123,11 +124,11 @@ export class SoloController {
       <div class="qhead"><span>第${s.q_index+1}問 <small>/ ${s.q_total}問</small></span><span class="tag">${esc(q.field)}</span>${ai && s.phase==='question'?'<span class="clock"><span data-solo-count></span>秒</span>':''}</div>
       <div class="timer"><i ${ai && s.phase==='question'?'data-solo-bar':`style="width:${100*(s.q_index+1)/s.q_total}%"`}></i></div>
       <section class="question"><p>${esc(q.question)}</p>${q.image?`<img src="${import.meta.env.BASE_URL}${q.image}" alt="${esc(q.imageAlt??'問題の図')}"/>`:''}</section>
-      <ol class="choices">${q.choices.map((c,i)=>`<li><button class="choice ${reveal?.answer===i?'correct':''} ${s.my_choice===i?'mine':''} ${s.my_choice===i && reveal && reveal.answer!==i?'wrong':''}" data-solo-choice="${i}" ${locked?'disabled':''}><span class="num">${i+1}</span><span>${esc(c)}</span>${reveal?.answer===i?icon('check'):''}</button></li>`).join('')}</ol>
+      <ol class="choices">${choiceOrder(s.id,s.q_index,s.q_id,q.choices.length).map((i,pos)=>`<li><button class="choice ${reveal?.answer===i?'correct':''} ${s.my_choice===i?'mine':''} ${s.my_choice===i && reveal && reveal.answer!==i?'wrong':''}" data-solo-choice="${i}" ${locked?'disabled':''}><span class="num">${pos+1}</span><span>${esc(q.choices[i])}</span>${reveal?.answer===i?icon('check'):''}</button></li>`).join('')}</ol>
       ${reveal?`<section class="reveal ${s.winner==='me'?'win':''}"><p class="banner">${ai?(s.winner==='me'?'あなたが先に正解！':s.winner==='ai'?'AIが先に正解':'正解者なし'):(s.my_choice===reveal.answer?'正解！':'もう一度、確認しよう。')}</p><div class="expl">${richText(reveal.explanation)}</div><div class="confidence-actions">${uncertainButton({id:s.q_id,answer:reveal.answer,explanation:reveal.explanation,my_choice:s.my_choice})}</div><button class="btn primary" data-act="solo-next" ${this.busy?'disabled':''}>${s.q_index+1===s.q_total || (ai && Math.max(s.my_score,s.ai_score)>=5)?'結果を見る':'次の問題へ'}${icon('arrow')}</button></section>`:(s.my_choice!==null?'<p class="note">お手つき。AIの解答を待っています…</p>':ai && s.ai_mark==='x'?'<p class="note">AIがお手つき。まだ解答できます。</p>':'')}${notice}`;
   }
   private renderReview(r:ReviewItem,i:number):string {
     const q=this.questions.get(r.id); if (!q) return '';
-    return reviewCard(q,r,`第${i+1}問 · ${esc(q.field)}`,!!notebook().saved[r.id]);
+    return reviewCard(q,r,`第${i+1}問 · ${esc(q.field)}`,!!notebook().saved[r.id],'',choiceOrder(this.state!.id,i,r.id,q.choices.length));
   }
 }

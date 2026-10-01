@@ -1,5 +1,7 @@
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 
+import { requestStarted, requestFinished } from "./connection";
+
 const url = import.meta.env.VITE_SUPABASE_URL as string;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -40,6 +42,7 @@ export interface ReviewItem {
   answer: number;
   explanation: string;
   my_choice: number | null;
+  choice_order?: number[];
 }
 
 // サーバ時刻 − 端末時刻。カウントダウン表示にだけ使う（勝敗は常にサーバが決める）。
@@ -48,11 +51,24 @@ export const serverNow = (): number => Date.now() + clockOffset;
 
 export async function call<T = MatchState>(fn: string, args: Record<string, unknown>): Promise<T> {
   const sent = Date.now();
-  const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw new Error(error.message);
-  const serverTime = (data as Partial<MatchState> | null)?.server_now;
-  if (serverTime) clockOffset = Date.parse(serverTime) - (sent + Date.now()) / 2;
-  return data as T;
+  requestStarted();
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),10000);
+  let reported=false;
+  try {
+    const {data,error}=await supabase.rpc(fn,args).abortSignal(controller.signal);
+    // SQLでの入力エラーも、サーバーに届いた応答。通信切断として表示しない。
+    requestFinished(!error || !!error.code,Date.now()-sent);reported=true;
+    if(error)throw new Error(error.message);
+    const serverTime=(data as Partial<MatchState>|null)?.server_now;
+    if(serverTime)clockOffset=Date.parse(serverTime)-(sent+Date.now())/2;
+    return data as T;
+  } catch(e) {
+    // Supabaseは通常errorとして返す。fetch自体がthrowしたときも終了を通知。
+    if(!reported)requestFinished(false,Date.now()-sent);
+    throw e;
+  } finally {clearTimeout(timeout);}
+
 }
 
 export function listen(matchId: string, onState: (s: MatchState) => void, onLive: (live: boolean) => void): RealtimeChannel {

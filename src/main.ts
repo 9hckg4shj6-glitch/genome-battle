@@ -1,5 +1,9 @@
 import "./style.css";
 import "./learning.css";
+import "./social.css";
+import { choiceOrder } from "./choices";
+import { renderConnection, realtimeState } from "./connection";
+import { FriendsController, friendsIcon } from "./friends";
 import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
 import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -63,6 +67,18 @@ let lastTickAt = 0;
 let tickJitter = 0;
 
 const solo = new SoloController(deviceId, questions, render, () => playerName, () => {void refreshPerformance();});
+const friends=new FriendsController(deviceId,()=>playerName,(name)=>{playerName=name;writeStore("gb.name",name);render();},()=>match?{...match,my_seat:mySeat}:null,(s)=>{
+  if(match?.status==="waiting" && match.id!==s.id)void call("leave_match",{p_match:match.id,p_device:deviceId}).catch(()=>{});
+  battleGeneration++;solo.stop();match=null;myChoices=new Map();review=[];reviewLoaded=false;reviewLoading=false;battleReviewPromise=null;
+  if(!playerName){playerName=friends.state?.profile.name??"ゲストプレイヤー";writeStore("gb.name",playerName);}
+  subscribe(s.id);writeStore("gb.match",s.id,sessionStorage);view="match";applyState(s);
+});
+let lastConnectionProbe=0;let probingConnection=false;
+async function probeConnection():Promise<void> {
+  if(probingConnection)return;probingConnection=true;lastConnectionProbe=Date.now();
+  try {await call("connection_ping",{});}catch { /* 状態はAPI共通処理で表示する */ }
+  finally {probingConnection=false;}
+}
 let performance=cachedPerformance(deviceId);
 let performanceError="";
 let performanceLoading=false;
@@ -95,15 +111,15 @@ function applyState(s: MatchState | null): void {
   match = s;
   const mine = myChoices.get(s.q_index);
   if (s.phase === "reveal" && s.reveal && s.q_id && mine !== undefined && mine !== s.reveal.answer)
-    recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine });
+    recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine,choice_order:choiceOrder(s.id,s.q_index,s.q_id,questions.get(s.q_id)?.choices.length??5) });
   if (newlyFinished) {void refreshPerformance();void prepareBattleReview();}
   render();
 }
 
 function subscribe(matchId: string): void {
   if (channel) void supabase.removeChannel(channel);
-  live = false;
-  channel = listen(matchId, (s) => { if (match?.id === matchId) applyState(s); }, (ok) => { if (match?.id === matchId) live = ok; });
+  live = false;realtimeState("connecting");
+  channel = listen(matchId, (s) => { if (match?.id === matchId) applyState(s); }, (ok) => { if (match?.id === matchId) {live = ok;realtimeState(ok?"live":"fallback");} });
 }
 
 async function enter(fn: "find_match" | "create_room" | "join_room" | "join_public_room", publicRoomId?: string): Promise<void> {
@@ -177,7 +193,7 @@ async function leave(): Promise<void> {
   error = "";
   if (match?.status === "waiting") void call("leave_match", { p_match: match.id, p_device: deviceId }).catch(() => {});
   if (channel) void supabase.removeChannel(channel);
-  channel = null;
+  channel = null;realtimeState("off");
   match = null;
   mySeat = null;
   view = "home";
@@ -213,7 +229,8 @@ async function answer(choice: number): Promise<void> {
     const s = await call("submit_answer", { p_match: matchId, p_device: deviceId, p_q_index: qIndex, p_choice: choice });
     if (match?.id === matchId) applyState(s);
   } catch (e) {
-    error = errorText(e);
+    if(match?.id===matchId && match.q_index===qIndex && myMark()===null)myChoices.delete(qIndex);
+    error = "解答を送信できませんでした。通信を確認して、もう一度選んでください。";
   } finally {
     sending = false;
     render();
@@ -259,7 +276,7 @@ async function prepareBattleReview():Promise<void> {
     try {
       const items=await call<ReviewItem[]>("get_review",{p_match:m.id,p_device:deviceId});
       if (generation!==battleGeneration || match?.id!==m.id) return;
-      review=items;reviewLoaded=true;
+      review=items.map((r,i)=>({...r,choice_order:choiceOrder(m.id,i,r.id,questions.get(r.id)?.choices.length??5)}));reviewLoaded=true;
     } catch(e) {if (generation===battleGeneration && match?.id===m.id) error=errorText(e);}
     finally {if (generation===battleGeneration && match?.id===m.id) {reviewLoading=false;battleReviewPromise=null;render();}}
   })();
@@ -273,7 +290,7 @@ async function openReview():Promise<void> {
 }
 function currentBattleItem():ReviewItem|null {
   if (!match?.reveal || !match.q_id || myMark()!=="o") return null;
-  return {id:match.q_id,answer:match.reveal.answer,explanation:match.reveal.explanation,my_choice:match.reveal.answer};
+  return {id:match.q_id,answer:match.reveal.answer,explanation:match.reveal.explanation,my_choice:match.reveal.answer,choice_order:choiceOrder(match.id,match.q_index,match.q_id,questions.get(match.q_id)?.choices.length??5)};
 }
 async function startBattleCourse():Promise<void> {
   const items=solo.state?.mode==="ai" && solo.state.phase==="finished"?solo.review:review;
@@ -345,6 +362,8 @@ async function refreshPublicRooms():Promise<void> {
 setInterval(() => {
   updateClock();
   solo.updateClock();
+  void friends.refresh();
+  if(document.visibilityState==="visible" && navigator.onLine && Date.now()-lastConnectionProbe>30000)void probeConnection();
   if (solo.active) void solo.tick();
   if (view === "setup" && selectedMode === "room" && !busy && !solo.active && document.visibilityState === "visible" && Date.now()-lastRoomsFetch>5000) void refreshPublicRooms();
   if (!match || view !== "match" || match.status === "finished") return;
@@ -357,11 +376,14 @@ setInterval(() => {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
+    void probeConnection();void friends.refresh(true);
     if (match && view === "match") void tick();
     if (solo.active) void solo.tick();
     if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
   }
 });
+
+window.addEventListener("online",()=>{void probeConnection();void friends.refresh(true);if(match)void tick();if(solo.active)void solo.tick();});
 
 // ---------- 描画 ----------
 
@@ -392,13 +414,13 @@ function render(): void {
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
   else body = renderResult(match);
-  app.innerHTML = `${renderHeader(lobby)}<div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
+  app.innerHTML = `${renderHeader(lobby)}<div id="connection-status" class="connection-strip">${renderConnection()}</div><div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
   updateClock();
-  solo.updateClock();
+  solo.updateClock();friends.update();
 }
 
 function renderHeader(lobby: boolean): string {
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${busy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${busy ? "disabled" : ""}>${icon("back")}ホームへ</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span>${renderThemeSwitch()}</header>`;
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${busy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${busy ? "disabled" : ""}>${icon("back")}ホームへ</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${busy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
 }
 
 function renderHome(): string {
@@ -420,7 +442,7 @@ function renderSetup(): string {
     ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
     <button class="btn primary" data-act="${study || ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>
     ${selectedMode==="room" ? `<div class="divider"><span>部屋番号・招待リンクで参加</span></div><label class="field"><span>部屋番号（4桁）</span><div class="join"><input id="code" aria-label="部屋番号（4桁）" inputmode="numeric" maxlength="4" placeholder="0000" value="${esc(roomCodeDraft)}"/><button class="btn" data-act="join" ${busy ? "disabled" : ""}>対戦室に参加</button></div></label><label class="field"><span>招待キー（鍵付きルームのみ）</span><input id="invite-key" type="password" autocomplete="off" aria-label="招待キー" placeholder="招待リンクから開くと自動入力" value="${esc(roomInviteDraft)}"/></label>` : ""}
-    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"}</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
+    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"} · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
 }
 
 async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study", retryIds?: string[], course=false): Promise<void> {
@@ -439,7 +461,7 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   try {
     await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course);
     if (channel) void supabase.removeChannel(channel);
-    channel=null;match=null;mySeat=null;writeStore("gb.match",null,sessionStorage);
+    channel=null;realtimeState("off");match=null;mySeat=null;writeStore("gb.match",null,sessionStorage);
     view="home";
     window.scrollTo(0,0);
   } catch (e) {error=errorText(e); if (solo.active) solo.error=error;}
@@ -506,14 +528,14 @@ function renderPlay(m: MatchState): string {
   const reveal = m.phase === "reveal" ? m.reveal : null;
   const mine = myChoices.get(m.q_index);
   const locked = reveal !== null || myMark() !== null || sending;
-  const choices = q.choices
-    .map((c, i) => {
+  const choices = choiceOrder(m.id,m.q_index,q.id,q.choices.length)
+    .map((i, pos) => {
       const cls = [
         reveal?.answer === i ? "correct" : "",
         mine === i && (reveal ? reveal.answer !== i : myMark() === "x") ? "wrong" : "",
         mine === i ? "mine" : "",
       ].join(" ");
-      return `<li><button class="choice ${cls}" data-choice="${i}" ${locked ? "disabled" : ""}><span class="num">${i + 1}</span><span>${esc(c)}</span></button></li>`;
+      return `<li><button class="choice ${cls}" data-choice="${i}" ${locked ? "disabled" : ""}><span class="num">${pos + 1}</span><span>${esc(q.choices[i])}</span></button></li>`;
     })
     .join("");
   let footer = "";
@@ -659,6 +681,8 @@ app.addEventListener("click", (e) => {
   if (busy) return;
   const publicRoomId=target.closest<HTMLElement>("[data-public-room]")?.dataset.publicRoom;
   if (publicRoomId) return void enter("join_public_room",publicRoomId);
+  if (act === "friends") {friends.open();return;}
+  if (act === "retry-connection") {void probeConnection();void friends.refresh(true);if(match)void tick();if(solo.active)void solo.tick();return;}
   if (act === "refresh-performance") return void refreshPerformance();
   if (act === "battle-retry") return void startBattleCourse();
   if (act === "reload-battle-review") return void (solo.active?solo.loadReview():prepareBattleReview());
@@ -699,7 +723,7 @@ async function boot(): Promise<void> {
   list.forEach(q => questions.set(q.id, q));
   // 図は計300KB程度なので先読みして、出題時に待たせない
   list.forEach((q) => q.image && (new Image().src = `${BASE}${q.image}`));
-  void refreshPerformance();
+  void refreshPerformance();void friends.refresh(true);
   await solo.resume();
   if (solo.active) {render();return;}
   const resumeId = readStore("gb.match", sessionStorage);
