@@ -25,18 +25,50 @@ export class SoloController {
     const s=await call<SoloState>('start_solo',{p_device:this.device,p_mode:mode,p_ids:ids,p_seconds:seconds,p_difficulty:difficulty,p_order:order,p_count:count??null});
     if (generation !== this.generation) return;
     this.busy=false; this.review=[]; this.reviewing=false; this.reviewLoaded=false; this.reviewLoading=false; this.reviewPromise=null; this.course=course; this.error='';
+    writeStore(`gb.study-course.${s.id}`,mode==='study'&&course?'true':null);
     writeStore('gb.solo-course',course?JSON.stringify({id:s.id}):null,sessionStorage); this.apply(s);
     writeStore('gb.solo',s.id,sessionStorage);
   }
   async resume(): Promise<void> {
     const id=readStore('gb.solo',sessionStorage); if (!id) return;
+    const generation=++this.generation;
     try {
       const s=await call<SoloState>('get_solo',{p_session:id,p_device:this.device});
-      try {this.course=JSON.parse(readStore('gb.solo-course',sessionStorage) ?? 'null')?.id===s.id;}
-      catch {this.course=false;writeStore('gb.solo-course',null,sessionStorage);}
-      this.apply(s);
+      if (generation!==this.generation) return;
+      this.restoreCourse(s.id); this.apply(s);
     }
-    catch { writeStore('gb.solo',null,sessionStorage); }
+    catch(e) {
+      // 通信失敗で再開情報を失わない。存在しないセッションだけ解除する。
+      if (generation===this.generation && e instanceof Error && e.message.includes('SOLO_NOT_FOUND')) writeStore('gb.solo',null,sessionStorage);
+    }
+  }
+  private restoreCourse(id:string):void {
+    this.course=readStore(`gb.study-course.${id}`)==='true';
+    try {this.course ||= JSON.parse(readStore('gb.solo-course',sessionStorage) ?? 'null')?.id===id;}
+    catch { /* 過去の不正な保存値は使わない */ }
+    writeStore('gb.solo-course',this.course?JSON.stringify({id}):null,sessionStorage);
+  }
+  async resumeSaved(id:string):Promise<boolean> {
+    if (this.busy || this.active) return false;
+    const generation=++this.generation; this.busy=true; this.error=''; this.changed();
+    try {
+      const s=await call<SoloState>('get_solo',{p_session:id,p_device:this.device});
+      if (generation!==this.generation) return false;
+      if (s.mode!=='study') throw new Error('STUDY_ONLY');
+      this.review=[];this.reviewing=false;this.reviewLoaded=false;this.reviewLoading=false;this.reviewPromise=null;
+      this.restoreCourse(id);writeStore('gb.solo',id,sessionStorage);this.apply(s);return true;
+    } catch(e) {if(generation===this.generation)this.error=this.message(e);return false;}
+    finally {if(generation===this.generation){this.busy=false;this.changed();}}
+  }
+  async pause():Promise<boolean> {
+    const s=this.state;if (!s || s.mode!=='study' || s.phase==='finished' || this.busy) return false;
+    const generation=this.generation;this.busy=true;this.error='';this.changed();
+    try {
+      const saved=await call<SoloState>('save_study',{p_session:s.id,p_device:this.device});
+      if(generation!==this.generation)return false;
+      this.apply(saved);this.stop();return true;
+    }catch(e){if(generation===this.generation)this.error=this.message(e);return false;}
+    finally{if(generation===this.generation){this.busy=false;this.changed();}}
   }
   stop(): void { this.generation++; this.state=null; this.busy=false; this.error=''; this.reviewing=false; this.reviewLoaded=false; this.reviewLoading=false; this.reviewPromise=null; this.course=false; writeStore('gb.solo',null,sessionStorage); writeStore('gb.solo-course',null,sessionStorage); }
   private apply(s:SoloState):void {
@@ -46,7 +78,7 @@ export class SoloController {
     if (s.phase==='reveal' && s.reveal && (s.answer_viewed || s.my_choice!==null && s.my_choice!==s.reveal.answer))
       recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice,answer_viewed:s.answer_viewed,choice_order:choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,this.questions.get(s.q_id)?.choices.length??5)});
     if (s.phase==='finished') {
-      if (s.mode==='study') writeStore('gb.solo',null,sessionStorage);
+      if (s.mode==='study') {writeStore('gb.solo',null,sessionStorage);writeStore(`gb.study-course.${s.id}`,null);}
       if (!same) {this.finished();void this.loadReview();}
     }
     if (!same) this.changed();
@@ -122,7 +154,7 @@ export class SoloController {
     const q=this.questions.get(s.q_id); if (!q) return '<p role="alert">問題を読み込めませんでした。ホームへ戻ってください。</p>';
     const reveal=s.reveal; const locked=s.phase!=='question' || s.my_choice!==null || this.busy;
     const ai=s.mode==='ai';
-    return `<div class="session-label"><span class="tag">${icon(ai?'bot':'book')}${ai?'AI対戦 · '+difficultyName[s.difficulty]:(this.course?'対戦直後の復習':s.study_order==='unattempted'?'一人で学習 · 未着手優先':s.study_order==='random'?'一人で学習 · ランダム':'一人で学習')}</span><span>${ai?'5問先取':'自分のペースで'}</span></div>
+    return `<div class="session-label"><span class="tag">${icon(ai?'bot':'book')}${ai?'AI対戦 · '+difficultyName[s.difficulty]:(this.course?'対戦直後の復習':s.study_order==='unattempted'?'一人で学習 · 未着手優先':s.study_order==='random'?'一人で学習 · ランダム':'一人で学習')}</span><span>${ai?'5問先取':'自分のペースで'}</span>${!ai?`<button class="btn study-pause-button" data-act="study-pause" ${this.busy?'disabled':''}>${icon('bookmark')}中断して保存</button>`:''}</div>
       ${ai?`<div class="duel"><div><span class="avatar">${icon('user')}</span><span>${esc(this.name()||'あなた')}</span><b>${s.my_score}</b></div><span class="versus">VS</span><div><span class="avatar ai">${icon('bot')}</span><span>GENOME AI</span><b>${s.ai_score}</b></div></div>`:`<div class="study-score">${icon('check')}ここまで ${s.my_score} 問正解 <span>解答済み ${s.q_index+(s.phase==='reveal'?1:0)} / ${s.q_total}問 · 後回し ${s.deferred_count??0}問</span></div>`}
       <div class="qhead"><span>第${s.q_index+1}問 <small>/ ${s.q_total}問</small></span><span class="tag">${esc(q.field)}</span>${ai && s.phase==='question'?'<span class="clock"><span data-solo-count></span>秒</span>':''}</div>
       <div class="timer"><i ${ai && s.phase==='question'?'data-solo-bar':`style="width:${100*(s.q_index+1)/s.q_total}%"`}></i></div>

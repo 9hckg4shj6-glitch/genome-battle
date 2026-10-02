@@ -149,7 +149,7 @@ try {
 } finally {
   if(createdMatches.length) await sql('delete from public.matches where id=any($1::uuid[])',[createdMatches]);
   if(created.length) await sql('delete from public.solo_sessions where id=any($1::uuid[])',[created]);
-  await sql('delete from study_attempts where device_id=$1::uuid',[device]);
+  await sql('delete from study_attempts where device_id=$1::uuid',[device]);await sql('delete from study_answer_records where device_id=$1::uuid',[device]);await sql('delete from study_completions where device_id=$1::uuid',[device]);
   await sb.removeAllChannels();
   console.log(`Cleaned ${created.length} test sessions`);
 }

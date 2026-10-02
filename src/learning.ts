@@ -3,12 +3,13 @@ import { icon, readStore, writeStore, notebook } from './ui';
 
 export interface BattlePerformance { matches:number; wins:number; draws:number; points:number; }
 export interface Performance {
-  study:{sessions:number;answered:number;correct:number}; ai:BattlePerformance; human:BattlePerformance;
+  study:{sessions:number;answered:number;correct:number;viewed?:number}; ai:BattlePerformance; human:BattlePerformance;
 }
 export function cachedPerformance(device:string):Performance|null {
   try {
     const p=JSON.parse(readStore(`gb.performance.${device}`) ?? 'null');
     if (!p || ![p.study?.sessions,p.study?.answered,p.study?.correct,p.ai?.matches,p.ai?.wins,p.ai?.draws,p.ai?.points,p.human?.matches,p.human?.wins,p.human?.draws,p.human?.points].every(n=>Number.isInteger(n) && n>=0)) return null;
+    if (p.study.viewed!==undefined && (!Number.isInteger(p.study.viewed) || p.study.viewed<0)) return null;
     return p;
   } catch {return null;}
 }
@@ -18,7 +19,7 @@ export function renderPerformance(p:Performance|null,error=''):string {
   if (!p) return `<div class="panel performance-loading" role="status">${error || '学習・対戦の記録を読み込んでいます…'}${error?'<button class="btn" data-act="refresh-performance">記録を再取得する</button>':''}</div>`;
   const stats=(items:[string,string,string][]):string=>`<div class="progress-stats">${items.map(([value,unit,label])=>`<div><strong>${value}<small>${unit}</small></strong><span>${label}</span></div>`).join('')}</div>`;
   const battle=(b:BattlePerformance,title:string,eyebrow:string,face:string):string=>`<section class="progress-panel performance-card"><div class="progress-intro"><span class="progress-icon">${icon(face)}</span><div><p class="eyebrow">${eyebrow}</p><h2>${title}</h2><p>勝敗と早押しで獲得した得点</p></div></div>${stats([[String(b.matches),'回','対戦数'],[String(b.wins),'勝','勝利'],[String(b.points),'点','獲得得点']])}<p class="performance-caption">${b.matches-b.wins-b.draws}敗 · ${b.draws}引き分け</p></section>`;
-  return `<div class="performance-grid"><section class="progress-panel performance-card study-performance"><div class="progress-intro"><span class="progress-icon">${icon('book')}</span><div><p class="eyebrow">STUDY RECORD</p><h2>学習成績</h2><p>一人で学習・復習コースの記録</p></div></div>${stats([[String(p.study.answered),'問','解いた問題'],[p.study.answered?String(Math.round(p.study.correct/p.study.answered*100)):'—',p.study.answered?'%':'','正答率'],[String(p.study.sessions),'回','学習回数']])}<p class="performance-caption">${p.study.correct} / ${p.study.answered}問正解</p></section>${battle(p.ai,'AI対戦成績','AI BATTLE RECORD','bot')}${battle(p.human,'対人対戦成績','MULTIPLAYER RECORD','swords')}</div><p class="performance-note">この端末のプレイヤーの記録 · 終了した学習・対戦が対象です</p>${error?'<p class="error" role="status">記録を更新できませんでした。前回取得した記録を表示しています。</p><button class="btn ghost" data-act="refresh-performance">再取得する</button>':''}`;
+  return `<div class="performance-grid"><section class="progress-panel performance-card study-performance"><div class="progress-intro"><span class="progress-icon">${icon('book')}</span><div><p class="eyebrow">STUDY RECORD</p><h2>学習成績</h2><p>中断した学習・復習コースも記録</p></div></div>${stats([[String(p.study.answered),'問','取り組んだ問題'],[p.study.answered?String(Math.round(p.study.correct/p.study.answered*100)):'—',p.study.answered?'%':'','正答率'],[String(p.study.sessions),'回','完了した学習']])}<p class="performance-caption">${p.study.correct} / ${p.study.answered}問正解 · 回答を見た ${p.study.viewed??0}問</p></section>${battle(p.ai,'AI対戦成績','AI BATTLE RECORD','bot')}${battle(p.human,'対人対戦成績','MULTIPLAYER RECORD','swords')}</div><p class="performance-note">このブラウザのプレイヤーの記録 · 学習は解答・回答確認の時点で記録、対戦は終了した試合が対象です</p>${error?'<p class="error" role="status">記録を更新できませんでした。前回取得した記録を表示しています。</p><button class="btn ghost" data-act="refresh-performance">再取得する</button>':''}`;
 }
 
 export interface CourseSummary { ids:string[]; wrong:number; unanswered:number; uncertain:number; }

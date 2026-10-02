@@ -22,3 +22,18 @@
 .answer-view-actions p,.answer-view-note {font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;}
 .answer-view-actions p {margin:10px 0 0;}.answer-summary {line-height:1.8;overflow-wrap:anywhere;}
 #solo-reveal-heading {scroll-margin-top:24px;}
+
+/* 中断・再開。スマートフォンでも操作と残り問題数を読み取れる。 */
+.session-label {flex-wrap:wrap;gap:12px;}
+.session-label .study-pause-button {margin-left:auto;min-height:44px;white-space:normal;padding:10px 14px;}
+.saved-studies {padding:24px;margin:0 0 24px;border:1px solid var(--accent);border-radius:18px;background:var(--surface);}
+.saved-studies > .eyebrow {color:var(--accent);margin:0 0 8px;}
+.saved-studies h2 {margin:0 0 16px;font-size:22px;}
+.saved-study {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--line);}
+.saved-study > div {min-width:0;}.saved-study h3 {font-size:16px;margin:0 0 6px;overflow-wrap:anywhere;}
+.saved-study p,.saved-study-help,.saved-studies > p:not(.eyebrow) {font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;margin:0;}
+.saved-study .btn {min-height:48px;flex-shrink:0;white-space:normal;}
+.saved-studies .saved-study-notice {padding:12px 0;color:var(--text);}
+.saved-studies .saved-study-help {margin-top:14px;}
+.saved-studies summary {cursor:pointer;min-height:44px;padding:12px 0;font-size:14px;}
+@media(max-width:540px){.saved-studies {padding:18px;}.saved-study {align-items:stretch;flex-direction:column;gap:10px;}.saved-study .btn {width:100%;}.session-label .study-pause-button {width:100%;margin-left:0;}}

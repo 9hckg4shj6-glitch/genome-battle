@@ -25,7 +25,7 @@ try {
  assert.equal((await answer(initial)).my_score,0);assert.equal((await defer(initial)).q_id,initial.q_id);assert.equal((await get(s)).answer_viewed,true);assert.ok((await rpc('get_study_progress',{p_device:device})).attempted_ids.includes(ids[0]));
  s=await next(s);assert.equal(s.q_id,ids[1]);assert.equal(s.answer_viewed,false);assert.equal(s.reveal,null);assert.equal((await view(initial)).reveal,null);
  s=await answer(s);assert.equal(s.my_score,1);assert.equal(s.answer_viewed,false);s=await next(s);s=await next(await view(s));assert.equal(s.phase,'finished');assert.equal(s.my_score,1);
- const review=await rpc('review_solo',base(s));assert.deepEqual(review.map(r=>r.answer_viewed),[true,false,true]);assert.deepEqual(review.map(r=>r.my_choice),[null,expected.get(ids[1]).answer,null]);assert.deepEqual(review.map(r=>r.choice_index),[0,1,2]);assert.equal((await view(s)).phase,'finished');assert.deepEqual((await rpc('get_performance',{p_device:device})).study,{sessions:1,answered:3,correct:1});
+ const review=await rpc('review_solo',base(s));assert.deepEqual(review.map(r=>r.answer_viewed),[true,false,true]);assert.deepEqual(review.map(r=>r.my_choice),[null,expected.get(ids[1]).answer,null]);assert.deepEqual(review.map(r=>r.choice_index),[0,1,2]);assert.equal((await view(s)).phase,'finished');assert.deepEqual((await rpc('get_performance',{p_device:device})).study,{sessions:1,answered:3,correct:1,viewed:2});
  const one=await start([ids[0]]);assert.equal(one.can_defer,false);assert.equal((await next(await view(one))).phase,'finished');
  let rotated=await start(ids.slice(0,2));const old=rotated;rotated=await defer(rotated);assert.equal((await view(old)).reveal,null);rotated=await next(await answer(rotated));assert.equal(rotated.is_deferred,true);rotated=await view(rotated);assert.equal(rotated.deferred_count,0);assert.equal(rotated.my_score,1);
  const ai=await start(ids,'ai');await assert.rejects(()=>view(ai),/STUDY_ONLY/);assert.equal((await get(ai)).reveal,null);
@@ -34,5 +34,5 @@ try {
  const direct=await sb.from('solo_sessions').select('*').eq('device_id',device);assert.ok(direct.error||direct.data.length===0);assert.ok((await sb.rpc('_solo_state',{p_session:initial.id})).error);
  console.log('PASS answer viewing: correct answer/explanation immediately, no score/fake choice, reload, progress/notebook history, next/reset/completion, single question, owner/study only, duplicates/stale actions/defer/answer races, RLS');
 } finally {
- if(solos.length)await sql('delete from solo_sessions where id=any($1::uuid[])',[solos]);await sql('delete from study_attempts where device_id=$1::uuid',[device]);await sb.removeAllChannels();console.log('Cleaned only this check’s fixtures');
+ if(solos.length)await sql('delete from solo_sessions where id=any($1::uuid[])',[solos]);await sql('delete from study_attempts where device_id=$1::uuid',[device]);await sql('delete from study_answer_records where device_id=$1::uuid',[device]);await sql('delete from study_completions where device_id=$1::uuid',[device]);await sb.removeAllChannels();console.log('Cleaned only this check’s fixtures');
 }

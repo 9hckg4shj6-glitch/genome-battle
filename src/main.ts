@@ -13,6 +13,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
 import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
+import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 
 const BASE = import.meta.env.BASE_URL;
@@ -62,6 +63,25 @@ let studyField = "";
 let studyCount = 10;
 type StudyOrder = 'unattempted'|'random';
 let studyOrder:StudyOrder=readStore('gb.study-order')==='random'?'random':'unattempted';
+let savedStudies:SavedStudy[]=[];let savedStudiesLoading=false;let savedStudiesError=false;let savedStudyNotice='';let savedStudiesAgain=false;
+async function refreshSavedStudies():Promise<void> {
+  if(savedStudiesLoading){savedStudiesAgain=true;return;}
+  savedStudiesLoading=true;updateSavedStudies();
+  try{savedStudies=await getSavedStudies(deviceId);savedStudiesError=false;}
+  catch{savedStudiesError=true;}
+  finally{savedStudiesLoading=false;updateSavedStudies();if(savedStudiesAgain){savedStudiesAgain=false;void refreshSavedStudies();}}
+}
+function updateSavedStudies():void {
+  if(view==='home'&&!solo.active){const region=document.getElementById('saved-study-region');if(region)region.innerHTML=renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice);}
+}
+async function resumeStudy(id:string):Promise<void> {
+  if(busy||solo.busy||solo.active)return;
+  busy=true;error='';render();
+  try{
+    if(await solo.resumeSaved(id)){view='home';savedStudyNotice='';window.scrollTo(0,0);}
+    else{error=solo.error;void refreshSavedStudies();}
+  }finally{busy=false;render();}
+}
 let studyAttempted=new Set<string>();let studyProgressLoaded=false;let studyProgressLoading=false;let studyProgressError=false;
 async function refreshStudyProgress():Promise<void> {
   if(studyProgressLoading)return;studyProgressLoading=true;
@@ -206,8 +226,14 @@ async function enter(fn: "find_match" | "create_room" | "join_room" | "join_publ
 }
 
 async function leave(): Promise<void> {
+  if(busy||solo.busy)return;
+  if(solo.state?.mode==='study' && solo.state.phase!=='finished') {
+    busy=true;render();
+    const saved=await solo.pause();busy=false;
+    if(!saved){render();return;}
+    savedStudyNotice='学習を保存しました。「続きから再開」で戻れます。';
+  } else solo.stop();
   battleGeneration++;
-  solo.stop();
   error = "";
   if (match?.status === "waiting") void call("leave_match", { p_match: match.id, p_device: deviceId }).catch(() => {});
   if (channel) void supabase.removeChannel(channel);
@@ -217,7 +243,7 @@ async function leave(): Promise<void> {
   view = "home";
   writeStore("gb.match", null, sessionStorage);
   render();
-  void refreshPerformance();void refreshStudyProgress();
+  void refreshPerformance();void refreshStudyProgress();void refreshSavedStudies();
   window.scrollTo(0, 0);
 }
 
@@ -419,6 +445,7 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     void probeConnection();void friends.refresh(true);
+    if(view==='home'&&!solo.active){void refreshSavedStudies();void refreshPerformance();}
     if (match && view === "match") void tick();
     if (solo.active) void solo.tick();
     if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
@@ -462,11 +489,13 @@ function render(): void {
 }
 
 function renderHeader(lobby: boolean): string {
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${busy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${busy ? "disabled" : ""}>${icon("back")}ホームへ</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${busy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
+  const navigationBusy=busy||solo.busy;
+  const backLabel=solo.state?.mode==='study'&&solo.state.phase!=='finished'?'中断してホームへ':'ホームへ';
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
 }
 
 function renderHome(): string {
-  return `<section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
+  return `<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 早押し" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   ${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
@@ -505,6 +534,7 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   busy=true; error=""; render();
   try {
     await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course,orderedStudy?order:"given",orderedStudy?Math.min(studyCount,available.length):undefined);
+    savedStudyNotice='';
     if (channel) void supabase.removeChannel(channel);
     channel=null;realtimeState("off");match=null;mySeat=null;writeStore("gb.match",null,sessionStorage);
     view="home";
@@ -738,7 +768,9 @@ app.addEventListener("click", (e) => {
   if (tab === "missed" || tab === "saved" || tab === "uncertain") {notebookTab = tab; return render();}
   const removeId = target.closest<HTMLElement>("[data-note-remove]")?.dataset.noteRemove;
   if (removeId) {removeMissed(removeId); return render();}
-  if (busy) return;
+  if (busy || solo.busy) return;
+  const resumeId=target.closest<HTMLElement>('[data-resume-study]')?.dataset.resumeStudy;
+  if(resumeId){void resumeStudy(resumeId);return;}
   const orderChoice=target.closest<HTMLElement>('[data-study-order]')?.dataset.studyOrder;
   if(orderChoice==='unattempted'||orderChoice==='random'){studyOrder=orderChoice;writeStore('gb.study-order',studyOrder);void startSolo('study',undefined,false,studyOrder);return;}
   const publicRoomId=target.closest<HTMLElement>("[data-public-room]")?.dataset.publicRoom;
@@ -746,6 +778,7 @@ app.addEventListener("click", (e) => {
   if (act === "friends") {friends.open();return;}
   if (act === "retry-connection") {void probeConnection();void friends.refresh(true);if(match)void tick();if(solo.active)void solo.tick();return;}
   if (act === "refresh-performance") return void refreshPerformance();
+  if (act === "refresh-saved-studies") return void refreshSavedStudies();
   if (act === "battle-retry") return void startBattleCourse();
   if (act === "reload-battle-review") return void (solo.active?solo.loadReview():prepareBattleReview());
   if (act === "refresh-rooms") return void refreshPublicRooms();
@@ -759,7 +792,7 @@ app.addEventListener("click", (e) => {
   else if (act === "start") void startRoom();
   else if (act === "share") shareRoom();
   else if (act === "review") void openReview();
-  else if (act === "leave") void leave();
+  else if (act === "leave" || act === "study-pause") void leave();
   else if (act === "notebook") {view = "notebook"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
   else if (act === "solo-start") void startSolo();
@@ -789,7 +822,7 @@ async function boot(): Promise<void> {
   list.forEach(q => questions.set(q.id, q));
   // 図は計300KB程度なので先読みして、出題時に待たせない
   list.forEach((q) => q.image && (new Image().src = `${BASE}${q.image}`));
-  void refreshPerformance();void refreshStudyProgress();void friends.refresh(true);
+  void refreshPerformance();void refreshStudyProgress();void refreshSavedStudies();void friends.refresh(true);
   await solo.resume();
   if (solo.active) {render();return;}
   const resumeId = readStore("gb.match", sessionStorage);
