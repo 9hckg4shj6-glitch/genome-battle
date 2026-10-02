@@ -1,3 +1,4 @@
+import { distributionName, type StudyDistribution } from './study-distribution';
 import { choiceOrder } from './choices';
 import { call, serverNow, type ReviewItem } from './api';
 import { esc, richText, icon, readStore, writeStore, notebook, recordMiss, reviewCard, uncertainButton, questionImage, type Question } from './ui';
@@ -8,7 +9,7 @@ interface SoloState {
   id: string; mode: SoloMode; difficulty: Difficulty; q_index: number; q_total: number; q_id: string;
   phase: 'question' | 'reveal' | 'finished'; answer_seconds: number; phase_ends_at: string | null;
   my_choice: number | null; my_score: number; ai_score: number; ai_mark: 'o'|'x'|null;
-  answer_viewed?: boolean; choice_index?: number; study_order?: 'given'|'unattempted'|'random'; deferred_count?: number; can_defer?: boolean; is_deferred?: boolean;
+  study_distribution?: StudyDistribution|null; answer_viewed?: boolean; choice_index?: number; study_order?: 'given'|'unattempted'|'random'; deferred_count?: number; can_defer?: boolean; is_deferred?: boolean;
   winner: 'me'|'ai'|null; reveal: {answer:number;explanation:string}|null; version:number;
 }
 export const difficultyName: Record<Difficulty,string> = {easy:'ビギナー',normal:'スタンダード',hard:'エキスパート'};
@@ -20,9 +21,9 @@ export class SoloController {
   private ticking=false; private lastTick=0; private generation=0;
   constructor(private device: string, private questions: Map<string,Question>, private changed:()=>void, private name:()=>string, private finished:()=>void) {}
   get active(): boolean { return this.state !== null; }
-  async start(mode: SoloMode, ids: string[], seconds: number, difficulty: Difficulty, course=false, order:'given'|'unattempted'|'random'='given', count?:number): Promise<void> {
+  async start(mode: SoloMode, ids: string[], seconds: number, difficulty: Difficulty, course=false, order:'given'|'unattempted'|'random'='given', count?:number,distribution?:StudyDistribution): Promise<void> {
     const generation=++this.generation;
-    const s=await call<SoloState>('start_solo',{p_device:this.device,p_mode:mode,p_ids:ids,p_seconds:seconds,p_difficulty:difficulty,p_order:order,p_count:count??null});
+    const s=await call<SoloState>('start_solo',{p_device:this.device,p_mode:mode,p_ids:ids,p_seconds:seconds,p_difficulty:difficulty,p_order:order,p_count:count??null,...(distribution?{p_distribution:distribution}:{})});
     if (generation !== this.generation) return;
     this.busy=false; this.review=[]; this.reviewing=false; this.reviewLoaded=false; this.reviewLoading=false; this.reviewPromise=null; this.course=course; this.error='';
     writeStore(`gb.study-course.${s.id}`,mode==='study'&&course?'true':null);
@@ -154,7 +155,7 @@ export class SoloController {
     const q=this.questions.get(s.q_id); if (!q) return '<p role="alert">問題を読み込めませんでした。ホームへ戻ってください。</p>';
     const reveal=s.reveal; const locked=s.phase!=='question' || s.my_choice!==null || this.busy;
     const ai=s.mode==='ai';
-    return `<div class="session-label"><span class="tag">${icon(ai?'bot':'book')}${ai?'AI対戦 · '+difficultyName[s.difficulty]:(this.course?'対戦直後の復習':s.study_order==='unattempted'?'一人で学習 · 未着手優先':s.study_order==='random'?'一人で学習 · ランダム':'一人で学習')}</span><span>${ai?'5問先取':'自分のペースで'}</span>${!ai?`<button class="btn study-pause-button" data-act="study-pause" ${this.busy?'disabled':''}>${icon('bookmark')}中断して保存</button>`:''}</div>
+    return `<div class="session-label"><span class="tag">${icon(ai?'bot':'book')}${ai?'AI対戦 · '+difficultyName[s.difficulty]:(this.course?'対戦直後の復習':s.study_order==='unattempted'?'一人で学習 · 未着手優先':s.study_order==='random'?'一人で学習 · ランダム':'一人で学習')}</span><span>${ai?'5問先取':s.study_distribution?distributionName[s.study_distribution]:'自分のペースで'}</span>${!ai?`<button class="btn study-pause-button" data-act="study-pause" ${this.busy?'disabled':''}>${icon('bookmark')}中断して保存</button>`:''}</div>
       ${ai?`<div class="duel"><div><span class="avatar">${icon('user')}</span><span>${esc(this.name()||'あなた')}</span><b>${s.my_score}</b></div><span class="versus">VS</span><div><span class="avatar ai">${icon('bot')}</span><span>GENOME AI</span><b>${s.ai_score}</b></div></div>`:`<div class="study-score">${icon('check')}ここまで ${s.my_score} 問正解 <span>解答済み ${s.q_index+(s.phase==='reveal'?1:0)} / ${s.q_total}問 · 後回し ${s.deferred_count??0}問</span></div>`}
       <div class="qhead"><span>第${s.q_index+1}問 <small>/ ${s.q_total}問</small></span><span class="tag">${esc(q.field)}</span>${ai && s.phase==='question'?'<span class="clock"><span data-solo-count></span>秒</span>':''}</div>
       <div class="timer"><i ${ai && s.phase==='question'?'data-solo-bar':`style="width:${100*(s.q_index+1)/s.q_total}%"`}></i></div>
