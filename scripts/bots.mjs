@@ -16,7 +16,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function bot(i) {
   const sb = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   const device = crypto.randomUUID();
-  const stats = { id: i, broadcasts: 0, answers: 0, doubleWinners: 0, match: null, final: null };
+  const stats = { id: i, broadcasts: 0, answers: 0, leakedMarks: 0, match: null, final: null };
   const rpc = async (fn, args) => {
     const { data, error } = await sb.rpc(fn, args);
     if (error) throw new Error(`${fn}: ${error.message}`);
@@ -34,7 +34,7 @@ async function bot(i) {
   const started = Date.now();
   while (s.status !== "finished" && Date.now() - started < 10 * 60_000) {
     await sleep(200 + Math.random() * 300);
-    if (s.players.filter((p) => p.mark === "o").length > 1) stats.doubleWinners++;
+    if (s.phase === "question" && s.players.some((p) => p.mark === "o" || p.mark === "x")) stats.leakedMarks++;
     const overdue = s.phase_ends_at && Date.now() > Date.parse(s.phase_ends_at) + 300;
     if (s.status === "playing" && s.phase === "question" && !answered.has(s.q_index) && Math.random() < 0.15) {
       answered.add(s.q_index);
@@ -59,7 +59,7 @@ console.log(JSON.stringify({
   matches: matches.size,
   sizes: [...matches].map((m) => results.find((r) => r.match === m).size),
   allFinished: results.every((r) => r.final === "finished"),
-  doubleWinners: results.reduce((a, r) => a + r.doubleWinners, 0),
+  leakedMarks: results.reduce((a, r) => a + r.leakedMarks, 0),
   broadcastsPerBot: Math.round(results.reduce((a, r) => a + r.broadcasts, 0) / N),
   answers: results.reduce((a, r) => a + r.answers, 0),
   seconds: Math.round((Date.now() - t0) / 1000),

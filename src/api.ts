@@ -11,7 +11,7 @@ export interface Player {
   seat: number;
   name: string;
   score: number;
-  mark: "o" | "x" | null;
+  mark: "o" | "x" | "answered" | null;
   ready?: boolean;
 }
 

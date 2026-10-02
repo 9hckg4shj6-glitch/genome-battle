@@ -149,7 +149,7 @@ input::placeholder { color:#87917d; }
 .players li.winner { border-color:var(--ok);box-shadow:0 0 0 2px var(--ok-bg); }
 .pts { font-weight:800;font-variant-numeric:tabular-nums; }
 .mark { font-style:normal;font-weight:800; }
-.mark.o { color:var(--ok); } .mark.x { color:var(--ng); }
+.mark.o { color:var(--ok); } .mark.x { color:var(--ng); } .mark.answered { color:var(--muted);font-size:.75em;font-weight:600; }
 .seat-0 { --c:var(--s0); }.seat-1 { --c:var(--s1); }.seat-2 { --c:var(--s2); }.seat-3 { --c:var(--s3); }.seat-4 { --c:var(--s4); }.seat-5 { --c:var(--s5); }.seat-6 { --c:var(--s6); }.seat-7 { --c:var(--s7); }
 .qhead { display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;flex-wrap:wrap; }
 .qhead small { color:var(--muted);font-size:11px;font-weight:400; }

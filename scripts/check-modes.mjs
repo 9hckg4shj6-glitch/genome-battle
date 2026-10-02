@@ -91,12 +91,13 @@ try {
   room=await rpc('tick',{p_match:room.id,p_device:device});assert.equal(room.phase,'question');
   const [answer]=await sql('select answer from public.questions where id=$1',[room.q_id]);
   const simultaneous=await Promise.all([device,guest].map(d=>rpc('submit_answer',{p_match:room.id,p_device:d,p_q_index:room.q_index,p_choice:answer.answer})));
-  for(const result of simultaneous) {
-    assert.equal(result.phase,'reveal');assert.equal(result.players.filter(p=>p.mark==='o').length,1);
-    assert.equal(result.players.reduce((a,p)=>a+p.score,0),1);
-  }
+  const waiting=simultaneous.find(r=>r.phase==='question');assert.ok(waiting);
+  assert.ok(waiting.players.every(p=>p.mark===null||p.mark==='answered'));assert.equal(waiting.reveal,null);
+  room=await rpc('get_match',{p_match:room.id,p_device:device});
+  assert.equal(room.phase,'reveal');assert.equal(room.players.filter(p=>p.mark==='o').length,2);
+  assert.equal(room.players.reduce((a,p)=>a+p.score,0),2);
   assert.equal((await rpc('get_review',{p_match:room.id,p_device:device})).length,1);
-  console.log('PASS private room: creation, join, capacity, host permission, countdown, concurrent winner and review');
+  console.log('PASS private room: creation, join, capacity, host permission, countdown, simultaneous answers and review');
 
   const host=randomUUID(), peer=randomUUID(), outsider=randomUUID();
   let open=await rpc('create_room',{p_device:host,p_name:'public-host',p_capacity:3,p_seconds:20});

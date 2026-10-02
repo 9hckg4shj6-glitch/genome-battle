@@ -460,7 +460,6 @@ window.addEventListener("online",()=>{void probeConnection();void friends.refres
 
 const me = (): Player | undefined => match?.players.find((p) => p.seat === mySeat);
 const myMark = (): Player["mark"] => me()?.mark ?? null;
-const nameOf = (seat: number | null): string => match?.players.find((p) => p.seat === seat)?.name ?? "";
 
 function updateClock(): void {
   if (!match?.phase_ends_at) return;
@@ -498,10 +497,10 @@ function renderHeader(lobby: boolean): string {
 
 function renderHome(): string {
   return `<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
-  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 早押し" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
+  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 全員解答" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   ${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
-  <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。いちばん早く正解した人に1点、お手つきはその問題の解答終了。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
+  <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
 function renderSetup(): string {
@@ -548,8 +547,8 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
 function renderPlayers(m: MatchState, withMarks: boolean): string {
   return `<ul class="players">${m.players
     .map((p) => {
-      const cls = [`seat-${p.seat % 8}`, p.seat === mySeat ? "me" : "", withMarks && p.seat === m.winner_seat ? "winner" : ""].join(" ");
-      const mark = withMarks && p.mark ? `<em class="mark ${p.mark}">${p.mark === "o" ? "○" : "×"}</em>` : "";
+      const cls = [`seat-${p.seat % 8}`, p.seat === mySeat ? "me" : "", withMarks && p.mark === "o" ? "winner" : ""].join(" ");
+      const mark = withMarks && p.mark ? `<em class="mark ${p.mark}">${p.mark === "o" ? "○" : p.mark === "x" ? "×" : "回答済"}</em>` : "";
       const score = m.status === "waiting" ? "" : `<span class="pts">${p.score}</span>`;
       const ready=m.status==="waiting"?`<em class="ready-badge ${p.ready?"is-ready":""}">${p.ready?"準備完了":"準備中"}</em>`:"";
       return `<li class="${cls}"><b>${esc(p.name)}</b>${score}${mark}${ready}</li>`;
@@ -616,7 +615,7 @@ function renderPlay(m: MatchState): string {
     .map((i, pos) => {
       const cls = [
         reveal?.answer === i ? "correct" : "",
-        mine === i && (reveal ? reveal.answer !== i : myMark() === "x") ? "wrong" : "",
+        mine === i && reveal && reveal.answer !== i ? "wrong" : "",
         mine === i ? "mine" : "",
       ].join(" ");
       return `<li><button class="choice ${cls}" data-choice="${i}" ${locked ? "disabled" : ""}><span class="num">${pos + 1}</span><span>${esc(q.choices[i])}</span></button></li>`;
@@ -625,16 +624,18 @@ function renderPlay(m: MatchState): string {
   let footer = "";
   if (reveal) {
     const [head, ...body] = reveal.explanation.split(/\n{2,}/);
-    const banner = m.winner_seat === null ? "正解者なし" : m.winner_seat === mySeat ? "あなたが正解！" : `${esc(nameOf(m.winner_seat))} さんが正解！`;
+    const banner = myMark() === "o" ? "あなたは正解！" : myMark() === null ? "時間切れ" : "不正解…";
+    const correct = m.players.filter((p) => p.mark === "o").map((p) => `${esc(p.name)} さん`);
     footer = `
-      <section class="reveal ${m.winner_seat === mySeat ? "win" : ""}">
+      <section class="reveal ${myMark() === "o" ? "win" : ""}">
         <p class="banner">${banner}</p>
+        <p class="note">${correct.length ? `正解者：${correct.join("、")}` : "正解者なし"}</p>
         <div class="expl">${richText(head)}${body[0] ? richText(body[0]) : ""}</div>
         <div class="confidence-actions">${currentBattleItem()?uncertainButton(currentBattleItem()!):""}</div>
         <p class="next">次へ <span data-count></span>秒（解説の全文は試合後に読めます）</p>
       </section>`;
-  } else if (myMark() === "x") {
-    footer = `<p class="note">お手つき。ほかの人の解答を待っています…</p>`;
+  } else if (myMark() !== null) {
+    footer = `<p class="note">回答しました。全員の回答を待っています…（${m.players.filter((p) => p.mark !== null).length}/${m.players.length}人）</p>`;
   }
   return `${top}
     <section class="question">
@@ -729,8 +730,8 @@ app.addEventListener("change", (e) => {
   if (input.id === "room-private") roomPrivateDraft = input.checked;
   if (input.id === "capacity") capacity = Number(input.value) || null;
   if (input.id === "room-field") {roomFieldDraft=input.value;render();}
-  if (input.id === "study-field") {studyField = input.value; render();}
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
+  if (input.id === "study-field") {studyField = input.value; render();}
   // 範囲外・空欄のまま離れたら、直前の有効な値に戻す。
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
   if (input.id === "difficulty") difficulty = input.value as Difficulty;
