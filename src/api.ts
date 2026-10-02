@@ -50,6 +50,7 @@ export interface ReviewItem {
   answer: number;
   explanation: string;
   my_choice: number | null;
+  answer_viewed?: boolean;
   choice_order?: number[];
   choice_index?: number;
 }

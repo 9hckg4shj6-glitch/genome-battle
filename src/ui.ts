@@ -62,7 +62,7 @@ export function notebook(): Notebook {
   } catch { return {missed:{},saved:{},uncertain:{}}; }
 }
 const saveNotebook = (n: Notebook): void => writeStore('gb.notebook',JSON.stringify(n));
-const note = (r: ReviewItem, misses: number, key: string): Note => ({id:r.id,answer:r.answer,explanation:r.explanation,my_choice:r.my_choice,choice_order:r.choice_order,at:Date.now(),misses,key});
+const note = (r: ReviewItem, misses: number, key: string): Note => ({id:r.id,answer:r.answer,explanation:r.explanation,my_choice:r.my_choice,answer_viewed:r.answer_viewed,choice_order:r.choice_order,at:Date.now(),misses,key});
 // key は「セッションID:問番号」。同じ解答確定の再配信や再読み込みで二重に数えない。
 export function recordMiss(key: string, r: ReviewItem): void {
   const n=notebook(); const prev=n.missed[r.id];
@@ -91,5 +91,5 @@ export function uncertainButton(r:ReviewItem):string {
   return `<button class="btn ghost uncertain-btn ${on?'on':''}" data-uncertain="${esc(r.id)}" aria-pressed="${on}">${icon('target')}${on?'迷った問題に記録済み':'正解したけど迷った'}</button>`;
 }
 export function reviewCard(q: Question, r: ReviewItem, label: string, saved: boolean, extra = '', order=r.choice_order): string {
-  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${questionImage(q,true)}<ol class="review-choices">${validChoiceOrder(order,q.choices.length).map((n,pos)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${pos+1}</span>${esc(q.choices[n])}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${uncertainButton(r)}${extra}</div></article>`;
+  return `<article class="review-item"><p class="eyebrow">${label}<span class="verdict ${r.my_choice===r.answer?'ok':''}">${r.answer_viewed?'回答を見た':r.my_choice===null?'未解答':r.my_choice===r.answer?'○ 正解':'× 不正解'}</span></p><p class="review-q">${esc(q.question)}</p>${questionImage(q,true)}<ol class="review-choices">${validChoiceOrder(order,q.choices.length).map((n,pos)=>`<li class="${n===r.answer?'correct':''} ${n===r.my_choice && n!==r.answer?'wrong':''}"><span class="num">${pos+1}</span>${esc(q.choices[n])}</li>`).join('')}</ol><div class="expl">${richText(r.explanation)}</div><div class="review-actions"><button class="btn ghost save-btn ${saved?'on':''}" data-save="${esc(r.id)}" aria-pressed="${saved}">${icon('bookmark')}${saved?'保存済み':'この問題を保存'}</button>${uncertainButton(r)}${extra}</div></article>`;
 }
