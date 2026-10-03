@@ -1,4 +1,4 @@
-/* 一人で学習の収録問題一覧。明暗の共通変数を使う。 */
+/* 一人で学習の過去問・問題と解説。明暗の共通変数を使う。 */
 .catalog-entry { --mode-color:#9fd8d4;width:100%;display:flex;align-items:center;gap:16px;padding:20px 22px;color:var(--text);text-align:left;cursor:pointer;font:inherit; }
 .catalog-entry:hover { border-color:var(--mode-color); }
 .catalog-entry > span:nth-child(2) { flex:1;display:grid;gap:4px;min-width:0; }

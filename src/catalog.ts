@@ -1,7 +1,7 @@
 import { call } from './api';
 import { esc, icon, questionImage, richText, type Question } from './ui';
 
-// 収録問題一覧。問題文は手元の questions.json、正答と解説は開いた問題だけサーバから取得する。
+// 過去問・問題と解説。問題文は手元の questions.json、正答と解説は開いた問題だけサーバから取得する。
 interface Answer { answer: number; explanation: string; }
 const answers = new Map<string, Answer>();
 const loading = new Set<string>();
@@ -26,7 +26,7 @@ export function renderCatalog(questions: Map<string, Question>): string {
     const no = list.indexOf(q) + 1;
     return `<details class="catalog-item" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no">${no}</span><span class="catalog-summary"><span class="catalog-field">${esc(q.field)}</span><span class="catalog-q">${esc(q.question)}</span></span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details>`;
   }).join('');
-  return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>収録問題一覧</h1><p class="lead">アプリに収録している全${list.length}問を閲覧できます。問題を押すと、正解と解説を表示します。</p></header>
+  return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を閲覧できます。問題を押すと、正解と解説を表示します。</p></header>
     <div class="panel catalog-tools"><button class="btn ghost" data-act="catalog-back">${icon('back')}一人で学習に戻る</button><label class="field"><span>分野で絞り込む</span><select id="catalog-field" aria-label="分野で絞り込む"><option value="">すべての分野（${list.length}問）</option>${fields.map(f => `<option value="${esc(f)}" ${f === catalogField ? 'selected' : ''}>${esc(f)}（${list.filter(q => q.field === f).length}問）</option>`).join('')}</select></label></div>
     <div class="catalog-list">${items}</div>`;
 }

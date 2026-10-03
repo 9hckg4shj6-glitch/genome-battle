@@ -1,4 +1,4 @@
-// 公開クライアントで収録問題一覧の正答・解説を確認。値や認証情報は出力しない。
+// 公開クライアントで過去問・問題と解説の正答・解説を確認。値や認証情報は出力しない。
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
