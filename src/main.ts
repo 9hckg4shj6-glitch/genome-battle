@@ -3,6 +3,7 @@ import "./learning.css";
 import "./social.css";
 import "./readability.css";
 import "./sessions.css";
+import "./catalog.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -16,6 +17,7 @@ import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss
 import { studyDistribution, renderDistribution } from './study-distribution';
 import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
+import { renderCatalog, setCatalogField, toggleCatalogItem } from "./catalog";
 
 const BASE = import.meta.env.BASE_URL;
 const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
@@ -56,7 +58,7 @@ let match: MatchState | null = null;
 let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
-let view: "home" | "setup" | "match" | "review" | "notebook" = roomCodeDraft ? "setup" : "home";
+let view: "home" | "setup" | "match" | "review" | "notebook" | "catalog" = roomCodeDraft ? "setup" : "home";
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
@@ -481,6 +483,7 @@ function render(): void {
   else if (view === "setup") body = renderSetup();
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
+  else if (view === "catalog") body = renderCatalog(questions);
   else if (!match || view === "home") body = renderHome();
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
@@ -517,7 +520,7 @@ function renderSetup(): string {
     ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
     ${study?`<div class="study-start-actions"><button class="btn primary" data-study-order="unattempted" ${busy?"disabled":""}>未着手の問題を優先的に演習${icon("arrow")}</button><button class="btn" data-study-order="random" ${busy?"disabled":""}>ランダム演習${icon("arrow")}</button></div><p class="study-order-help">${studyProgressError?"未着手の件数を取得できませんでした。出題時に確認します。":studyProgressLoaded?`この分野の未着手：${[...questions.values()].filter(q=>(!studyField||q.field===studyField)&&!studyAttempted.has(q.id)).length} / ${fieldTotal}問。`:"未着手の件数を確認中…"}${!studyField&&distribution==='even'?"選んだ配分を保ち、各分野内で未着手の問題を優先します。":"まだ解答も回答の確認もしていない問題を優先します。"}不足分は演習済みから補います。後回しは未着手のままです。</p>`:`<button class="btn primary" data-act="${study || ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>`}
     ${selectedMode==="room" ? `<div class="divider"><span>部屋番号・招待リンクで参加</span></div><label class="field"><span>部屋番号（4桁）</span><div class="join"><input id="code" aria-label="部屋番号（4桁）" inputmode="numeric" maxlength="4" placeholder="0000" value="${esc(roomCodeDraft)}"/><button class="btn" data-act="join" ${busy ? "disabled" : ""}>対戦室に参加</button></div></label><label class="field"><span>招待キー（鍵付きルームのみ）</span><input id="invite-key" type="password" autocomplete="off" aria-label="招待キー" placeholder="招待リンクから開くと自動入力" value="${esc(roomInviteDraft)}"/></label>` : ""}
-    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"} · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
+    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section>${study ? `<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>収録問題一覧</strong><small>全${questions.size}問の問題文を閲覧。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"} · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
 }
 
 async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study", retryIds?: string[], course=false, order:StudyOrder=studyOrder): Promise<void> {
@@ -720,6 +723,9 @@ function renderNotebook(): string {
 app.addEventListener("toggle", (e) => {
   const panel=e.target;
   if(panel instanceof HTMLDetailsElement && panel.id==="saved-study-panel" && panel.isConnected) savedStudiesExpanded=panel.open;
+  const catalogId=panel instanceof HTMLDetailsElement && panel.isConnected?panel.dataset.catalogId:undefined;
+  const catalogQuestion=catalogId?questions.get(catalogId):undefined;
+  if(catalogQuestion) void toggleCatalogItem(catalogQuestion,(panel as HTMLDetailsElement).open);
 }, true);
 
 app.addEventListener("input", (e) => {
@@ -738,6 +744,7 @@ app.addEventListener("change", (e) => {
   if (input.id === "room-field") {roomFieldDraft=input.value;render();}
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
   if (input.id === "study-field") {studyField = input.value; render();}
+  if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
   // 範囲外・空欄のまま離れたら、直前の有効な値に戻す。
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
   if (input.id === "difficulty") difficulty = input.value as Difficulty;
@@ -778,6 +785,8 @@ app.addEventListener("click", (e) => {
   if (tab === "missed" || tab === "saved" || tab === "uncertain") {notebookTab = tab; return render();}
   const removeId = target.closest<HTMLElement>("[data-note-remove]")?.dataset.noteRemove;
   if (removeId) {removeMissed(removeId); return render();}
+  const catalogRetry=questions.get(target.closest<HTMLElement>("[data-catalog-retry]")?.dataset.catalogRetry??"");
+  if (catalogRetry) return void toggleCatalogItem(catalogRetry,true);
   if (busy || solo.busy) return;
   const resumeId=target.closest<HTMLElement>('[data-resume-study]')?.dataset.resumeStudy;
   if(resumeId){void resumeStudy(resumeId);return;}
@@ -804,6 +813,8 @@ app.addEventListener("click", (e) => {
   else if (act === "review") void openReview();
   else if (act === "leave" || act === "study-pause") void leave();
   else if (act === "notebook") {view = "notebook"; error = ""; render(); window.scrollTo(0, 0);}
+  else if (act === "catalog") {view = "catalog"; error = ""; render(); window.scrollTo(0, 0);}
+  else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
   else if (act === "solo-start") void startSolo();
   else if (act === "solo-view-answer") {void solo.act("view-answer").then(()=>{if(solo.state?.phase==="reveal"){const heading=document.getElementById("solo-reveal-heading");heading?.scrollIntoView({block:"start"});heading?.focus({preventScroll:true});}});}
