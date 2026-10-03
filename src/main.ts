@@ -66,6 +66,7 @@ let distribution=studyDistribution(readStore('gb.study-distribution'));
 type StudyOrder = 'unattempted'|'random';
 let studyOrder:StudyOrder=readStore('gb.study-order')==='random'?'random':'unattempted';
 let savedStudies:SavedStudy[]=[];let savedStudiesLoading=false;let savedStudiesError=false;let savedStudyNotice='';let savedStudiesAgain=false;
+let savedStudiesExpanded=false;
 async function refreshSavedStudies():Promise<void> {
   if(savedStudiesLoading){savedStudiesAgain=true;return;}
   savedStudiesLoading=true;updateSavedStudies();
@@ -74,7 +75,7 @@ async function refreshSavedStudies():Promise<void> {
   finally{savedStudiesLoading=false;updateSavedStudies();if(savedStudiesAgain){savedStudiesAgain=false;void refreshSavedStudies();}}
 }
 function updateSavedStudies():void {
-  if(view==='home'&&!solo.active){const region=document.getElementById('saved-study-region');if(region)region.innerHTML=renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice);}
+  if(view==='home'&&!solo.active){const region=document.getElementById('saved-study-region');if(region)region.innerHTML=renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded);}
 }
 async function resumeStudy(id:string):Promise<void> {
   if(busy||solo.busy||solo.active)return;
@@ -496,7 +497,7 @@ function renderHeader(lobby: boolean): string {
 }
 
 function renderHome(): string {
-  return `<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
+  return `<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>その知識が、<br><em>勝利</em>に変わる。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–8人 / 全員解答" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   ${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
@@ -715,6 +716,11 @@ function renderNotebook(): string {
       : `<div class="rooms-empty"><span>${icon("bookmark")}</span><p>${notebookTab === "missed" ? "誤答・わからなかった問題はありません。" : notebookTab === "uncertain" ? "まだ迷った問題はありません。" : "まだ保存した問題はありません。"}</p><small>${notebookTab === "missed" ? "対戦・学習で間違えた問題と、回答を見た問題がここに集まります。" : notebookTab === "uncertain" ? "正解後や解説画面の「正解したけど迷った」から記録できます。" : "振り返り画面の「この問題を保存」から追加できます。"}</small></div>`}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
+
+app.addEventListener("toggle", (e) => {
+  const panel=e.target;
+  if(panel instanceof HTMLDetailsElement && panel.id==="saved-study-panel" && panel.isConnected) savedStudiesExpanded=panel.open;
+}, true);
 
 app.addEventListener("input", (e) => {
   const input = e.target as HTMLInputElement;

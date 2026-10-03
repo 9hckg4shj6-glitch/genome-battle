@@ -26,17 +26,17 @@
 /* 中断・再開。スマートフォンでも操作と残り問題数を読み取れる。 */
 .session-label {flex-wrap:wrap;gap:12px;}
 .session-label .study-pause-button {margin-left:auto;min-height:44px;white-space:normal;padding:10px 14px;}
-.saved-studies {padding:24px;margin:0 0 24px;border:1px solid var(--accent);border-radius:18px;background:var(--surface);}
-.saved-studies > .eyebrow {color:var(--accent);margin:0 0 8px;}
-.saved-studies h2 {margin:0 0 16px;font-size:22px;}
+.saved-studies {padding:8px 24px;margin:0 0 24px;border:1px solid var(--accent);border-radius:18px;background:var(--surface);}
+.saved-study-heading .eyebrow {display:block;color:var(--accent);margin:0 0 5px;}
+.saved-studies h2 {margin:0;font-size:18px;line-height:1.5;}
 .saved-study {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--line);}
 .saved-study > div {min-width:0;}.saved-study h3 {font-size:16px;margin:0 0 6px;overflow-wrap:anywhere;}
 .saved-study p,.saved-study-help,.saved-studies > p:not(.eyebrow) {font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;margin:0;}
 .saved-study .btn {min-height:48px;flex-shrink:0;white-space:normal;}
-.saved-studies .saved-study-notice {padding:12px 0;color:var(--text);}
+.saved-studies .saved-study-notice {padding:12px 0 4px;color:var(--text);}
 .saved-studies .saved-study-help {margin-top:14px;}
 .saved-studies summary {cursor:pointer;min-height:44px;padding:12px 0;font-size:14px;}
-@media(max-width:540px){.saved-studies {padding:18px;}.saved-study {align-items:stretch;flex-direction:column;gap:10px;}.saved-study .btn {width:100%;}.session-label .study-pause-button {width:100%;margin-left:0;}}
+@media(max-width:540px){.saved-studies {padding:8px 16px;}.saved-study {align-items:stretch;flex-direction:column;gap:10px;}.saved-study .btn {width:100%;}.session-label .study-pause-button {width:100%;margin-left:0;}}
 
 .study-distribution {padding:0;border:0;min-width:0;margin:22px 0 0;}
 .study-distribution legend {font-size:13px;margin-bottom:10px;color:var(--muted);}
@@ -49,3 +49,16 @@
 .study-distribution:disabled {opacity:.55;}.study-distribution:disabled .distribution-option {cursor:default;}
 .distribution-help {font-size:13px;line-height:1.8;color:var(--muted);margin:12px 0 0;}
 @media(max-width:540px){.distribution-options {grid-template-columns:1fr;}.distribution-option {min-height:64px;}}
+
+/* 一覧は最初に閉じ、見出し全体で開閉できる。 */
+.saved-studies .saved-study-toggle {display:flex;align-items:center;gap:12px;list-style:none;padding:12px 0;}
+.saved-study-toggle::-webkit-details-marker {display:none;}
+.saved-study-heading {flex:1;min-width:0;}.saved-study-count {color:var(--muted);font-size:13px;white-space:nowrap;}
+.saved-study-toggle-label {display:flex;align-items:center;gap:6px;color:var(--accent);font-size:13px;white-space:nowrap;}
+.saved-study-toggle-label .icon {width:16px;height:16px;transform:rotate(90deg);}
+.saved-study-toggle .when-open,#saved-study-panel[open] > summary .when-closed {display:none;}
+#saved-study-panel[open] > summary .when-open {display:inline;}
+#saved-study-panel[open] > summary .icon {transform:rotate(-90deg);}
+.saved-study-toggle:focus-visible {outline:2px solid var(--accent);outline-offset:4px;border-radius:6px;}
+.saved-study-body {padding:0 0 16px;}
+@media(max-width:540px){.saved-studies h2 {font-size:16px;}.saved-studies .saved-study-toggle {gap:8px;}.saved-study-heading .eyebrow {font-size:10px;}}
