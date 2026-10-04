@@ -10,7 +10,7 @@
 .catalog-tools { grid-template-columns:auto 1fr;align-items:end;padding:20px 22px; }
 .catalog-tools .field { margin:0; }
 .catalog-list { display:grid;gap:10px; }
-.catalog-item { background:var(--surface);border:1px solid var(--line);border-radius:14px; }
+.catalog-item { min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:14px; }
 .catalog-item[open] { border-color:color-mix(in srgb,var(--accent) 45%,var(--line)); }
 .catalog-item summary { display:flex;align-items:flex-start;gap:14px;padding:16px 18px;cursor:pointer;list-style:none; }
 .catalog-item summary::-webkit-details-marker { display:none; }
