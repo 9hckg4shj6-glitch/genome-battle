@@ -20,3 +20,9 @@
 .friend-list strong {font-size:13px;overflow-wrap:anywhere;}.friend-list small {display:block;font-size:11px;color:var(--muted);margin-top:5px;}.friend-row-actions {display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}.friend-row-actions .btn {font-size:11px;padding:8px 10px;min-height:36px;}
 @media(max-width:750px) {.app-header {flex-wrap:wrap;gap:10px;padding:16px 0;}.header-actions {gap:6px;}.app-header .header-note {display:none;}.app-header .profile {display:none;}}
 @media(max-width:440px) {.friends-open {font-size:11px;padding:8px;}.friends-dialog {padding:18px;}.friend-profile {grid-template-columns:1fr;gap:8px;}.friend-add {flex-direction:column;align-items:stretch;padding:12px;}.friend-list li {flex-direction:column;align-items:stretch;}.friend-row-actions {justify-content:flex-start;}.friends-refresh {align-items:flex-start;}.friends-heading h1 {font-size:21px;}}
+.toolbar-status {display:flex;align-items:center;gap:14px;margin-left:auto;flex-wrap:wrap;}
+.reading-toolbar .toolbar-status .connection-strip {margin:0;}
+.online-count {display:flex;gap:7px;align-items:center;color:var(--muted);font-size:11px;white-space:nowrap;}
+.online-count i {width:6px;height:6px;flex-shrink:0;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);}
+.online-count.waiting i {background:var(--muted);box-shadow:none;}
+@media(max-width:440px){.toolbar-status {margin-left:0;gap:10px;}}

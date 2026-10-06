@@ -7,6 +7,7 @@ import "./catalog.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
+import { renderOnlineCount, startPresence } from "./presence";
 import { FriendsController, friendsIcon } from "./friends";
 import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
 import { renderThemeSwitch, setTheme } from "./theme";
@@ -52,6 +53,7 @@ const app = document.querySelector<HTMLElement>("#app")!;
 
 const deviceId = readStore("gb.device") ?? crypto.randomUUID();
 writeStore("gb.device", deviceId);
+startPresence(deviceId);
 
 let playerName = readStore("gb.name") ?? "";
 // 対戦室の定員。null は「8人まで」
@@ -508,7 +510,7 @@ function render(): void {
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
   else body = renderResult(match);
-  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div id="connection-status" class="connection-strip">${renderConnection()}</div></div><div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
+  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div><div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
   updateClock();
   solo.updateClock();friends.update();
 }
