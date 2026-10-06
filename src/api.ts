@@ -38,6 +38,7 @@ export interface MatchState {
   win_score: number;
   capacity: number | null;
   answer_seconds: number;
+  matchmaking?: boolean;
   version: number;
   host_seat: number | null;
   players: Player[];

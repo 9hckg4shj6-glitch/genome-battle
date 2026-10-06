@@ -1,5 +1,5 @@
 // 負荷・競合テスト用のボット。本番と同じRPC・Realtimeを使って同時にランダム対戦へ入る。
-//   node scripts/bots.mjs [人数=16] [1部屋の人数=おまかせ] [1問の秒数=20]
+//   node scripts/bots.mjs [人数=16] [1部屋の人数=2（2〜4）] [1問の秒数=20（016以降のサーバは常に20秒）]
 // .env.local の VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY を使う。
 // 確認すること: 全試合が finished になる／1問に正解者（○）が2人以上いない／配信が届いている。
 import { readFileSync } from "node:fs";

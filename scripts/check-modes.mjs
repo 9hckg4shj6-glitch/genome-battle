@@ -142,7 +142,7 @@ try {
   await sql("update public.matches set last_active=now()-interval '20 seconds' where id=$1::uuid",[stale.id]);
   assert.ok(!(await rpc('list_public_rooms',{})).some(r=>r.id===stale.id));
   await assert.rejects(()=>rpc('join_public_room',{p_match:stale.id,p_device:peer,p_name:'stale-join'}),/ROOM_NOT_FOUND/);
-  const auto=await rpc('find_match',{p_device:randomUUID(),p_name:'queue-test',p_capacity:7,p_seconds:119});createdMatches.push(auto.id);
+  const auto=await rpc('find_match',{p_device:randomUUID(),p_name:'queue-test',p_capacity:4,p_seconds:20});createdMatches.push(auto.id);
   assert.ok(!(await rpc('list_public_rooms',{})).some(r=>r.id===auto.id));
   console.log('PASS public rooms: default visibility, list selection, host locking, invitation privacy/rotation, concurrent capacity, started/stale exclusion');
 

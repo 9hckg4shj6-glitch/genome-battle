@@ -62,3 +62,8 @@
 .saved-study-toggle:focus-visible {outline:2px solid var(--accent);outline-offset:4px;border-radius:6px;}
 .saved-study-body {padding:0 0 16px;}
 @media(max-width:540px){.saved-studies h2 {font-size:16px;}.saved-studies .saved-study-toggle {gap:8px;}.saved-study-heading .eyebrow {font-size:10px;}}
+.match-size {padding:0;border:0;min-width:0;margin:0;}
+.match-size legend {font-size:13px;margin-bottom:10px;color:var(--muted);}
+.match-size-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.review-to-result {display:flex;justify-content:center;}
+@media(max-width:540px){.match-size-options {grid-template-columns:1fr;}}
