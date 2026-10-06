@@ -1,6 +1,9 @@
-.guide-open {font-size:12px;padding:9px 12px;min-height:40px;white-space:nowrap;}
-.guide-open .icon {width:18px;height:18px;}
-.guide-open[aria-current="page"] {color:var(--text);}
+.btn.guide-open {font-size:12px;padding:8px 14px;min-height:40px;white-space:nowrap;color:var(--text);background:var(--surface);border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));border-radius:30px;}
+.btn.guide-open .icon {width:18px;height:18px;color:var(--accent);}
+.btn.guide-open:hover, .btn.guide-open[aria-current="page"] {border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface));}
+.hero-guide {margin-top:22px;min-height:46px;padding:11px 18px;border-radius:30px;border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface));font-size:14px;}
+.hero-guide .icon {width:19px;height:19px;color:var(--accent);}
+.hero-guide:hover {border-color:var(--accent);}
 
 .guide-welcome {--mode-color:var(--accent);display:flex;align-items:center;gap:18px;margin:22px 0 14px;padding:20px 22px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent 80%),var(--surface);}
 .guide-welcome > div:nth-child(2) {flex:1;min-width:0;}
@@ -10,7 +13,8 @@
 .guide-welcome .mode-icon {flex:none;}
 .guide-welcome-actions {display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 .guide-welcome-actions .btn {white-space:nowrap;}
-.guide-entry {--mode-color:var(--accent);margin-bottom:24px;}
+.guide-entry {--mode-color:var(--accent);margin:16px 0 0;border-color:color-mix(in srgb,var(--accent) 40%,var(--line));}
+.guide-entry:hover {border-color:var(--accent);}
 
 .guide-hero {padding-top:28px;}
 .guide-toc {display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;}
@@ -75,7 +79,8 @@
   .guide-welcome-actions .btn {flex:1;}
 }
 @media(max-width:440px){
-  .guide-open {font-size:11px;padding:8px;}
+  .btn.guide-open {font-size:11px;padding:8px 11px;}
+  .hero-guide {font-size:13px;padding:10px 14px;}
   .guide-welcome {padding:16px;gap:12px;}
   .guide-welcome .mode-icon {display:none;}
   .guide-welcome-actions {flex-direction:column;}
