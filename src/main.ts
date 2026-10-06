@@ -4,10 +4,12 @@ import "./social.css";
 import "./readability.css";
 import "./sessions.css";
 import "./catalog.css";
+import "./guide.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
 import { renderOnlineCount, startPresence } from "./presence";
+import { markGuideSeen, renderGuide, renderGuideWelcome } from "./guide";
 import { FriendsController, friendsIcon } from "./friends";
 import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
 import { renderThemeSwitch, setTheme } from "./theme";
@@ -69,7 +71,7 @@ let match: MatchState | null = null;
 let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
-let view: "home" | "setup" | "match" | "review" | "notebook" | "catalog" = roomCodeDraft ? "setup" : "home";
+let view: "home" | "setup" | "match" | "review" | "notebook" | "catalog" | "guide" = roomCodeDraft ? "setup" : "home";
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
@@ -506,6 +508,7 @@ function render(): void {
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
   else if (view === "catalog") body = renderCatalog(questions);
+  else if (view === "guide") body = renderGuide();
   else if (!match || view === "home") body = renderHome();
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
@@ -518,15 +521,17 @@ function render(): void {
 function renderHeader(lobby: boolean): string {
   const navigationBusy=busy||solo.busy;
   const backLabel=solo.state?.mode==='study'&&solo.state.phase!=='finished'?'中断してホームへ':'ホームへ';
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
+  // 対戦・学習の途中でガイドへ移ると進行を見逃すので、そのあいだは出さない。
+  const guideButton=!solo.active&&view!=="match"&&view!=="review"?`<button class="btn ghost guide-open" data-act="guide" ${navigationBusy?"disabled":""} ${view==="guide"?'aria-current="page"':""}>${icon("help")}使い方</button>`:"";
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions">${guideButton}<button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
 }
 
 function renderHome(): string {
-  return `<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
+  return `${renderGuideWelcome()}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–4人 / 1問20秒" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div></section>
   ${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
-  <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
+  <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section><button class="panel catalog-entry guide-entry" data-act="guide"><span class="mode-icon">${icon("help")}</span><span><span class="eyebrow">HOW TO USE</span><strong>使い方ガイド</strong><small>はじめの3ステップ、モードの選び方、対戦のルール、復習のしかたをまとめています。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
 function renderSetup(): string {
@@ -810,6 +815,8 @@ app.addEventListener("click", (e) => {
   const choice = target.closest<HTMLElement>("[data-choice]");
   if (choice) return void answer(Number(choice.dataset.choice));
   if (resultIntro && target.closest(".result-stage.intro") && !target.closest("button,a,input,select,label,[data-act]")) {resultIntro.at = 0;render();return;}
+  const guideJump = target.closest<HTMLElement>("[data-guide-jump]")?.dataset.guideJump;
+  if (guideJump) {const section=document.getElementById(guideJump);section?.scrollIntoView({block:"start"});section?.querySelector<HTMLElement>("h2")?.focus({preventScroll:true});return;}
   const act = target.closest<HTMLElement>("[data-act]")?.dataset.act;
   const uncertainId=target.closest<HTMLElement>("[data-uncertain]")?.dataset.uncertain;
   if (uncertainId) {
@@ -859,6 +866,8 @@ app.addEventListener("click", (e) => {
   else if (act === "review") void openReview();
   else if (act === "show-result") {view = "match"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "leave" || act === "study-pause") void leave();
+  else if (act === "guide") {markGuideSeen(); view = "guide"; error = ""; render(); window.scrollTo(0, 0);}
+  else if (act === "guide-dismiss") {markGuideSeen(); render();}
   else if (act === "notebook") {view = "notebook"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "catalog") {view = "catalog"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; render(); window.scrollTo(0, 0);}
