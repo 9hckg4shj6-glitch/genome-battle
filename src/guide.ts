@@ -1,4 +1,5 @@
 import { icon, readStore, writeStore } from "./ui";
+import { inLineApp } from "./install";
 
 // 初めて開いた人向けの使い方ガイド。各説明から、その画面へ直接移動できる。
 const SEEN_KEY = "gb.guide-seen";
@@ -7,6 +8,7 @@ export const markGuideSeen = (): void => writeStore(SEEN_KEY, "1");
 
 const sections = [
   { id: "start", label: "はじめに" },
+  { id: "install", label: "おすすめ：ホーム画面に追加", recommended: true },
   { id: "choose", label: "モードの選び方" },
   { id: "study", label: "一人で学習" },
   { id: "battle", label: "対戦モード" },
@@ -14,7 +16,7 @@ const sections = [
   { id: "review", label: "復習と記録" },
   { id: "tools", label: "便利な機能" },
   { id: "faq", label: "よくある質問" },
-] as const;
+] as { id: string; label: string; recommended?: boolean }[];
 
 const steps = (items: string[]): string => `<ol class="guide-steps">${items.map((s) => `<li><span>${s}</span></li>`).join("")}</ol>`;
 const tips = (items: string[]): string => `<ul class="guide-tips">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
@@ -69,7 +71,7 @@ const battles: ModeGuide[] = [
 
 export function renderGuide(): string {
   return `<header class="hero small guide-hero"><p class="eyebrow">HOW TO USE</p><h1>使い方ガイド</h1><p class="lead">はじめての人向けに、このアプリでできることと使い方をまとめました。気になる項目から読めます。</p></header>
-  <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip" data-guide-jump="guide-${s.id}">${s.label}</button>`).join("")}</nav>
+  <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}</button>`).join("")}</nav>
 
   <section id="guide-start" class="panel guide-section"><p class="eyebrow">STEP BY STEP</p><h2 tabindex="-1">はじめに：3ステップで始める</h2>
     <div class="guide-quick">
@@ -77,7 +79,19 @@ export function renderGuide(): string {
       <div><b>2</b><strong>設定して始める</strong><p>ログインや登録は不要です。対戦では表示する名前（12文字まで）を入れます。一人で学習では名前は任意です。</p></div>
       <div><b>3</b><strong>解いて、解説を読む</strong><p>答えるたびに正解と解説が出ます。間違えた問題は自動で復習ノートに入ります。</p></div>
     </div>
-    <p class="guide-note">${icon("check")}<span>記録は<b>このブラウザ</b>に保存されます。別の端末・別のブラウザには引き継がれないので、いつも同じブラウザで開くのがおすすめです。LINEから開いたときは、外部ブラウザで開くと安定します。</span></p>
+    <p class="guide-note">${icon("check")}<span>記録は<b>このブラウザ</b>に保存されます。別の端末・別のブラウザには引き継がれないので、いつも同じ場所から開くのがおすすめです。<b>LINEから開いた方は、始める前に次の「ホーム画面に追加」を済ませておきましょう。</b></span></p>
+  </section>
+
+  <section id="guide-install" class="panel guide-section guide-install"><p class="eyebrow">RECOMMENDED · まず最初に</p><h2 tabindex="-1">おすすめ：ホーム画面に追加する</h2>
+    <p class="guide-intro">LINEのリンクから開いた画面（LINEの中のブラウザ）は、記録がふだんのブラウザと分かれてしまい、通信が不安定になることもあります。<b>Safari・Chromeで開き直して、ホーム画面に追加</b>しておくと、次からアイコンをタップするだけで開け、記録もひとつにまとまります。最初に1回だけ、約1分です。</p>
+    ${inLineApp ? `<p class="guide-alert">${icon("globe")}<span><b>いまはLINEの中で開いています。</b>下の「ブラウザで開き直す」を押すと、Safari（AndroidはChrome）で開き直せます。</span></p>` : ""}
+    <div class="guide-quick">
+      <div><b>1</b><strong>ブラウザで開き直す</strong><p>LINEの画面右上の「︙」から「Safariで開く」（Androidは「ブラウザで開く」）を選びます。</p></div>
+      <div><b>2</b><strong>ホーム画面に追加</strong><p>iPhoneは「…」→「共有」、iPadは右上の共有ボタン、AndroidはChromeの「︙」から「ホーム画面に追加」を選びます。</p></div>
+      <div><b>3</b><strong>アイコンから開く</strong><p>次からはLINEのリンクではなく、ホーム画面の「ゲノム対戦」のアイコンから開きます。</p></div>
+    </div>
+    <p class="guide-note">${icon("bookmark")}<span>LINEの中で解いた記録（学習成績・復習ノート）は、ブラウザを変えると引き継がれません。早めに切り替えるほど安心です。</span></p>
+    <div class="guide-actions">${inLineApp ? `<button class="btn primary" data-act="install-browser">${icon("globe")}ブラウザで開き直す</button>` : ""}<button class="btn ${inLineApp ? "" : "primary"}" data-act="install">${icon("help")}iPhone・iPad・Androidの手順を図で見る${icon("arrow")}</button></div>
   </section>
 
   <section id="guide-choose" class="panel guide-section"><p class="eyebrow">WHICH MODE?</p><h2 tabindex="-1">どのモードを選べばいい？</h2>
@@ -156,7 +170,7 @@ export function renderGuide(): string {
       <details><summary>記録や復習ノートが消えました</summary><p>記録はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。</p></details>
       <details><summary>通信が切れました</summary><p>画面上部の「再接続」を押すか、ページを再読み込みしてください。同じタブで再読み込みすれば、進行中の対戦や学習に戻れます。タブを閉じてしまった場合、学習は「中断して保存」したものだけホームから再開できます。</p></details>
       <details><summary>選択肢の番号が前と違います</summary><p>選択肢は問題ごとに並べ替えています。番号ではなく内容で答えを覚えましょう。</p></details>
-      <details><summary>ホーム画面にアプリを置きたい</summary><p>ブラウザの共有メニューから「ホーム画面に追加」を選ぶと、アプリのように開けます。LINEから開いている場合は、先にSafari・Chromeなどで開き直してください。iPhone・iPad・Androidごとの手順を図で説明しています。</p><button class="btn" data-act="install">ホーム画面に追加する方法を見る${icon("arrow")}</button></details>
+      <details><summary>ホーム画面にアプリを置きたい・LINEから開いている</summary><p>ブラウザの共有メニューから「ホーム画面に追加」を選ぶと、アプリのように開けます。LINEから開いている場合は、先にSafari・Chromeなどで開き直してください。iPhone・iPad・Androidごとの手順を図で説明しています。</p><button class="btn" data-act="install">ホーム画面に追加する方法を見る${icon("arrow")}</button></details>
     </div>
   </section>
 

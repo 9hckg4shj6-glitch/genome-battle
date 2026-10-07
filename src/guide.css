@@ -106,3 +106,11 @@
   .guide-mode > .btn {justify-self:stretch;}
   .guide-actions .btn {width:100%;}
 }
+
+/* おすすめ：ホーム画面への追加は、ガイドの先頭近くで目立たせる */
+.guide-chip.recommended {display:inline-flex;align-items:center;gap:6px;background:var(--accent);border-color:var(--accent);color:var(--accent-text);}
+.guide-chip.recommended .icon {width:15px;height:15px;}
+.guide-install {border:1px solid color-mix(in srgb,var(--accent) 50%,var(--line));border-top:3px solid var(--accent);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 8%,transparent),transparent 70%),var(--surface);}
+.guide-install .guide-intro b {color:var(--accent);}
+.guide-alert {display:flex;gap:10px;align-items:flex-start;margin:0;padding:12px 14px;border-radius:12px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);font-size:13px;line-height:1.8;}
+.guide-alert .icon {width:18px;height:18px;margin-top:3px;color:var(--accent);}
