@@ -7,6 +7,7 @@ import "./catalog.css";
 import "./guide.css";
 import "./practice.css";
 import "./motion.css";
+import "./install.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -25,6 +26,7 @@ import { SoloController, difficultyName, type Difficulty, type SoloMode } from "
 import { renderCatalog, setCatalogField, setCatalogPage, toggleCatalogItem } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
+import { copyAppLink, dismissInstall, inLineApp, openInBrowser, promptInstall, renderInstall, renderInstallEntry, setInstallDevice, watchInstall } from "./install";
 
 const BASE = import.meta.env.BASE_URL;
 const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
@@ -75,7 +77,7 @@ let match: MatchState | null = null;
 let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
-let view: "home" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" = roomCodeDraft ? "setup" : "home";
+let view: "home" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" | "install" = roomCodeDraft ? "setup" : "home";
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
@@ -513,6 +515,7 @@ function render(): void {
   else if (view === "notebook") body = renderNotebook();
   else if (view === "catalog") body = renderCatalog(questions);
   else if (view === "guide") body = renderGuide();
+  else if (view === "install") body = renderInstall();
   else if (!match || view === "home") body = renderHome();
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
@@ -533,9 +536,11 @@ function renderHeader(lobby: boolean): string {
 }
 
 function renderHome(): string {
-  return `${renderGuideWelcome()}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div><button class="btn hero-guide" data-act="guide">${icon("help")}はじめての方は「使い方ガイド」${icon("arrow")}</button></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
+  // おすすめ（ホーム画面への追加）は、LINEの中で開いているときだけ一番上に出す。
+  const recommend=renderInstallEntry();
+  return `${inLineApp?recommend:""}${renderGuideWelcome()}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div><button class="btn hero-guide" data-act="guide">${icon("help")}はじめての方は「使い方ガイド」${icon("arrow")}</button></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}" style="--i:${i}"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3 data-morph="title">${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–4人 / 1問20秒" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div><button class="panel catalog-entry guide-entry" data-act="guide"><span class="mode-icon">${icon("help")}</span><span><span class="eyebrow">HOW TO USE</span><strong>使い方ガイド</strong><small>どのモードを選べばいいか迷ったら。はじめの3ステップ、対戦のルール、復習のしかたをまとめています。</small></span>${icon("arrow")}</button></section>
-  ${renderNotebookEntry()}
+  ${inLineApp?"":recommend}${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
   <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
@@ -829,6 +834,7 @@ app.addEventListener("click", (e) => {
   const choice = target.closest<HTMLElement>("[data-choice]");
   if (choice) return void answer(Number(choice.dataset.choice));
   if (resultIntro && target.closest(".result-stage.intro") && !target.closest("button,a,input,select,label,[data-act]")) {resultIntro.at = 0;render();return;}
+  if (setInstallDevice(target.closest<HTMLElement>("[data-install-device]")?.dataset.installDevice)) {render();document.querySelector<HTMLElement>('[data-install-device][aria-pressed="true"]')?.focus();return;}
   const guideJump = target.closest<HTMLElement>("[data-guide-jump]")?.dataset.guideJump;
   if (guideJump) {const section=document.getElementById(guideJump);section?.scrollIntoView({block:"start"});section?.querySelector<HTMLElement>("h2")?.focus({preventScroll:true});return;}
   const act = target.closest<HTMLElement>("[data-act]")?.dataset.act;
@@ -890,6 +896,11 @@ app.addEventListener("click", (e) => {
   else if (act === "leave" || act === "study-pause") void leave();
   else if (act === "guide") {markGuideSeen(); view = "guide"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "guide-dismiss") {markGuideSeen(); render();}
+  else if (act === "install") {view = "install"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "install-browser") openInBrowser();
+  else if (act === "install-prompt") void promptInstall();
+  else if (act === "install-copy") void copyAppLink();
+  else if (act === "install-dismiss") {dismissInstall(); render();}
   else if (act === "notebook") {view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "catalog") {view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "practice") {
@@ -924,6 +935,7 @@ app.addEventListener("keydown", (e) => {
 
 async function boot(): Promise<void> {
   installPointerLight(app);
+  watchInstall(() => {if ((view === "home" || view === "install") && !solo.active && !match) render();});
   app.innerHTML = `<p class="loading">読み込み中…</p>`;
   const response = await fetch(`${BASE}questions.json`);
   if (!response.ok) throw new Error("QUESTIONS_UNAVAILABLE");

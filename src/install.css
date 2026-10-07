@@ -1,0 +1,119 @@
+/* おすすめ：ホーム画面への追加の案内。図は明暗の共通変数で塗る。 */
+.recommend { --mode-color:var(--accent);padding-bottom:12px; }
+.recommend.in-line { margin-top:22px; }
+.recommend-card { grid-template-columns:150px minmax(0,1fr);align-items:center;gap:26px;border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent 70%),var(--surface); }
+.recommend-art .install-fig { max-width:150px; }
+.recommend-copy { display:grid;gap:10px;min-width:0; }
+.recommend-copy .eyebrow { margin:0; }
+.recommend-copy h3 { font-size:19px;margin:0;word-break:keep-all;overflow-wrap:anywhere; }
+.recommend-copy p { margin:0;font-size:13px;line-height:1.85;color:var(--muted); }
+.recommend-copy p b { color:var(--text); }
+.recommend-flow { display:flex;flex-wrap:wrap;gap:6px 14px;margin:2px 0 0;padding:0;list-style:none;font-size:13px;font-weight:600; }
+.recommend-flow li { display:flex;align-items:center;gap:7px; }
+.recommend-flow b { display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:12px; }
+.recommend-actions { display:flex;flex-wrap:wrap;gap:10px;margin-top:6px; }
+
+.install-hero .lead b { color:var(--text); }
+.install-why h2, .install-notes h2 { font-size:18px;margin:0; }
+.install-why ul { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none; }
+.install-why li { display:flex;gap:10px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.8;color:var(--muted); }
+.install-why li .icon { width:20px;height:20px;margin-top:2px;color:var(--accent); }
+.install-why li b { display:block;color:var(--text);font-size:14px; }
+
+.install-devices { position:sticky;top:0;z-index:5;display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 20px;padding:10px 0;background:var(--bg); }
+.install-devices > span { font-size:13px;font-weight:600;color:var(--muted); }
+.install-device { display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:8px 18px;border-radius:30px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-weight:700;font-size:14px; }
+.install-device small { font-size:10px;font-weight:600;padding:1px 7px;border-radius:99px;background:var(--surface-2);color:var(--muted); }
+.install-device[aria-pressed="true"] { background:var(--accent);border-color:var(--accent);color:var(--accent-text); }
+.install-device[aria-pressed="true"] small { background:color-mix(in srgb,var(--accent-text) 20%,transparent);color:inherit; }
+
+.install-steps { display:grid;gap:0;margin:0;padding:0;list-style:none; }
+.install-step > header { display:flex;align-items:center;gap:14px; }
+.install-step > header > b { flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:19px; }
+.install-step h2 { font-size:19px;margin:0; }
+.install-step .eyebrow { margin:0 0 2px; }
+.install-step > p { margin:0;font-size:14px;line-height:1.85; }
+.install-cta { justify-self:start;font-size:15px; }
+.install-sub { color:var(--muted);font-size:13px !important; }
+.install-done { display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--ok-bg);color:var(--text); }
+.install-done .icon { width:20px;height:20px;margin-top:3px;color:var(--ok); }
+.install-more summary { cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);padding:4px 0; }
+.install-more[open] summary { margin-bottom:12px; }
+.install-quick { display:grid;gap:10px;padding:16px;border-radius:12px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent); }
+.install-quick p { margin:0;font-size:13px;line-height:1.8; }
+.install-quick .btn { justify-self:start; }
+
+.install-shots { display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px;align-items:start; }
+.install-shots.one { grid-template-columns:minmax(0,520px); }
+.install-shot { margin:0;display:grid;gap:12px;justify-items:center;padding:18px 14px 16px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line); }
+.install-shots.one .install-shot { grid-template-columns:minmax(0,230px) minmax(0,1fr);align-items:center;justify-items:start; }
+.install-shot figcaption { font-size:14px;line-height:1.85;align-self:stretch; }
+.install-shot figcaption b { color:var(--accent); }
+.install-shot figcaption small { display:block;margin-top:6px;font-size:12px;line-height:1.75;color:var(--muted); }
+.install-shot figcaption small b { color:var(--text); }
+.install-copy { display:grid;gap:8px;justify-items:start;margin-top:10px; }
+.install-copy .btn { min-height:40px;padding:8px 14px;font-size:13px; }
+.install-copy span { font-size:12px;overflow-wrap:anywhere;color:var(--muted); }
+
+/* 端末のイラスト */
+.install-fig { display:block;width:100%;max-width:230px;height:auto;margin:0 auto;overflow:visible; }
+.install-fig.tablet { max-width:340px; }
+.install-shots.one .install-fig.tablet { max-width:100%; }
+.install-fig text { fill:var(--text);font-size:8.5px; }
+.install-fig .fig-strong { font-weight:700; }
+.install-fig .fig-big { font-size:10px; }
+.install-fig .fig-tiny { font-size:7.5px; }
+.install-fig .fig-small { font-size:6.5px;fill:var(--muted); }
+.install-fig .fig-ink-text { fill:var(--text); }
+.install-fig .fig-brand { font-size:6.5px;font-weight:800;letter-spacing:1px;fill:var(--accent); }
+.install-fig .fig-link { fill:#2f7cf6; }
+.fig-body { fill:#1f2622;stroke:color-mix(in srgb,var(--line) 70%,#000);stroke-width:1.5; }
+.fig-screen { fill:var(--bg); }
+.fig-island { fill:#0b0d0c; }
+.fig-bar { fill:var(--surface-2); }
+.fig-btn { fill:var(--surface);stroke:var(--line);stroke-width:.8; }
+.fig-card { fill:var(--surface);stroke:var(--line);stroke-width:.8; }
+.fig-accent { fill:color-mix(in srgb,var(--accent) 55%,transparent); }
+.fig-ink { fill:color-mix(in srgb,var(--text) 60%,transparent); }
+.fig-ink-solid { fill:var(--text); }
+.fig-soft { fill:color-mix(in srgb,var(--text) 16%,transparent); }
+.fig-dim { fill:#000;opacity:.38; }
+.fig-menu { fill:var(--surface);stroke:var(--line);stroke-width:.8;filter:drop-shadow(0 4px 10px #0005); }
+.fig-sheet { fill:var(--surface-2);filter:drop-shadow(0 -2px 12px #0004); }
+.fig-divider { stroke:var(--line);stroke-width:.8; }
+.fig-glyph { fill:none;stroke:var(--text);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round; }
+.fig-hl { fill:color-mix(in srgb,var(--accent) 16%,transparent);stroke:var(--accent);stroke-width:2.2; }
+.fig-hl-line { stroke:var(--accent);stroke-width:1.5; }
+.fig-toggle { fill:#34c759; }
+.fig-knob { fill:#fff; }
+.fig-key { fill:color-mix(in srgb,var(--text) 12%,var(--surface-2)); }
+.fig-wall { fill:color-mix(in srgb,var(--accent) 22%,var(--bg)); }
+.fig-app { fill:color-mix(in srgb,var(--text) 22%,transparent); }
+.fig-app-label { fill:color-mix(in srgb,var(--text) 30%,transparent); }
+.install-fig .fig-wall-text { font-size:6.5px;font-weight:700; }
+.fig-dock { fill:color-mix(in srgb,var(--surface) 70%,transparent); }
+.fig-badge circle { fill:var(--accent); }
+.install-fig .fig-badge text { fill:var(--accent-text);font-size:10px;font-weight:800; }
+.install-fig.tablet .fig-badge text { font-size:9px; }
+.fig-badge .fig-pulse { transform-box:fill-box;transform-origin:center;animation:fig-pulse 1.8s var(--ease-out,ease-out) infinite; }
+@keyframes fig-pulse { from { transform:scale(1);opacity:.55; } to { transform:scale(2.1);opacity:0; } }
+:root[data-theme="light"] .fig-dim { opacity:.28; }
+:root[data-theme="light"] .install-fig .fig-link { fill:#1a66d9; }
+@media (prefers-reduced-motion: reduce) { .fig-badge .fig-pulse { animation:none;opacity:0; } }
+
+@media (max-width:750px) {
+  .install-why ul { grid-template-columns:1fr; }
+  .recommend-card { grid-template-columns:96px minmax(0,1fr);gap:18px; }
+  .recommend-art .install-fig { max-width:96px; }
+  .install-shots.one .install-shot { grid-template-columns:1fr;justify-items:center; }
+}
+@media (max-width:540px) {
+  .recommend-card { grid-template-columns:1fr;padding:20px 18px; }
+  .recommend-art { display:none; }
+  .recommend-actions { flex-direction:column; }
+  .recommend-actions .btn, .install-cta, .install-quick .btn { width:100%; }
+  .install-step > header > b { width:34px;height:34px;font-size:16px; }
+  .install-step h2 { font-size:17px; }
+  .install-shots { grid-template-columns:1fr; }
+  .install-device { padding:8px 14px;font-size:13px; }
+}

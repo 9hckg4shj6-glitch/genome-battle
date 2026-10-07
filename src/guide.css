@@ -66,6 +66,7 @@
 .guide-faq summary {cursor:pointer;padding:14px 0;font-weight:600;font-size:14px;list-style-position:inside;}
 .guide-faq details[open] summary {color:var(--accent);}
 .guide-faq p {margin:0 0 14px;font-size:13px;line-height:1.8;color:var(--muted);}
+.guide-faq details > .btn {margin:0 0 14px;min-height:42px;font-size:13px;}
 .guide-end {text-align:center;justify-items:center;}
 .guide-end p {margin:0;font-weight:600;}
 .guide-end > div {display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
