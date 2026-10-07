@@ -5,6 +5,7 @@ import "./readability.css";
 import "./sessions.css";
 import "./catalog.css";
 import "./guide.css";
+import "./motion.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -21,6 +22,7 @@ import { studyDistribution, renderDistribution } from './study-distribution';
 import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { renderCatalog, setCatalogField, toggleCatalogItem } from "./catalog";
+import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 
 const BASE = import.meta.env.BASE_URL;
 const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
@@ -269,11 +271,12 @@ async function leave(): Promise<void> {
   channel = null;realtimeState("off");
   match = null;
   mySeat = null;
+  const returning = view === "setup" ? selectedMode : null;
   view = "home";
   writeStore("gb.match", null, sessionStorage);
-  render();
+  // 設定画面から戻るときは、見出しのアイコンを元のカードへ戻す。
+  navigate(() => {render();window.scrollTo(0, 0);}, "back", returning && document.querySelector(".setup-title"), returning ? () => document.querySelector(`.mode-card[data-mode="${returning}"]`) : undefined);
   void refreshPerformance();void refreshStudyProgress();void refreshSavedStudies();
-  window.scrollTo(0, 0);
 }
 
 async function tick(): Promise<void> {
@@ -513,9 +516,11 @@ function render(): void {
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
   else body = renderResult(match);
-  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div><div class="${lobby ? "lobby-body" : "arena-body"}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
+  const scene = lobby ? "home" : solo.active ? "solo" : view === "setup" ? `setup:${selectedMode}` : view;
+  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div><div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
   updateClock();
   solo.updateClock();friends.update();
+  afterRender();
 }
 
 function renderHeader(lobby: boolean): string {
@@ -528,7 +533,7 @@ function renderHeader(lobby: boolean): string {
 
 function renderHome(): string {
   return `${renderGuideWelcome()}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div><button class="btn hero-guide" data-act="guide">${icon("help")}はじめての方は「使い方ガイド」${icon("arrow")}</button></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
-  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}"><div class="mode-top"><span class="mode-icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3>${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–4人 / 1問20秒" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div><button class="panel catalog-entry guide-entry" data-act="guide"><span class="mode-icon">${icon("help")}</span><span><span class="eyebrow">HOW TO USE</span><strong>使い方ガイド</strong><small>どのモードを選べばいいか迷ったら。はじめの3ステップ、対戦のルール、復習のしかたをまとめています。</small></span>${icon("arrow")}</button></section>
+  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}" style="--i:${i}"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3 data-morph="title">${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–4人 / 1問20秒" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div><button class="panel catalog-entry guide-entry" data-act="guide"><span class="mode-icon">${icon("help")}</span><span><span class="eyebrow">HOW TO USE</span><strong>使い方ガイド</strong><small>どのモードを選べばいいか迷ったら。はじめの3ステップ、対戦のルール、復習のしかたをまとめています。</small></span>${icon("arrow")}</button></section>
   ${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
   <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
@@ -541,7 +546,7 @@ function renderSetup(): string {
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
   const fieldTotal = [...questions.values()].filter(q => !studyField || q.field === studyField).length;
-  return `<header class="setup-title mode-${selectedMode}"><span class="mode-icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1>${m.title}</h1><p class="lead">${m.description}</p></div></header>${study ? `<details id="study-corner" class="panel study-corner" ${studyCornerExpanded?"open":""}><summary class="catalog-entry study-corner-toggle"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">PRACTICE</span><strong>問題演習コーナ</strong><small>分野・問題数・出題配分を選んで演習します。</small></span><span class="study-corner-cue" aria-hidden="true"><span class="when-closed">開く</span><span class="when-open">閉じる</span>${icon("arrow")}</span></summary><section class="setup-panel study-corner-body">` : `<section class="panel setup-panel">`}<label class="field"><span>プレイヤー名${study ? "（任意）" : ""}</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
+  return `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>${study ? `<details id="study-corner" class="panel study-corner" ${studyCornerExpanded?"open":""}><summary class="catalog-entry study-corner-toggle"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">PRACTICE</span><strong>問題演習コーナ</strong><small>分野・問題数・出題配分を選んで演習します。</small></span><span class="study-corner-cue" aria-hidden="true"><span class="when-closed">開く</span><span class="when-open">閉じる</span>${icon("arrow")}</span></summary><section class="setup-panel study-corner-body">` : `<section class="panel setup-panel">`}<label class="field"><span>プレイヤー名${study ? "（任意）" : ""}</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
     ${selectedMode==="room"?`<label class="field"><span>対戦室の分野</span><select id="room-field" aria-label="対戦室の分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===roomFieldDraft?"selected":""}>${esc(f)}（${[...questions.values()].filter(q=>q.field===f).length}問）</option>`).join("")}</select></label><p class="room-field-summary">${esc(roomFieldDraft||"すべての分野")}から最大${Math.min(15,roomTotal)}問を出題。5問先取、問題が終わった場合は得点で決着します。</p>`:""}
     ${study ? `<div class="settings"><label class="field"><span>学習する分野</span><select id="study-field" aria-label="学習する分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===studyField ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label><div class="field count-field"><span>問題数（1〜${fieldTotal}問）</span><div class="count-row"><input id="study-count" type="range" aria-label="問題数" min="1" max="${fieldTotal}" step="1" value="${Math.min(studyCount,fieldTotal)}"/><input id="study-count-value" type="number" inputmode="numeric" aria-label="問題数（数字で入力）" min="1" max="${fieldTotal}" step="1" value="${Math.min(studyCount,fieldTotal)}"/><span>問</span></div></div></div><div id="distribution-settings">${renderDistribution(distribution,!!studyField)}</div><p class="setup-hint">時間制限なし。解答後の解説を読んで、自分のペースで進められます。</p>` : `${selectedMode==="matchmaking" ? renderMatchSize() : `<div class="settings">${ai ? `<label class="field"><span>AIの難易度</span><select id="difficulty" aria-label="AIの難易度">${(["easy","normal","hard"] as Difficulty[]).map(d=>`<option value="${d}" ${d===difficulty ? "selected" : ""}>${difficultyName[d]}</option>`).join("")}</select></label>` : `<label class="field"><span>部屋の定員</span><select id="capacity" aria-label="部屋の定員"><option value="">8人まで</option>${[2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===capacity ? "selected" : ""}>${n}人</option>`).join("")}</select></label>`}<label class="field"><span>1問の制限時間</span><input id="seconds" aria-label="1問の制限時間" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}"/><small>5〜120秒</small></label></div><p class="setup-hint">${ai ? "AIの回答速度と正答率が難易度で変化します。5問先取・最大15問の早押し対戦です。" : "作成した部屋は標準で公開ルーム一覧に表示されます。鍵をかけると、招待リンクを持つ人だけが参加できます。"}</p>`}`}
     ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
@@ -809,7 +814,13 @@ app.addEventListener("click", (e) => {
   const themeChoice = target.closest<HTMLElement>("[data-theme-choice]")?.dataset.themeChoice;
   if (themeChoice === "light" || themeChoice === "dark") {setTheme(themeChoice); return;}
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;
-  if (mode && mode in modeInfo) {selectedMode=mode;if(mode==="study")studyCornerExpanded=false;view="setup";error="";render();window.scrollTo(0,0);if (mode === "room") void refreshPublicRooms();if(mode==="study")void refreshStudyProgress();return;}
+  if (mode && mode in modeInfo) {
+    const card=target.closest<HTMLElement>(".mode-card");
+    selectedMode=mode;if(mode==="study")studyCornerExpanded=false;view="setup";error="";
+    if(card)tapFeedback();
+    navigate(()=>{render();window.scrollTo(0,0);},"forward",card,card?()=>document.querySelector(".setup-title"):undefined);
+    if (mode === "room") void refreshPublicRooms();if(mode==="study")void refreshStudyProgress();return;
+  }
   const soloChoice = target.closest<HTMLElement>("[data-solo-choice]");
   if (soloChoice) return void solo.act("answer",Number(soloChoice.dataset.soloChoice));
   const choice = target.closest<HTMLElement>("[data-choice]");
@@ -866,11 +877,11 @@ app.addEventListener("click", (e) => {
   else if (act === "review") void openReview();
   else if (act === "show-result") {view = "match"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "leave" || act === "study-pause") void leave();
-  else if (act === "guide") {markGuideSeen(); view = "guide"; error = ""; render(); window.scrollTo(0, 0);}
+  else if (act === "guide") {markGuideSeen(); view = "guide"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "guide-dismiss") {markGuideSeen(); render();}
-  else if (act === "notebook") {view = "notebook"; error = ""; render(); window.scrollTo(0, 0);}
-  else if (act === "catalog") {view = "catalog"; error = ""; render(); window.scrollTo(0, 0);}
-  else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; render(); window.scrollTo(0, 0);}
+  else if (act === "notebook") {view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "catalog") {view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);}, "back");}
   else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
   else if (act === "solo-start") void startSolo();
   else if (act === "solo-view-answer") {void solo.act("view-answer").then(()=>{if(solo.state?.phase==="reveal"){const heading=document.getElementById("solo-reveal-heading");heading?.scrollIntoView({block:"start"});heading?.focus({preventScroll:true});}});}
@@ -891,6 +902,7 @@ app.addEventListener("keydown", (e) => {
 });
 
 async function boot(): Promise<void> {
+  installPointerLight(app);
   app.innerHTML = `<p class="loading">読み込み中…</p>`;
   const response = await fetch(`${BASE}questions.json`);
   if (!response.ok) throw new Error("QUESTIONS_UNAVAILABLE");
