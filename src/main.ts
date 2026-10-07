@@ -1,5 +1,6 @@
 import "./style.css";
 import "./learning.css";
+import "./mastery.css";
 import "./social.css";
 import "./readability.css";
 import "./sessions.css";
@@ -15,6 +16,7 @@ import { renderOnlineCount, startPresence } from "./presence";
 import { markGuideSeen, renderGuide, renderGuideWelcome } from "./guide";
 import { FriendsController, friendsIcon } from "./friends";
 import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
+import { cachedMastery, cacheMastery, renderMastery, renderSessionXp, validMastery, type Mastery } from "./mastery";
 import { dismissThemeHint, renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
@@ -129,7 +131,7 @@ const RESULT_STEP_MS = 450;
 let resultIntro: { id: string; at: number } | null = null;
 
 const imageViewer = new ImageViewer();
-const solo = new SoloController(deviceId, questions, render, () => playerName, () => {void refreshPerformance();});
+const solo = new SoloController(deviceId, questions, render, () => playerName, (s) => {void refreshPerformance();void refreshMastery(s.mode==='study'?s.id:undefined);}, (id) => renderSessionXp(masteryFor===id?mastery:null,masteryLoading));
 const friends=new FriendsController(deviceId,()=>playerName,(name)=>{playerName=name;writeStore("gb.name",name);render();},()=>match?{...match,my_seat:mySeat}:null,(s)=>{
   if(match?.status==="waiting" && match.id!==s.id)void call("leave_match",{p_match:match.id,p_device:deviceId}).catch(()=>{});
   battleGeneration++;solo.stop();match=null;myChoices=new Map();review=[];reviewLoaded=false;reviewLoading=false;battleReviewPromise=null;
@@ -278,7 +280,7 @@ async function leave(): Promise<void> {
   writeStore("gb.match", null, sessionStorage);
   // 設定画面から戻るときは、見出しのアイコンを元のカードへ戻す。
   navigate(() => {render();window.scrollTo(0, 0);}, "back", returning && document.querySelector(".setup-title"), returning ? () => document.querySelector(`.mode-card[data-mode="${returning}"]`) : undefined);
-  void refreshPerformance();void refreshStudyProgress();void refreshSavedStudies();
+  void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();
 }
 
 async function tick(): Promise<void> {
@@ -366,6 +368,32 @@ async function refreshPerformance():Promise<void> {
       if (region) region.innerHTML=renderPerformance(performance,performanceError);
     }
     if (performanceAgain) {performanceAgain=false;void refreshPerformance();}
+  }
+}
+let mastery=cachedMastery(deviceId);
+let masteryError="";
+let masteryLoading=false;
+let masteryAgain=false;
+// 結果画面に獲得XPを出す学習。get_mastery に渡し、その学習で得たXPも受け取る。
+let masterySession:string|null=null;
+let masteryFor:string|null=null;
+async function refreshMastery(session?:string):Promise<void> {
+  if (session!==undefined) masterySession=session;
+  if (masteryLoading) {masteryAgain=true;return;}
+  masteryLoading=true;
+  const asked=masterySession;
+  try {
+    const next=await call<Mastery>("get_mastery",{p_device:deviceId,p_session:asked});
+    if (!validMastery(next)) throw new Error("BAD_MASTERY");
+    mastery=next;masteryFor=asked;masteryError="";cacheMastery(deviceId,next);
+  } catch {masteryError="学習レベルを取得できませんでした。";}
+  finally {
+    masteryLoading=false;
+    if (masteryAgain) {masteryAgain=false;void refreshMastery();}
+    else if (view==="home" && !solo.active) {
+      const region=document.querySelector<HTMLElement>("#mastery-region");
+      if (region) region.innerHTML=renderMastery(questions,mastery,masteryError);
+    } else if (view==="practice" && !solo.active || solo.state?.phase==="finished" && !solo.reviewing) render();
   }
 }
 async function prepareBattleReview():Promise<void> {
@@ -479,7 +507,7 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     void probeConnection();void friends.refresh(true);
-    if(view==='home'&&!solo.active){void refreshSavedStudies();void refreshPerformance();}
+    if(view==='home'&&!solo.active){void refreshSavedStudies();void refreshPerformance();void refreshMastery();}
     if (match && view === "match") void tick();
     if (solo.active) void solo.tick();
     if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
@@ -510,7 +538,7 @@ function render(): void {
   let body: string;
   if (solo.active) body = solo.render();
   else if (view === "setup") body = renderSetup();
-  else if (view === "practice") body = renderPractice({questions,playerName,busy,error,count:studyCount,distribution,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError});
+  else if (view === "practice") body = renderPractice({questions,playerName,busy,error,count:studyCount,distribution,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError,mastery});
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
   else if (view === "catalog") body = renderCatalog(questions);
@@ -540,6 +568,7 @@ function renderHome(): string {
   const recommend=renderInstallEntry();
   return `${inLineApp?recommend:""}${renderGuideWelcome()}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div><button class="btn hero-guide" data-act="guide">${icon("help")}はじめての方は「使い方ガイド」${icon("arrow")}</button></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
   <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}" style="--i:${i}"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3 data-morph="title">${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–4人 / 1問20秒" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div><button class="panel catalog-entry guide-entry" data-act="guide"><span class="mode-icon">${icon("help")}</span><span><span class="eyebrow">HOW TO USE</span><strong>使い方ガイド</strong><small>どのモードを選べばいいか迷ったら。はじめの3ステップ、対戦のルール、復習のしかたをまとめています。</small></span>${icon("arrow")}</button></section>
+  <div id="mastery-region">${renderMastery(questions,mastery,masteryError)}</div>
   ${inLineApp?"":recommend}${renderNotebookEntry()}
   <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
   <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
@@ -878,6 +907,7 @@ app.addEventListener("click", (e) => {
   if (act === "friends") {friends.open();return;}
   if (act === "retry-connection") {void probeConnection();void friends.refresh(true);if(match)void tick();if(solo.active)void solo.tick();return;}
   if (act === "refresh-performance") return void refreshPerformance();
+  if (act === "refresh-mastery") return void refreshMastery();
   if (act === "refresh-saved-studies") return void refreshSavedStudies();
   if (act === "battle-retry") return void startBattleCourse();
   if (act === "reload-battle-review") return void (solo.active?solo.loadReview():prepareBattleReview());
@@ -908,7 +938,7 @@ app.addEventListener("click", (e) => {
     const entry=target.closest<HTMLElement>(".practice-entry");
     selectedMode="study";view="practice";error="";tapFeedback();
     navigate(()=>{render();window.scrollTo(0,0);},"forward",entry,()=>document.querySelector(".practice-title"));
-    void refreshStudyProgress();
+    void refreshStudyProgress();void refreshMastery();
   }
   else if (act === "practice-back") {view="setup";selectedMode="study";error="";navigate(()=>{render();window.scrollTo(0,0);},"back",document.querySelector(".practice-title"),()=>document.querySelector(".practice-entry"));}
   else if (act === "practice-all") {selectAllFields();render();}
@@ -944,7 +974,7 @@ async function boot(): Promise<void> {
   list.forEach(q => questions.set(q.id, q));
   // 図は計300KB程度なので先読みして、出題時に待たせない
   list.forEach((q) => q.image && (new Image().src = `${BASE}${q.image}`));
-  void refreshPerformance();void refreshStudyProgress();void refreshSavedStudies();void friends.refresh(true);
+  void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();void friends.refresh(true);
   await solo.resume();
   if (solo.active) {render();return;}
   const resumeId = readStore("gb.match", sessionStorage);

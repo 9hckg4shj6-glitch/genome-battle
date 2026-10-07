@@ -19,7 +19,7 @@ export class SoloController {
   reviewLoaded=false; reviewLoading=false; course=false;
   private reviewPromise:Promise<void>|null=null;
   private ticking=false; private lastTick=0; private generation=0;
-  constructor(private device: string, private questions: Map<string,Question>, private changed:()=>void, private name:()=>string, private finished:()=>void) {}
+  constructor(private device: string, private questions: Map<string,Question>, private changed:()=>void, private name:()=>string, private finished:(s:{id:string;mode:SoloMode})=>void, private resultExtra:(id:string)=>string=()=>'') {}
   get active(): boolean { return this.state !== null; }
   async start(mode: SoloMode, ids: string[], seconds: number, difficulty: Difficulty, course=false, order:'given'|'unattempted'|'random'='given', count?:number,distribution?:StudyDistribution): Promise<void> {
     const generation=++this.generation;
@@ -80,7 +80,7 @@ export class SoloController {
       recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice,answer_viewed:s.answer_viewed,choice_order:choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,this.questions.get(s.q_id)?.choices.length??5)});
     if (s.phase==='finished') {
       if (s.mode==='study') {writeStore('gb.solo',null,sessionStorage);writeStore(`gb.study-course.${s.id}`,null);}
-      if (!same) {this.finished();void this.loadReview();}
+      if (!same) {this.finished(s);void this.loadReview();}
     }
     if (!same) this.changed();
   }
@@ -150,7 +150,7 @@ export class SoloController {
     if (this.reviewing) return `<header class="hero small"><p class="eyebrow">SESSION REVIEW</p><h1>解説を振り返る</h1><p class="lead">理解を深めて、次の一問へ。</p></header>${renderReviewCourse(this.review,s.mode==='ai'?'battle-retry':'solo-retry',this.reviewLoaded,this.reviewLoading,s.mode==='ai'?'対戦直後の復習コース':'間違えた・わからなかった・迷った問題を復習')}${this.review.map((r,i)=>this.renderReview(r,i)).join('')}${notice}<div class="panel actions"><button class="btn" data-act="leave">ホームへ戻る</button></div>`;
     if (s.phase==='finished') {
       const ai=s.mode==='ai'; const win=s.my_score>s.ai_score;
-      return `<section class="panel center result-panel"><div class="result-icon">${icon(ai?'trophy':'check')}</div><p class="eyebrow">${ai?'BATTLE COMPLETE':'SESSION COMPLETE'}</p><h1>${ai?(win?'あなたの勝利！':s.my_score===s.ai_score?'引き分け！':'AIの勝利'):'学習、おつかれさまでした。'}</h1><p class="lead">${ai?`${difficultyName[s.difficulty]}との対戦`:'一問ずつ、知識が積み重なっています。'}</p><div class="result-score"><strong>${s.my_score}</strong><span>${ai?`点 / AI ${s.ai_score}点`:`/ ${s.q_index+1} 問正解`}</span></div>${ai?renderReviewCourse(this.review,'battle-retry',this.reviewLoaded,this.reviewLoading):''}<button class="btn ${ai?'':'primary'}" data-act="solo-review" ${this.busy?'disabled':''}>${icon('book')}正解と解説を振り返る</button><button class="btn" data-act="solo-again">もう一度${ai?'対戦':'学習'}する</button><button class="btn ghost" data-act="leave">ホームへ戻る</button>${notice}</section>`;
+      return `<section class="panel center result-panel"><div class="result-icon">${icon(ai?'trophy':'check')}</div><p class="eyebrow">${ai?'BATTLE COMPLETE':'SESSION COMPLETE'}</p><h1>${ai?(win?'あなたの勝利！':s.my_score===s.ai_score?'引き分け！':'AIの勝利'):'学習、おつかれさまでした。'}</h1><p class="lead">${ai?`${difficultyName[s.difficulty]}との対戦`:'一問ずつ、知識が積み重なっています。'}</p><div class="result-score"><strong>${s.my_score}</strong><span>${ai?`点 / AI ${s.ai_score}点`:`/ ${s.q_index+1} 問正解`}</span></div>${ai?'':this.resultExtra(s.id)}${ai?renderReviewCourse(this.review,'battle-retry',this.reviewLoaded,this.reviewLoading):''}<button class="btn ${ai?'':'primary'}" data-act="solo-review" ${this.busy?'disabled':''}>${icon('book')}正解と解説を振り返る</button><button class="btn" data-act="solo-again">もう一度${ai?'対戦':'学習'}する</button><button class="btn ghost" data-act="leave">ホームへ戻る</button>${notice}</section>`;
     }
     const q=this.questions.get(s.q_id); if (!q) return '<p role="alert">問題を読み込めませんでした。ホームへ戻ってください。</p>';
     const reveal=s.reveal; const locked=s.phase!=='question' || s.my_choice!==null || this.busy;

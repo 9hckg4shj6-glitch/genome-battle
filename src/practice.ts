@@ -1,4 +1,5 @@
 import { renderDistribution, type StudyDistribution } from './study-distribution';
+import { fieldMastery, renderStars, type Mastery } from './mastery';
 import { esc, icon, readStore, writeStore, type Question } from './ui';
 
 // 問題演習コーナ（一人で学習の演習設定ページ）。分野は複数選べ、選択はこの端末に保存する。
@@ -30,6 +31,7 @@ export interface PracticeView {
   questions: Map<string, Question>; playerName: string; busy: boolean; error: string;
   count: number; distribution: StudyDistribution;
   attempted: Set<string>; progressLoaded: boolean; progressError: boolean;
+  mastery: Mastery | null;
 }
 
 // 一人で学習の画面に置く入口。押すと見出しとアイコンが次のページの見出しへ移る。
@@ -48,9 +50,10 @@ export function renderPractice(v: PracticeView): string {
   const count = Math.max(1, Math.min(v.count, total));
   const fresh = (qs: Question[]): number => qs.filter(q => !v.attempted.has(q.id)).length;
   const pop = popped; popped = '';
+  const mastered = new Map(v.mastery ? fieldMastery(v.questions, v.mastery).map(f => [f.field, f]) : []);
   const cards = fields.map((f, i) => {
-    const qs = list.filter(q => q.field === f), on = chosen.has(f);
-    return `<label class="practice-field ${on ? 'on' : ''} ${pop === f ? 'pop' : ''}" style="--i:${i}"><input type="checkbox" name="practice-field" value="${esc(f)}" ${on ? 'checked' : ''} ${v.busy ? 'disabled' : ''}/><span class="practice-check" aria-hidden="true">${icon('check')}</span><span class="practice-field-copy"><strong>${esc(f)}</strong><small>${qs.length}問${v.progressLoaded ? ` · 未着手 ${fresh(qs)}問` : ''}</small></span></label>`;
+    const qs = list.filter(q => q.field === f), on = chosen.has(f), m = mastered.get(f);
+    return `<label class="practice-field ${on ? 'on' : ''} ${pop === f ? 'pop' : ''}" style="--i:${i}"><input type="checkbox" name="practice-field" value="${esc(f)}" ${on ? 'checked' : ''} ${v.busy ? 'disabled' : ''}/><span class="practice-check" aria-hidden="true">${icon('check')}</span><span class="practice-field-copy"><strong>${esc(f)}</strong><small>${qs.length}問${v.progressLoaded ? ` · 未着手 ${fresh(qs)}問` : ''}</small>${m ? `<span class="practice-mastery">${renderStars(m.stars)}<span>習得 ${m.counts.mastered + m.counts.settled}/${m.total}</span></span>` : ''}</span></label>`;
   }).join('');
   const summary = !chosen.size ? '分野を1つ以上選んでください。'
     : `<b>${chosen.size === fields.length ? 'すべての分野' : `${chosen.size}分野`}</b>・計<b>${total}</b>問から出題します。`;
