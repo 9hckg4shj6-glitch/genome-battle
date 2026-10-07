@@ -895,7 +895,7 @@ app.addEventListener("click", (e) => {
   else if (act === "practice") {
     // 入口カードのアイコンと見出しを、演習ページの見出しへ受け渡す。
     const entry=target.closest<HTMLElement>(".practice-entry");
-    view="practice";error="";tapFeedback();
+    selectedMode="study";view="practice";error="";tapFeedback();
     navigate(()=>{render();window.scrollTo(0,0);},"forward",entry,()=>document.querySelector(".practice-title"));
     void refreshStudyProgress();
   }

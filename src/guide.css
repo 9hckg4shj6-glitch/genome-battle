@@ -70,9 +70,25 @@
 .guide-end p {margin:0;font-weight:600;}
 .guide-end > div {display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
 
+/* 一人で学習（問題演習コーナ）は流れ・選び方・途中の操作をまとめて見せる */
+.guide-study {border-top:3px solid var(--mode-color);}
+:root[data-theme="light"] .guide-study {--mode-color:#287a79;}
+.guide-intro {margin:0;font-size:14px;line-height:1.8;}
+.guide-intro b {color:var(--mode-color);}
+.guide-compare {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.guide-compare > div {padding:16px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);}
+.guide-compare h3 {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;font-size:15px;}
+.guide-compare h3 .icon {width:18px;height:18px;color:var(--mode-color);}
+.guide-compare h3 small {font-size:11px;font-weight:500;color:var(--muted);}
+.guide-compare dl {margin:0;display:grid;gap:10px;}
+.guide-compare dt {font-weight:700;font-size:13px;}
+.guide-compare dt::before {content:"";display:inline-block;width:6px;height:6px;margin:0 8px 2px 0;border-radius:50%;background:var(--mode-color);}
+.guide-compare dd {margin:2px 0 0;font-size:13px;line-height:1.8;color:var(--muted);}
+.guide-subhead {margin:6px 0 0;font-size:15px;}
+.guide-actions {display:flex;flex-wrap:wrap;gap:10px;}
 
 @media(max-width:750px){
-  .guide-modes, .guide-defs {grid-template-columns:1fr;}
+  .guide-modes, .guide-defs, .guide-compare {grid-template-columns:1fr;}
   .guide-quick {grid-template-columns:1fr;}
   .guide-welcome {flex-wrap:wrap;}
   .guide-welcome-actions {width:100%;justify-content:stretch;}
@@ -87,4 +103,5 @@
   .guide-choose li {flex-direction:column;align-items:stretch;}
   .guide-choose .btn {width:100%;}
   .guide-mode > .btn {justify-self:stretch;}
+  .guide-actions .btn {width:100%;}
 }
