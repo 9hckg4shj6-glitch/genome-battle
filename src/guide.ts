@@ -125,7 +125,7 @@ export function renderGuide(): string {
   <section id="guide-tools" class="panel guide-section"><p class="eyebrow">TOOLS</p><h2 tabindex="-1">便利な機能</h2>
     <dl class="guide-defs">
       <div><dt>文字サイズ</dt><dd>画面上部の「標準・大・特大」で、問題文・選択肢・解説の文字を大きくできます。</dd></div>
-      <div><dt>${icon("sun")}ライト／ダーク</dt><dd>画面右上で明るい画面と暗い画面を切り替えられます。</dd></div>
+      <div><dt>${icon("sun")}ライト／ダーク</dt><dd>はじめは明るい画面です。画面右上の「ダーク」を押すと暗い画面になり、「ライト」でいつでも戻せます。</dd></div>
       <div><dt>${icon("zoom")}図の拡大</dt><dd>図のある問題は、図をタップすると拡大表示できます。対戦中は拡大している間も時間が進みます。</dd></div>
       <div><dt>${icon("user")}フレンド</dt><dd>画面上部の「フレンド」で、10文字のフレンドコードを交換して申請・承認します。フレンドは対戦室に招待できます。</dd></div>
       <div><dt>${icon("globe")}通信状態・オンライン人数</dt><dd>画面上部に、いまアプリを開いている人数と通信状態が出ます。「通信エラー」と出たら「再接続」を押してください。</dd></div>

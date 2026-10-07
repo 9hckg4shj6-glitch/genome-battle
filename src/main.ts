@@ -13,7 +13,7 @@ import { renderOnlineCount, startPresence } from "./presence";
 import { markGuideSeen, renderGuide, renderGuideWelcome } from "./guide";
 import { FriendsController, friendsIcon } from "./friends";
 import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
-import { renderThemeSwitch, setTheme } from "./theme";
+import { dismissThemeHint, renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
@@ -528,7 +528,7 @@ function renderHeader(lobby: boolean): string {
   const backLabel=solo.state?.mode==='study'&&solo.state.phase!=='finished'?'中断してホームへ':'ホームへ';
   // 対戦・学習の途中でガイドへ移ると進行を見逃すので、そのあいだは出さない。
   const guideButton=!solo.active&&view!=="match"&&view!=="review"?`<button class="btn guide-open" data-act="guide" ${navigationBusy?"disabled":""} ${view==="guide"?'aria-current="page"':""}>${icon("help")}使い方</button>`:"";
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions">${guideButton}<button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions">${guideButton}<button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch(lobby)}</div></header>`;
 }
 
 function renderHome(): string {
@@ -813,6 +813,7 @@ app.addEventListener("click", (e) => {
   if(imageId){const q=questions.get(imageId);if(q)imageViewer.open(q,solo.active?solo.state?.mode==="ai"&&solo.state.phase!=="finished":match?.status==="playing");return;}
   const themeChoice = target.closest<HTMLElement>("[data-theme-choice]")?.dataset.themeChoice;
   if (themeChoice === "light" || themeChoice === "dark") {setTheme(themeChoice); return;}
+  if (target.closest('[data-act="theme-hint-dismiss"]')) {dismissThemeHint(); return;}
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;
   if (mode && mode in modeInfo) {
     const card=target.closest<HTMLElement>(".mode-card");
