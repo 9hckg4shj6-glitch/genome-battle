@@ -21,7 +21,7 @@ import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss
 import { studyDistribution, renderDistribution } from './study-distribution';
 import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
-import { renderCatalog, setCatalogField, toggleCatalogItem } from "./catalog";
+import { renderCatalog, setCatalogField, setCatalogPage, toggleCatalogItem } from "./catalog";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 
 const BASE = import.meta.env.BASE_URL;
@@ -552,7 +552,7 @@ function renderSetup(): string {
     ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
     ${study?`<div class="study-start-actions"><button class="btn primary" data-study-order="unattempted" ${busy?"disabled":""}>未着手の問題を優先的に演習${icon("arrow")}</button><button class="btn" data-study-order="random" ${busy?"disabled":""}>ランダム演習${icon("arrow")}</button></div><p class="study-order-help">${studyProgressError?"未着手の件数を取得できませんでした。出題時に確認します。":studyProgressLoaded?`この分野の未着手：${[...questions.values()].filter(q=>(!studyField||q.field===studyField)&&!studyAttempted.has(q.id)).length} / ${fieldTotal}問。`:"未着手の件数を確認中…"}${!studyField&&distribution==='even'?"選んだ配分を保ち、各分野内で未着手の問題を優先します。":"まだ解答も回答の確認もしていない問題を優先します。"}不足分は演習済みから補います。後回しは未着手のままです。</p>`:`<button class="btn primary" data-act="${study || ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>`}
     ${selectedMode==="room" ? `<div class="divider"><span>部屋番号・招待リンクで参加</span></div><label class="field"><span>部屋番号（4桁）</span><div class="join"><input id="code" aria-label="部屋番号（4桁）" inputmode="numeric" maxlength="4" placeholder="0000" value="${esc(roomCodeDraft)}"/><button class="btn" data-act="join" ${busy ? "disabled" : ""}>対戦室に参加</button></div></label><label class="field"><span>招待キー（鍵付きルームのみ）</span><input id="invite-key" type="password" autocomplete="off" aria-label="招待キー" placeholder="招待リンクから開くと自動入力" value="${esc(roomInviteDraft)}"/></label>` : ""}
-    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section>${study ? `</details>` : ""}${study ? `<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問の問題文を閲覧。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"} · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
+    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section>${study ? `</details>` : ""}${study ? `<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問の問題文を5問ずつのページで閲覧。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"} · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
 }
 
 function renderMatchSize(): string {
@@ -852,6 +852,14 @@ app.addEventListener("click", (e) => {
   if (removeId) {removeMissed(removeId); return render();}
   const catalogRetry=questions.get(target.closest<HTMLElement>("[data-catalog-retry]")?.dataset.catalogRetry??"");
   if (catalogRetry) return void toggleCatalogItem(catalogRetry,true);
+  const catalogPage=target.closest<HTMLElement>("[data-catalog-page]")?.dataset.catalogPage;
+  if (catalogPage!==undefined) {
+    // ページを替えたら、新しいページの先頭（ページ表示）へ移る。
+    setCatalogPage(Number(catalogPage));render();
+    const status=document.getElementById("catalog-page-status");
+    status?.scrollIntoView({block:"start"});status?.focus({preventScroll:true});
+    return;
+  }
   if (busy || solo.busy) return;
   const resumeId=target.closest<HTMLElement>('[data-resume-study]')?.dataset.resumeStudy;
   if(resumeId){void resumeStudy(resumeId);return;}

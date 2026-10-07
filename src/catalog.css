@@ -26,7 +26,24 @@
 .catalog-answer-mark { margin-left:auto;flex:none;padding:1px 8px;border-radius:99px;font-size:11px;background:var(--ok);color:var(--surface); }
 .catalog-loading { display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted); }
 .catalog-loading .spinner.mini { border-color:var(--line);border-top-color:var(--accent); }
+/* 5問ずつのページ切り替え。 */
+.catalog-page-status { display:flex;align-items:baseline;gap:12px;margin:0 0 10px;padding:0 4px;font-size:13px;color:var(--muted);scroll-margin-top:16px;outline:none; }
+.catalog-page-status b { font-size:18px;color:var(--text);font-variant-numeric:tabular-nums; }
+.catalog-page-status span { margin-left:auto;font-variant-numeric:tabular-nums; }
+.catalog-page-status:focus-visible { outline:2px solid var(--accent);outline-offset:4px;border-radius:8px; }
+.catalog-pager { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px; }
+.catalog-pager .catalog-step { justify-self:start; }.catalog-pager .catalog-step:last-child { justify-self:end; }
+.catalog-step { min-height:44px;padding:10px 14px;font-size:13px;white-space:nowrap; }
+.catalog-step:disabled { opacity:.4;cursor:default; }
+.catalog-pages { grid-column:1 / -1;display:grid;grid-template-columns:repeat(10,1fr);gap:6px; }
+.catalog-page { min-width:0;height:38px;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer; }
+.catalog-page:hover { border-color:var(--accent);color:var(--text); }
+.catalog-page[aria-current="page"] { background:var(--accent);border-color:var(--accent);color:var(--accent-text); }
+.catalog-page:focus-visible, .catalog-step:focus-visible { outline:2px solid var(--accent);outline-offset:2px; }
 @media (max-width:540px) {
+  .catalog-pages { gap:4px; }
+  .catalog-page { height:34px;font-size:12px; }
+  .catalog-pager .catalog-step, .catalog-pager .catalog-step:last-child { justify-self:stretch; }
   .catalog-tools { grid-template-columns:1fr; }
   .catalog-entry { padding:18px 16px;gap:12px; }
   .catalog-item summary { padding:14px;gap:10px; }.catalog-body { padding:0 14px 14px; }
