@@ -49,17 +49,3 @@
   .catalog-item summary { padding:14px;gap:10px; }.catalog-body { padding:0 14px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .catalog-toggle .icon { transition:none; } }
-
-/* 演習設定も一覧と同じカードから選ぶ。最初は閉じ、設定変更時は開いたまま。 */
-.study-corner {display:block;padding:0;overflow:hidden;}
-.study-corner-toggle {list-style:none;border-radius:18px;}
-.study-corner-toggle::-webkit-details-marker {display:none;}
-.study-corner-toggle:focus-visible {outline:2px solid var(--accent);outline-offset:-3px;}
-.study-corner-toggle .mode-icon {color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 8%,transparent);border-color:color-mix(in srgb,var(--mode-color) 22%,var(--line));}
-.study-corner-cue {display:flex;align-items:center;gap:6px;flex:none;white-space:nowrap;font-size:12px;color:var(--muted);}
-.study-corner-cue .icon {width:18px;height:18px;transform:rotate(90deg);}
-.study-corner-toggle .when-open,.study-corner[open] .when-closed {display:none;}
-.study-corner[open] .when-open {display:inline;}
-.study-corner[open] .study-corner-cue .icon {transform:rotate(-90deg);}
-.study-corner-body {display:grid;gap:16px;padding:22px;border-top:1px solid var(--line);}
-@media(max-width:540px){.study-corner-body {padding:18px 16px;}.study-corner-cue {gap:3px;}.study-corner-toggle {gap:10px;}}

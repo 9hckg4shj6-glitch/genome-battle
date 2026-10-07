@@ -58,7 +58,7 @@ export function afterRender(): void {
 }
 
 let lastScene = "";
-const STAGED = new Set(["home", "setup", "guide", "notebook", "catalog", "review"]);
+const STAGED = new Set(["home", "setup", "practice", "guide", "notebook", "catalog", "review"]);
 // 画面が変わったときだけ入場演出を付ける。同じ画面の再描画（入力・通信）では再生しない。
 export function enterScene(scene: string): string {
   const changed = scene !== lastScene;

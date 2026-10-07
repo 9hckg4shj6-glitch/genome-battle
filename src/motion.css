@@ -44,8 +44,6 @@
   .room-row:hover:not(:disabled) { transform:translateY(-1px); }
   .guide-chip:hover,.notebook-tab:hover { transform:translateY(-1px); }
 }
-/* 内側に開く入口（問題演習コーナ）は、開閉で位置が揺れないよう浮かせない */
-summary.catalog-entry:hover,summary.catalog-entry:active { transform:none; }
 
 /* ---------- 画面の入場：変わったときだけ、上から順に立ち上がる ----------
    終了後は効果を残さない（backwards）。残すと押下・ホバーの動きを上書きしてしまう。 */

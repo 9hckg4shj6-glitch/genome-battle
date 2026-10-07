@@ -5,6 +5,7 @@ import "./readability.css";
 import "./sessions.css";
 import "./catalog.css";
 import "./guide.css";
+import "./practice.css";
 import "./motion.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
@@ -18,10 +19,11 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
 import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
-import { studyDistribution, renderDistribution } from './study-distribution';
+import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { renderCatalog, setCatalogField, setCatalogPage, toggleCatalogItem } from "./catalog";
+import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 
 const BASE = import.meta.env.BASE_URL;
@@ -73,13 +75,11 @@ let match: MatchState | null = null;
 let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
-let view: "home" | "setup" | "match" | "review" | "notebook" | "catalog" | "guide" = roomCodeDraft ? "setup" : "home";
+let view: "home" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" = roomCodeDraft ? "setup" : "home";
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
-let studyField = "";
 let studyCount = 10;
-let studyCornerExpanded=false;
 let distribution=studyDistribution(readStore('gb.study-distribution'));
 type StudyOrder = 'unattempted'|'random';
 let studyOrder:StudyOrder=readStore('gb.study-order')==='random'?'random':'unattempted';
@@ -108,7 +108,7 @@ async function refreshStudyProgress():Promise<void> {
   if(studyProgressLoading)return;studyProgressLoading=true;
   try {const s=await call<{attempted_ids:string[]}>('get_study_progress',{p_device:deviceId});studyAttempted=new Set(s.attempted_ids);studyProgressLoaded=true;studyProgressError=false;}
   catch {studyProgressError=true;}
-  finally {studyProgressLoading=false;if(view==='setup'&&selectedMode==='study'&&!solo.active)render();}
+  finally {studyProgressLoading=false;if((view==='practice'||view==='setup'&&selectedMode==='study')&&!solo.active)render();}
 }
 let difficulty: Difficulty = "normal";
 let battleGeneration = 0;
@@ -271,7 +271,7 @@ async function leave(): Promise<void> {
   channel = null;realtimeState("off");
   match = null;
   mySeat = null;
-  const returning = view === "setup" ? selectedMode : null;
+  const returning = view === "setup" ? selectedMode : view === "practice" ? "study" : null;
   view = "home";
   writeStore("gb.match", null, sessionStorage);
   // 設定画面から戻るときは、見出しのアイコンを元のカードへ戻す。
@@ -508,6 +508,7 @@ function render(): void {
   let body: string;
   if (solo.active) body = solo.render();
   else if (view === "setup") body = renderSetup();
+  else if (view === "practice") body = renderPractice({questions,playerName,busy,error,count:studyCount,distribution,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError});
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
   else if (view === "catalog") body = renderCatalog(questions);
@@ -541,18 +542,19 @@ function renderHome(): string {
 
 function renderSetup(): string {
   const m = modeInfo[selectedMode];
-  const study = selectedMode === "study";
   const ai = selectedMode === "ai";
+  const title = `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
+  // 一人で学習は入口だけを並べ、演習の設定は問題演習コーナのページで行う。
+  if (selectedMode === "study") return `${title}${renderPracticeEntry(questions)}<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問の問題文を5問ずつのページで閲覧。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
-  const fieldTotal = [...questions.values()].filter(q => !studyField || q.field === studyField).length;
-  return `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>${study ? `<details id="study-corner" class="panel study-corner" ${studyCornerExpanded?"open":""}><summary class="catalog-entry study-corner-toggle"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">PRACTICE</span><strong>問題演習コーナ</strong><small>分野・問題数・出題配分を選んで演習します。</small></span><span class="study-corner-cue" aria-hidden="true"><span class="when-closed">開く</span><span class="when-open">閉じる</span>${icon("arrow")}</span></summary><section class="setup-panel study-corner-body">` : `<section class="panel setup-panel">`}<label class="field"><span>プレイヤー名${study ? "（任意）" : ""}</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
+  return `${title}<section class="panel setup-panel"><label class="field"><span>プレイヤー名</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
     ${selectedMode==="room"?`<label class="field"><span>対戦室の分野</span><select id="room-field" aria-label="対戦室の分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===roomFieldDraft?"selected":""}>${esc(f)}（${[...questions.values()].filter(q=>q.field===f).length}問）</option>`).join("")}</select></label><p class="room-field-summary">${esc(roomFieldDraft||"すべての分野")}から最大${Math.min(15,roomTotal)}問を出題。5問先取、問題が終わった場合は得点で決着します。</p>`:""}
-    ${study ? `<div class="settings"><label class="field"><span>学習する分野</span><select id="study-field" aria-label="学習する分野"><option value="">すべての分野</option>${fields.map(f=>`<option value="${esc(f)}" ${f===studyField ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label><div class="field count-field"><span>問題数（1〜${fieldTotal}問）</span><div class="count-row"><input id="study-count" type="range" aria-label="問題数" min="1" max="${fieldTotal}" step="1" value="${Math.min(studyCount,fieldTotal)}"/><input id="study-count-value" type="number" inputmode="numeric" aria-label="問題数（数字で入力）" min="1" max="${fieldTotal}" step="1" value="${Math.min(studyCount,fieldTotal)}"/><span>問</span></div></div></div><div id="distribution-settings">${renderDistribution(distribution,!!studyField)}</div><p class="setup-hint">時間制限なし。解答後の解説を読んで、自分のペースで進められます。</p>` : `${selectedMode==="matchmaking" ? renderMatchSize() : `<div class="settings">${ai ? `<label class="field"><span>AIの難易度</span><select id="difficulty" aria-label="AIの難易度">${(["easy","normal","hard"] as Difficulty[]).map(d=>`<option value="${d}" ${d===difficulty ? "selected" : ""}>${difficultyName[d]}</option>`).join("")}</select></label>` : `<label class="field"><span>部屋の定員</span><select id="capacity" aria-label="部屋の定員"><option value="">8人まで</option>${[2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===capacity ? "selected" : ""}>${n}人</option>`).join("")}</select></label>`}<label class="field"><span>1問の制限時間</span><input id="seconds" aria-label="1問の制限時間" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}"/><small>5〜120秒</small></label></div><p class="setup-hint">${ai ? "AIの回答速度と正答率が難易度で変化します。5問先取・最大15問の早押し対戦です。" : "作成した部屋は標準で公開ルーム一覧に表示されます。鍵をかけると、招待リンクを持つ人だけが参加できます。"}</p>`}`}
+    ${selectedMode==="matchmaking" ? renderMatchSize() : `<div class="settings">${ai ? `<label class="field"><span>AIの難易度</span><select id="difficulty" aria-label="AIの難易度">${(["easy","normal","hard"] as Difficulty[]).map(d=>`<option value="${d}" ${d===difficulty ? "selected" : ""}>${difficultyName[d]}</option>`).join("")}</select></label>` : `<label class="field"><span>部屋の定員</span><select id="capacity" aria-label="部屋の定員"><option value="">8人まで</option>${[2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===capacity ? "selected" : ""}>${n}人</option>`).join("")}</select></label>`}<label class="field"><span>1問の制限時間</span><input id="seconds" aria-label="1問の制限時間" type="number" inputmode="numeric" min="5" max="120" step="1" value="${answerSeconds}"/><small>5〜120秒</small></label></div><p class="setup-hint">${ai ? "AIの回答速度と正答率が難易度で変化します。5問先取・最大15問の早押し対戦です。" : "作成した部屋は標準で公開ルーム一覧に表示されます。鍵をかけると、招待リンクを持つ人だけが参加できます。"}</p>`}
     ${selectedMode==="room" ? `<label class="room-privacy"><input id="room-private" type="checkbox" aria-label="鍵付きルームにする" ${roomPrivateDraft ? "checked" : ""}/><span><strong>${icon("lock")}鍵付きルームにする</strong><small>一覧には表示せず、招待した人だけが参加</small></span><span class="privacy-switch" aria-hidden="true"></span></label>` : ""}
-    ${study?`<div class="study-start-actions"><button class="btn primary" data-study-order="unattempted" ${busy?"disabled":""}>未着手の問題を優先的に演習${icon("arrow")}</button><button class="btn" data-study-order="random" ${busy?"disabled":""}>ランダム演習${icon("arrow")}</button></div><p class="study-order-help">${studyProgressError?"未着手の件数を取得できませんでした。出題時に確認します。":studyProgressLoaded?`この分野の未着手：${[...questions.values()].filter(q=>(!studyField||q.field===studyField)&&!studyAttempted.has(q.id)).length} / ${fieldTotal}問。`:"未着手の件数を確認中…"}${!studyField&&distribution==='even'?"選んだ配分を保ち、各分野内で未着手の問題を優先します。":"まだ解答も回答の確認もしていない問題を優先します。"}不足分は演習済みから補います。後回しは未着手のままです。</p>`:`<button class="btn primary" data-act="${study || ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>`}
+    <button class="btn primary" data-act="${ai ? "solo-start" : selectedMode==="room" ? "create" : "random"}" ${busy ? "disabled" : ""}>${busy ? '<span class="spinner mini"></span>接続中…' : icon(m.icon)+m.label+icon("arrow")}</button>
     ${selectedMode==="room" ? `<div class="divider"><span>部屋番号・招待リンクで参加</span></div><label class="field"><span>部屋番号（4桁）</span><div class="join"><input id="code" aria-label="部屋番号（4桁）" inputmode="numeric" maxlength="4" placeholder="0000" value="${esc(roomCodeDraft)}"/><button class="btn" data-act="join" ${busy ? "disabled" : ""}>対戦室に参加</button></div></label><label class="field"><span>招待キー（鍵付きルームのみ）</span><input id="invite-key" type="password" autocomplete="off" aria-label="招待キー" placeholder="招待リンクから開くと自動入力" value="${esc(roomInviteDraft)}"/></label>` : ""}
-    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section>${study ? `</details>` : ""}${study ? `<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問の問題文を5問ずつのページで閲覧。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · ${study ? "記録はこの端末に保存" : "名前だけで参加できます"} · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
+    ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}</section><p class="setup-footnote">${icon("check")}ログイン不要 · 名前だけで参加できます · 選択肢は問題ごとに並べ替えます</p>${selectedMode === "room" ? `<section id="public-rooms" class="panel public-rooms-panel">${renderPublicRooms()}</section>` : ""}`;
 }
 
 function renderMatchSize(): string {
@@ -566,15 +568,16 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   if (mode === "ai" && (!Number.isInteger(answerSeconds) || answerSeconds < 5 || answerSeconds > 120)) {error=ERRORS.BAD_SETTINGS;render();return;}
   writeStore("gb.name",playerName);
   if (mode === "ai") writeStore("gb.seconds",String(answerSeconds));
-  const available = [...questions.values()].filter(q => retryIds ? retryIds.includes(q.id) : mode === "ai" || !studyField || q.field === studyField).map(q=>q.id);
+  const fields = new Set(chosenFields(questions));
+  const available = [...questions.values()].filter(q => retryIds ? retryIds.includes(q.id) : mode === "ai" || fields.has(q.field)).map(q=>q.id);
   // Fisher–Yates。特定の問題に偏らないようシャッフルする。
   for (let i=available.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]];}
   const orderedStudy=mode==="study"&&!retryIds;
   const ids=orderedStudy?available:available.slice(0,retryIds ? 100 : mode === "ai" ? 15 : studyCount); // サーバ側の上限は100問
-  if (!ids.length) {error="この分野の問題はありません";render();return;}
+  if (!ids.length) {error=retryIds||mode==="ai"?"この分野の問題はありません":"学習する分野を1つ以上選んでください";render();return;}
   busy=true; error=""; render();
   try {
-    await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course,orderedStudy?order:"given",orderedStudy?Math.min(studyCount,available.length):undefined,orderedStudy&&!studyField?distribution:undefined);
+    await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course,orderedStudy?order:"given",orderedStudy?Math.min(studyCount,available.length):undefined,orderedStudy&&fields.size>1?distribution:undefined);
     savedStudyNotice='';
     if (channel) void supabase.removeChannel(channel);
     channel=null;realtimeState("off");match=null;mySeat=null;writeStore("gb.match",null,sessionStorage);
@@ -776,7 +779,6 @@ function renderNotebook(): string {
 app.addEventListener("toggle", (e) => {
   const panel=e.target;
   if(panel instanceof HTMLDetailsElement && panel.id==="saved-study-panel" && panel.isConnected) savedStudiesExpanded=panel.open;
-  if(panel instanceof HTMLDetailsElement && panel.id==="study-corner" && panel.isConnected) studyCornerExpanded=panel.open;
   const catalogId=panel instanceof HTMLDetailsElement && panel.isConnected?panel.dataset.catalogId:undefined;
   const catalogQuestion=catalogId?questions.get(catalogId):undefined;
   if(catalogQuestion) void toggleCatalogItem(catalogQuestion,(panel as HTMLDetailsElement).open);
@@ -798,7 +800,7 @@ app.addEventListener("change", (e) => {
   if (input.name === "match-size") {matchCapacity=matchSize(input.value);writeStore("gb.match-capacity",String(matchCapacity));render();document.querySelector<HTMLInputElement>(`input[name="match-size"][value="${matchCapacity}"]`)?.focus();}
   if (input.id === "room-field") {roomFieldDraft=input.value;render();}
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
-  if (input.id === "study-field") {studyField = input.value; render();}
+  if (input.name === "practice-field") {toggleField(questions,input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-field"][value="${CSS.escape(input.value)}"]`)?.focus();}
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
   // 範囲外・空欄のまま離れたら、直前の有効な値に戻す。
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
@@ -817,7 +819,7 @@ app.addEventListener("click", (e) => {
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;
   if (mode && mode in modeInfo) {
     const card=target.closest<HTMLElement>(".mode-card");
-    selectedMode=mode;if(mode==="study")studyCornerExpanded=false;view="setup";error="";
+    selectedMode=mode;view="setup";error="";
     if(card)tapFeedback();
     navigate(()=>{render();window.scrollTo(0,0);},"forward",card,card?()=>document.querySelector(".setup-title"):undefined);
     if (mode === "room") void refreshPublicRooms();if(mode==="study")void refreshStudyProgress();return;
@@ -890,6 +892,16 @@ app.addEventListener("click", (e) => {
   else if (act === "guide-dismiss") {markGuideSeen(); render();}
   else if (act === "notebook") {view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "catalog") {view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "practice") {
+    // 入口カードのアイコンと見出しを、演習ページの見出しへ受け渡す。
+    const entry=target.closest<HTMLElement>(".practice-entry");
+    view="practice";error="";tapFeedback();
+    navigate(()=>{render();window.scrollTo(0,0);},"forward",entry,()=>document.querySelector(".practice-title"));
+    void refreshStudyProgress();
+  }
+  else if (act === "practice-back") {view="setup";selectedMode="study";error="";navigate(()=>{render();window.scrollTo(0,0);},"back",document.querySelector(".practice-title"),()=>document.querySelector(".practice-entry"));}
+  else if (act === "practice-all") {selectAllFields();render();}
+  else if (act === "practice-none") {clearFields();render();}
   else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);}, "back");}
   else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
   else if (act === "solo-start") void startSolo();
@@ -898,7 +910,7 @@ app.addEventListener("click", (e) => {
   else if (act === "solo-next") {void solo.act("next");window.scrollTo(0,0);}
   else if (act === "solo-review") {void solo.act("review");window.scrollTo(0,0);}
   else if (act === "solo-retry") {const ids=solo.retryIds(); void startSolo("study",ids);}
-  else if (act === "solo-again") {selectedMode=solo.state?.mode === "ai" ? "ai" : "study"; if (solo.state) {difficulty=solo.state.difficulty;answerSeconds=solo.state.answer_seconds;} solo.stop();view="setup";if(selectedMode==="study")void refreshStudyProgress();render();window.scrollTo(0,0);}
+  else if (act === "solo-again") {selectedMode=solo.state?.mode === "ai" ? "ai" : "study"; if (solo.state) {difficulty=solo.state.difficulty;answerSeconds=solo.state.answer_seconds;} solo.stop();view=selectedMode==="study"?"practice":"setup";if(selectedMode==="study")void refreshStudyProgress();render();window.scrollTo(0,0);}
   else if (act === "reload") location.reload();
 });
 app.addEventListener("keydown", (e) => {

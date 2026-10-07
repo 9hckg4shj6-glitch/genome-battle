@@ -1,0 +1,65 @@
+/* 問題演習コーナ。一人で学習の色（--mode-color）を引き継ぎ、明暗の共通変数を使う。 */
+.practice-entry .practice-entry-current { display:inline-flex;align-items:center;gap:5px;justify-self:start;margin-top:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 10%,transparent);border:1px solid color-mix(in srgb,var(--mode-color) 28%,transparent); }
+.practice-entry .practice-entry-current .icon { width:12px;height:12px; }
+.practice-entry { border-color:color-mix(in srgb,var(--mode-color) 30%,var(--line)); }
+
+.practice-step { gap:18px; }
+.practice-step-head { display:flex;align-items:flex-start;gap:14px; }
+.practice-step-head h2 { margin:0;font-size:17px;line-height:1.5; }
+.practice-step-head p { margin:4px 0 0;font-size:12px;line-height:1.8;color:var(--muted); }
+.practice-step-no { flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 12%,transparent);border:1px solid color-mix(in srgb,var(--mode-color) 35%,transparent); }
+.practice-step { --mode-color:#9fd8d4; }
+:root[data-theme="light"] .practice-step { --mode-color:#287a79; }
+
+.practice-bulk { display:flex;flex-wrap:wrap;gap:8px; }
+.practice-bulk .btn { min-height:40px;padding:8px 14px;font-size:12px; }
+.practice-bulk .btn:disabled { opacity:.45;cursor:default; }
+
+.practice-fields { display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px; }
+.practice-field { position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;
+  transition:transform .45s var(--ease-spring),background-color .2s var(--ease-out),border-color .2s var(--ease-out),box-shadow .3s var(--ease-out); }
+.practice-field input { position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none; }
+.practice-field.on { border-color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 9%,var(--surface));box-shadow:0 8px 20px -14px color-mix(in srgb,var(--mode-color) 70%,transparent); }
+.practice-field:has(input:focus-visible) { outline:2px solid var(--accent);outline-offset:2px; }
+.practice-field:has(input:disabled) { cursor:default;opacity:.6; }
+.practice-field:active:not(:has(input:disabled)) { transform:scale(.97);transition-duration:.1s;transition-timing-function:var(--ease-out); }
+.practice-check { flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:7px;border:1.5px solid var(--line);background:var(--surface-2);color:transparent;transition:background-color .2s,border-color .2s,color .2s; }
+.practice-check .icon { width:15px;height:15px;stroke-width:3; }
+.practice-field.on .practice-check { background:var(--mode-color);border-color:var(--mode-color);color:var(--bg); }
+:root[data-theme="light"] .practice-field.on .practice-check { color:#fff; }
+.practice-field-copy { display:grid;gap:2px;min-width:0; }
+.practice-field-copy strong { font-size:14px;line-height:1.5;overflow-wrap:anywhere; }
+.practice-field-copy small { font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums; }
+/* 切り替えた瞬間だけ、チェックが弾む */
+.practice-field.pop .practice-check { animation:practice-check .45s var(--ease-spring); }
+.practice-field.pop.on .practice-check .icon { animation:practice-tick .35s var(--ease-out); }
+@keyframes practice-check { 0% { transform:scale(.7); } 60% { transform:scale(1.15); } }
+@keyframes practice-tick { from { stroke-dasharray:24;stroke-dashoffset:24; } to { stroke-dasharray:24;stroke-dashoffset:0; } }
+
+.practice-summary { margin:0;padding:12px 14px;border-radius:10px;background:var(--surface-2);font-size:13px;line-height:1.8; }
+.practice-summary b { color:var(--mode-color);font-variant-numeric:tabular-nums; }
+.practice-summary.empty { color:var(--ng);background:var(--ng-bg); }
+.practice-step .study-distribution { margin-top:0; }
+.practice-step .study-start-actions { margin-top:0; }
+.practice-step .study-order-help { margin:0; }
+.practice-step .count-row input:disabled { opacity:.5; }
+.practice-back { display:flex;width:fit-content;margin:0 auto 20px; }
+
+/* ページに入ったら、分野カードが順に立ち上がる */
+.scene-enter .practice-field { animation:card-rise .5s var(--ease-out) backwards;animation-delay:calc(120ms + var(--i,0) * 28ms); }
+/* 押した入口は、次のページへ移る一瞬だけ光らせる */
+.catalog-entry.is-launching { transition:none;transform:scale(.985);border-color:var(--mode-color);box-shadow:0 0 0 1px var(--mode-color),0 18px 44px -16px color-mix(in srgb,var(--mode-color) 55%,transparent); }
+.catalog-entry.is-launching::before { opacity:1; }
+
+@media (max-width:540px) {
+  .practice-fields { grid-template-columns:1fr 1fr;gap:8px; }
+  .practice-field { min-height:58px;padding:10px;gap:9px; }
+  .practice-field-copy strong { font-size:13px; }
+  .practice-step-head { gap:10px; }
+  .practice-bulk .btn { flex:1; }
+}
+@media (max-width:360px) { .practice-fields { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion: reduce) {
+  .practice-field, .practice-check { transition:none; }
+  .practice-field.pop .practice-check, .practice-field.pop.on .practice-check .icon, .scene-enter .practice-field { animation:none; }
+}
