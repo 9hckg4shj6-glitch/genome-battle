@@ -9,6 +9,7 @@ import "./guide.css";
 import "./practice.css";
 import "./motion.css";
 import "./install.css";
+import "./quicknav.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -28,6 +29,7 @@ import { SoloController, difficultyName, type Difficulty, type SoloMode } from "
 import { renderCatalog, setCatalogField, setCatalogPage, toggleCatalogItem } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
+import { renderQuickNav } from "./quicknav";
 import { copyAppLink, dismissInstall, inLineApp, openInBrowser, promptInstall, renderInstall, renderInstallEntry, setInstallDevice, watchInstall } from "./install";
 
 const BASE = import.meta.env.BASE_URL;
@@ -549,7 +551,7 @@ function render(): void {
   else if (match.status === "playing") body = renderPlay(match);
   else body = renderResult(match);
   const scene = lobby ? "home" : solo.active ? "solo" : view === "setup" ? `setup:${selectedMode}` : view;
-  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div><div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>`;
+  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div><div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>${lobby ? renderQuickNav() : ""}`;
   updateClock();
   solo.updateClock();friends.update();
   afterRender();
