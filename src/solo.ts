@@ -21,6 +21,8 @@ export class SoloController {
   reviewLoaded=false; reviewLoading=false; course=false;
   private reviewPromise:Promise<void>|null=null;
   private ticking=false; private lastTick=0; private generation=0;
+  // AI対戦で、押した解答がAIの正解・時間切れの後に届いた問題（\`セッション:問題番号\`）と選んだ選択肢。
+  private late:{key:string;choice:number}|null=null;
   constructor(private device: string, private questions: Map<string,Question>, private changed:()=>void, private name:()=>string, private finished:(s:{id:string;mode:SoloMode})=>void, private resultExtra:(id:string)=>string=()=>'') {}
   get active(): boolean { return this.state !== null; }
   async start(mode: SoloMode, ids: string[], seconds: number, difficulty: Difficulty, course=false, order:'given'|'unattempted'|'random'='given', count?:number,distribution?:StudyDistribution): Promise<void> {
@@ -73,7 +75,7 @@ export class SoloController {
     }catch(e){if(generation===this.generation)this.error=this.message(e);return false;}
     finally{if(generation===this.generation){this.busy=false;this.changed();}}
   }
-  stop(): void { this.generation++; this.state=null; this.busy=false; this.error=''; this.reviewing=false; this.reviewLoaded=false; this.reviewLoading=false; this.reviewPromise=null; this.course=false; writeStore('gb.solo',null,sessionStorage); writeStore('gb.solo-course',null,sessionStorage); }
+  stop(): void { this.generation++; this.state=null; this.late=null; this.busy=false; this.error=''; this.reviewing=false; this.reviewLoaded=false; this.reviewLoading=false; this.reviewPromise=null; this.course=false; writeStore('gb.solo',null,sessionStorage); writeStore('gb.solo-course',null,sessionStorage); }
   private apply(s:SoloState):void {
     if (this.state?.id===s.id && this.state.version>s.version) return;
     const same=this.state?.id===s.id && this.state.version===s.version;
@@ -124,6 +126,8 @@ export class SoloController {
       } else {
         const next=await call<SoloState>(action==='next'?'next_solo':action==='defer'?'defer_solo':action==='view-answer'?'view_solo_answer':'answer_solo',{...args,p_q_index:s.q_index,...(action==='answer'?{p_choice:choice,p_q_id:s.q_id}:action==='defer'||action==='view-answer'?{p_q_id:s.q_id,p_version:s.version}:{})});
         if (generation!==this.generation) return;
+        if (action==='answer' && choice!==undefined && next.mode==='ai' && next.id===s.id && next.q_index===s.q_index && next.phase==='reveal' && next.my_choice===null)
+          this.late={key:`${s.id}:${s.q_index}`,choice};
         this.apply(next);
       }
     } catch(e) { if (generation===this.generation) this.error=this.message(e); }
@@ -160,6 +164,8 @@ export class SoloController {
     const q=this.questions.get(s.q_id); if (!q) return '<p role="alert">問題を読み込めませんでした。ホームへ戻ってください。</p>';
     const reveal=s.reveal; const locked=s.phase!=='question' || s.my_choice!==null || this.busy;
     const ai=s.mode==='ai';
+    const order=choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,q.choices.length);
+    const late=reveal && s.my_choice===null && this.late?.key===`${s.id}:${s.q_index}` ? this.late.choice : null;
     const moment=ai?this.moment(s):undefined;
     // AI対戦でお手つきしたら、その場で×を付けて揺らす（発表を待たせない）。
     const missKey=`${s.id}:${s.q_index}:miss`;
@@ -174,10 +180,10 @@ export class SoloController {
       <div class="timer"><i ${ai && s.phase==='question'?'data-solo-bar':`style="width:${100*(s.q_index+1)/s.q_total}%"`}></i></div>
       ${!ai&&s.is_deferred?'<p class="defer-notice" role="status">後回しにした問題です。</p>':''}
       <section class="question"><p>${esc(q.question)}</p>${questionImage(q)}</section>
-      <ol class="choices${choicesAttr}">${choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,q.choices.length).map((i,pos)=>`<li><button class="choice ${reveal?.answer===i?'correct':''} ${s.my_choice===i?'mine':''} ${s.my_choice===i && (reveal && reveal.answer!==i || missed)?'wrong':''}" data-solo-choice="${i}" ${locked?'disabled':''}><span class="num">${pos+1}</span><span>${esc(q.choices[i])}</span>${reveal?.answer===i?icon('check'):''}</button></li>`).join('')}</ol>
+      <ol class="choices${choicesAttr}">${order.map((i,pos)=>`<li><button class="choice ${reveal?.answer===i?'correct':''} ${s.my_choice===i?'mine':''} ${late===i?'late':''} ${s.my_choice===i && (reveal && reveal.answer!==i || missed)?'wrong':''}" data-solo-choice="${i}" ${locked?'disabled':''}><span class="num">${pos+1}</span><span>${esc(q.choices[i])}</span>${reveal?.answer===i?icon('check'):''}</button></li>`).join('')}</ol>
       ${!ai&&s.phase==='question'?`<div class="answer-view-actions"><button type="button" class="btn answer-view-button" data-act="solo-view-answer" aria-describedby="answer-view-help" ${this.busy?'disabled':''}>${icon('book')}<span>わからないので回答を見る</span>${icon('arrow')}</button><p id="answer-view-help">正答と解説を表示します。正解数には加えず、復習ノートに記録します。</p></div>`:''}
       ${!ai&&s.phase==='question'&&s.q_total>1?`<div class="defer-actions"><button type="button" class="btn primary defer-button" data-act="solo-defer" aria-describedby="defer-help" ${this.busy||!s.can_defer?'disabled':''}>${icon('clock')}後で解く${icon('arrow')}</button><p id="defer-help">${s.can_defer?'未解答のまま末尾へ送り、残りの問題の後に戻ります。':'最後の1問です。解答すると学習が完了します。'}</p></div>`:''}
-      ${reveal?`<section class="reveal ${s.winner==='me'?'win':ai?'lose':''}${moment?' celebrating':''}" ${moment?`style="${moment.style}"`:''}><h2 class="banner" id="solo-reveal-heading" tabindex="-1">${ai&&s.winner==='me'?icon('check'):''}${ai?(s.winner==='me'?'あなたが先に正解！':s.winner==='ai'?'AIが先に正解':'正解者なし'):(s.answer_viewed?'回答を確認しよう。':s.my_choice===reveal.answer?'正解！':'もう一度、確認しよう。')}</h2>${moment?streakNote(moment):''}${!ai?`<p class="answer-summary"><strong>正答：${choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,q.choices.length).indexOf(reveal.answer)+1}. ${esc(q.choices[reveal.answer])}</strong></p>${s.answer_viewed?'<p class="answer-view-note">回答を見た問題として復習ノートに記録しました。正解数には含まれません。</p>':''}`:''}${renderCommunityRate(s.q_id,s.answer_viewed?'viewed':s.my_choice===null?'none':s.my_choice===reveal.answer?'correct':'wrong')}<div class="expl">${richText(reveal.explanation)}</div><div class="confidence-actions">${uncertainButton({id:s.q_id,answer:reveal.answer,explanation:reveal.explanation,my_choice:s.my_choice})}</div><button class="btn primary" data-act="solo-next" ${this.busy?'disabled':''}>${s.q_index+1===s.q_total || (ai && Math.max(s.my_score,s.ai_score)>=5)?'結果を見る':'次の問題へ'}${icon('arrow')}</button></section>`:(s.my_choice!==null?'<p class="note">お手つき。まもなくAIの解答を発表します…</p>':ai && s.ai_mark==='x'?'<p class="note">AIがお手つき。まだ解答できます。</p>':'')}${moment&&!(moment.outcome==='lose'&&seen(missKey))?stamp(moment,{win:'先取！',rival:'AIが正解'}):''}${missMoment?stamp(missMoment,{lose:'お手つき'}):''}${notice}`;
+      ${reveal?`<section class="reveal ${s.winner==='me'?'win':ai?'lose':''}${moment?' celebrating':''}" ${moment?`style="${moment.style}"`:''}><h2 class="banner" id="solo-reveal-heading" tabindex="-1">${ai&&s.winner==='me'?icon('check'):''}${ai?(s.winner==='me'?'あなたが先に正解！':late!==null?(s.winner==='ai'?'タッチの差でAIが先に正解':'タッチの差で時間切れ'):s.winner==='ai'?'AIが先に正解':'正解者なし'):(s.answer_viewed?'回答を確認しよう。':s.my_choice===reveal.answer?'正解！':'もう一度、確認しよう。')}</h2>${moment?streakNote(moment):''}${late!==null?`<p class="late-note">あなたの解答（${order.indexOf(late)+1}番）は${s.winner==='ai'?'AIの正解':'制限時間'}より後に届いたため、得点になりませんでした。${late===reveal.answer?'選んだ答えは正解でした。':'選んだ答えは不正解でした。'}</p>`:''}<p class="answer-summary"><strong>正答：${order.indexOf(reveal.answer)+1}. ${esc(q.choices[reveal.answer])}</strong></p>${!ai&&s.answer_viewed?'<p class="answer-view-note">回答を見た問題として復習ノートに記録しました。正解数には含まれません。</p>':''}${renderCommunityRate(s.q_id,s.answer_viewed?'viewed':s.my_choice===null?'none':s.my_choice===reveal.answer?'correct':'wrong')}<div class="expl">${richText(reveal.explanation)}</div><div class="confidence-actions">${uncertainButton({id:s.q_id,answer:reveal.answer,explanation:reveal.explanation,my_choice:s.my_choice})}</div><button class="btn primary" data-act="solo-next" ${this.busy?'disabled':''}>${s.q_index+1===s.q_total || (ai && Math.max(s.my_score,s.ai_score)>=5)?'結果を見る':'次の問題へ'}${icon('arrow')}</button></section>`:(s.my_choice!==null?'<p class="note">お手つき。まもなくAIの解答を発表します…</p>':ai && s.ai_mark==='x'?'<p class="note">AIがお手つき。まだ解答できます。</p>':'')}${moment&&!(moment.outcome==='lose'&&seen(missKey))?stamp(moment,{win:'先取！',rival:late!==null?'タッチの差':'AIが正解',timeout:late!==null?'タッチの差':'時間切れ'}):''}${missMoment?stamp(missMoment,{lose:'お手つき'}):''}${notice}`;
   }
   // 発表の瞬間の演出。お手つきの時点で鳴らした×は、発表で重ねない。
   private moment(s:SoloState):Moment|undefined {

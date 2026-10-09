@@ -88,3 +88,7 @@
 @keyframes ai-offer-in {from {opacity:0;transform:translateY(8px) scale(.98);}}
 @media (prefers-reduced-motion:reduce){.ai-offer {animation:none;}}
 @media(max-width:540px){.ai-offer {padding:16px;}.ai-offer-levels .match-size-options {grid-template-columns:repeat(3,minmax(0,1fr));}.ai-offer-levels .distribution-option {padding:10px 8px;gap:6px;}.ai-offer-levels .distribution-option strong {font-size:12px;}.ai-offer-actions .btn {width:100%;}}
+/* AI対戦：AIの正解・時間切れより後に届いた解答。押した選択肢を点線で示す。 */
+.choice.late {border-style:dashed;border-width:2px;}
+.choice.late:disabled:not(.correct):not(.wrong) {border-color:var(--accent);opacity:1;}
+.late-note {font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;}
