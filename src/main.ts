@@ -28,7 +28,7 @@ import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss
 import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
-import { renderCatalog, setCatalogField, setCatalogPage, toggleCatalogItem } from "./catalog";
+import { clearCatalogFilters, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, toggleCatalogItem, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 import { renderQuickNav } from "./quicknav";
@@ -403,7 +403,8 @@ async function refreshMastery(session?:string):Promise<void> {
     else if (view==="home" && !solo.active) {
       const region=document.querySelector<HTMLElement>("#mastery-region");
       if (region) region.innerHTML=renderMastery(questions,mastery,masteryError);
-    } else if (view==="practice" && !solo.active || solo.state?.phase==="finished" && !solo.reviewing) render();
+    } else if (view==="catalog" && !solo.active) updateCatalogResults(questions,mastery);
+    else if (view==="practice" && !solo.active || solo.state?.phase==="finished" && !solo.reviewing) render();
   }
 }
 // みんなの正答率。発表・振り返り・一覧に添えるだけなので取得は1分に1回まで。失敗したら前回の値を使う。
@@ -414,7 +415,9 @@ async function refreshQuestionStats():Promise<void> {
   try {
     if(!applyQuestionStats(await call<unknown>("get_question_stats",{})))return;
     // 入力欄のある画面（設定・演習）は描き直さず、正答率を表示している画面だけ更新する。
-    if(solo.active||view==="review"||view==="notebook"||view==="catalog"||view==="match")render();
+    // 過去問一覧は検索欄を保つため、絞り込み結果だけを描き直す。
+    if(view==="catalog"&&!solo.active)updateCatalogResults(questions,mastery);
+    else if(solo.active||view==="review"||view==="notebook"||view==="match")render();
   } catch { /* 正答率が出なくても学習は続けられる */ }
 }
 
@@ -566,7 +569,7 @@ function render(): void {
   else if (view === "practice") body = renderPractice({questions,playerName,busy,error,count:studyCount,distribution,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError,mastery});
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
-  else if (view === "catalog") body = renderCatalog(questions);
+  else if (view === "catalog") body = renderCatalog(questions,mastery);
   else if (view === "guide") body = renderGuide();
   else if (view === "install") body = renderInstall();
   else if (!match || view === "home") body = renderHome();
@@ -604,7 +607,7 @@ function renderSetup(): string {
   const ai = selectedMode === "ai";
   const title = `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
   // 一人で学習は入口だけを並べ、演習の設定は問題演習コーナのページで行う。
-  if (selectedMode === "study") return `${title}${renderPracticeEntry(questions)}<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問の問題文を5問ずつのページで閲覧。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
+  if (selectedMode === "study") return `${title}${renderPracticeEntry(questions)}<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問をキーワード・分野・学習状態（未着手・誤答・習得など）で検索。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
   return `${title}<section class="panel setup-panel"><label class="field"><span>プレイヤー名</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
@@ -911,6 +914,7 @@ app.addEventListener("input", (e) => {
   if (input.id === "name") playerName = input.value;
   if (input.id === "code") roomCodeDraft = input.value;
   if (input.id === "invite-key") roomInviteDraft = input.value;
+  if (input.id === "catalog-search") {setCatalogQuery(input.value);updateCatalogResults(questions,mastery);}
   if (input.id === "seconds") answerSeconds = Number(input.value);
   if (input.id === "study-count") {studyCount = Number(input.value); (document.getElementById("study-count-value") as HTMLInputElement).value = input.value;}
   if (input.id === "study-count-value" && Number.isInteger(Number(input.value)) && Number(input.value) >= 1 && Number(input.value) <= Number(input.max)) {studyCount = Number(input.value); (document.getElementById("study-count") as HTMLInputElement).value = input.value;}
@@ -924,6 +928,7 @@ app.addEventListener("change", (e) => {
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
   if (input.name === "practice-field") {toggleField(questions,input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-field"][value="${CSS.escape(input.value)}"]`)?.focus();}
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
+  if (input.name === "catalog-status") {setCatalogStatus(input.value);updateCatalogResults(questions,mastery);}
   // 範囲外・空欄のまま離れたら、直前の有効な値に戻す。
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
   if (input.id === "difficulty") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty);}
@@ -1024,7 +1029,7 @@ app.addEventListener("click", (e) => {
   else if (act === "install-copy") void copyAppLink();
   else if (act === "install-dismiss") {dismissInstall(); render();}
   else if (act === "notebook") {void refreshQuestionStats(); view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
-  else if (act === "catalog") {void refreshQuestionStats(); view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "catalog") {void refreshQuestionStats(); void refreshMastery(); view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "practice") {
     // 入口カードのアイコンと見出しを、演習ページの見出しへ受け渡す。
     const entry=target.closest<HTMLElement>(".practice-entry");
@@ -1035,6 +1040,7 @@ app.addEventListener("click", (e) => {
   else if (act === "practice-back") {view="setup";selectedMode="study";error="";navigate(()=>{render();window.scrollTo(0,0);},"back",document.querySelector(".practice-title"),()=>document.querySelector(".practice-entry"));}
   else if (act === "practice-all") {selectAllFields();render();}
   else if (act === "practice-none") {clearFields();render();}
+  else if (act === "catalog-clear") {clearCatalogFilters();render();document.getElementById("catalog-search")?.focus();}
   else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);}, "back");}
   else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
   else if (act === "solo-start") void startSolo();
