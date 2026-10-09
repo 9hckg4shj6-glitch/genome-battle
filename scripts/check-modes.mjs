@@ -66,6 +66,40 @@ try {
   s=await rpc('get_solo',params(s));assert.equal(s.phase,'reveal');assert.equal(s.winner,null);
   const repeat=await rpc('get_solo',params(s));assert.equal(repeat.version,s.version);assert.equal(repeat.ai_score,0);
   console.log('PASS AI: timeout, no double scoring, idempotent poll');
+  // AIの回答時刻は読む時間（文字数・図）＋考える時間。制限時間は上限としてだけ効く。
+  const read=await sql('select id,read_chars,has_figure from public.questions where id=any($1::text[])',[qs.map(q=>q.id)]);
+  assert.ok(read.every(q=>{const p=qs.find(x=>x.id===q.id);return q.read_chars===(p.question+p.choices.join('')).length&&q.has_figure===!!p.image;}));
+  const dueSeconds=async id=>Number((await sql('select extract(epoch from ai_due_at-question_at) as d from public.solo_sessions where id=$1::uuid',[id]))[0].d);
+  const pace={easy:[1,5,9],normal:[1,2.5,5.5],hard:[0.8,1.5,3.5]};
+  for (const q of read) for (const [level,[k,lo,hi]] of Object.entries(pace)) {
+    const r=(q.read_chars/8+(q.has_figure?3:0))*k;
+    s=await start('ai',[q.id],{p_seconds:120,p_difficulty:level});
+    const d=await dueSeconds(s.id);assert.ok(d>=Math.max(2,r+lo)-0.01&&d<=Math.max(2,r+hi)+0.01,`${level} ${q.id} ${d}`);
+  }
+  const caps={easy:[0.8,0.95],normal:[0.7,0.9],hard:[0.6,0.8]};
+  for (const [level,[lo,hi]] of Object.entries(caps)) {
+    s=await start('ai',[qs[0].id],{p_seconds:5,p_difficulty:level});
+    const d=await dueSeconds(s.id);assert.ok(d>=Math.max(2,5*lo)-0.01&&d<=5*hi+0.01,`${level} cap ${d}`);
+  }
+  console.log('PASS AI: answer time follows reading length and difficulty, capped inside short limits');
+  // お手つきの後は1.5秒でAIの解答を出す。正誤は出題時の抽選どおり。
+  for (const aiCorrect of [true,false]) {
+    s=await start('ai',[qs[0].id,qs[1].id],{p_seconds:120});
+    await sql("update public.solo_sessions set ai_due_at=now()+interval '1 hour',ai_correct=$2 where id=$1::uuid",[s.id,aiCorrect]);
+    s=await rpc('answer_solo',{...params(s),p_q_index:0,p_choice:(answers.get(s.q_id)+1)%5});
+    assert.equal(s.phase,'question');assert.equal(s.ai_mark,null);
+    const left=Number((await sql('select extract(epoch from ai_due_at-now()) as d from public.solo_sessions where id=$1::uuid',[s.id]))[0].d);
+    assert.ok(left<=1.5&&left>0,`fast-forward ${left}`);
+    await new Promise(r=>setTimeout(r,1700));
+    s=await rpc('get_solo',params(s));
+    assert.equal(s.phase,'reveal');assert.equal(s.winner,aiCorrect?'ai':null);assert.equal(s.ai_score,aiCorrect?1:0);assert.equal(s.my_score,0);
+  }
+  s=await start('ai',[qs[0].id],{p_seconds:120});
+  await sql("update public.solo_sessions set ai_due_at=now()+interval '1 hour' where id=$1::uuid",[s.id]);
+  s=await rpc('answer_solo',{...params(s),p_q_index:0,p_choice:answers.get(s.q_id)});
+  assert.equal(s.winner,'me');
+  assert.ok(Number((await sql('select extract(epoch from ai_due_at-now()) as d from public.solo_sessions where id=$1::uuid',[s.id]))[0].d)>3000);
+  console.log('PASS AI: a miss fast-forwards the AI answer in 1.5s; a correct answer leaves the schedule alone');
   s=await start('ai',qs.map(q=>q.id));
   for(let i=0;i<5;i++) {
     await sql("update public.solo_sessions set ai_due_at=now()+interval '1 hour' where id=$1::uuid",[s.id]);
