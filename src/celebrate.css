@@ -42,6 +42,14 @@
 /* 対戦で選んだ瞬間：回答を受け付けた手応え */
 .choices.locked-in .choice.mine:not(.correct):not(.wrong) { animation:lock-in .4s var(--ease-spring) both;animation-delay:calc(0ms - var(--since,0ms));box-shadow:0 0 0 1px var(--accent); }
 .choices.locked-in .choice.mine .num { background:var(--accent);color:var(--accent-text); }
+/* 押した選択肢だけは薄くしない（他の選択肢は無効化で薄くなり、どれを押したかが際立つ） */
+.choices.locked-in .choice.mine:disabled { opacity:1;background:color-mix(in srgb,var(--accent) 10%,var(--surface)); }
+/* 判定待ち：すぐ返る通信ではちらつかないよう、少し遅れて出す */
+.note.judging { color:var(--muted);animation:judging-in .2s var(--ease-out) .15s both; }
+.note.judging::after { content:"";display:inline-block;width:10px;height:10px;margin-left:8px;vertical-align:-1px;border-radius:50%;border:2px solid var(--accent);border-right-color:transparent;animation:judging-spin .7s linear infinite; }
+@keyframes judging-in { from { opacity:0; } }
+@keyframes judging-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .note.judging::after { animation:none;border-right-color:var(--accent); } }
 @keyframes correct-glow {
   0% { transform:scale(1);box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent); }
   30% { transform:scale(1.025); }
