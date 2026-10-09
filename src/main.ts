@@ -10,6 +10,8 @@ import "./practice.css";
 import "./motion.css";
 import "./install.css";
 import "./quicknav.css";
+import "./celebrate.css";
+import "./stats.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -30,6 +32,8 @@ import { renderCatalog, setCatalogField, setCatalogPage, toggleCatalogItem } fro
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 import { renderQuickNav } from "./quicknav";
+import { applyQuestionStats, renderRateInline } from "./stats";
+import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
 import { copyAppLink, dismissInstall, inLineApp, openInBrowser, promptInstall, renderInstall, renderInstallEntry, setInstallDevice, watchInstall } from "./install";
 
 const BASE = import.meta.env.BASE_URL;
@@ -116,7 +120,8 @@ async function refreshStudyProgress():Promise<void> {
   catch {studyProgressError=true;}
   finally {studyProgressLoading=false;if((view==='practice'||view==='setup'&&selectedMode==='study')&&!solo.active)render();}
 }
-let difficulty: Difficulty = "normal";
+const savedDifficulty = readStore("gb.difficulty");
+let difficulty: Difficulty = savedDifficulty === "easy" || savedDifficulty === "hard" ? savedDifficulty : "normal";
 let battleGeneration = 0;
 let review: ReviewItem[] = [];
 let reviewLoaded=false;
@@ -133,7 +138,7 @@ const RESULT_STEP_MS = 450;
 let resultIntro: { id: string; at: number } | null = null;
 
 const imageViewer = new ImageViewer();
-const solo = new SoloController(deviceId, questions, render, () => playerName, (s) => {void refreshPerformance();void refreshMastery(s.mode==='study'?s.id:undefined);}, (id) => renderSessionXp(masteryFor===id?mastery:null,masteryLoading));
+const solo = new SoloController(deviceId, questions, render, () => playerName, (s) => {void refreshPerformance();void refreshMastery(s.mode==='study'?s.id:undefined);void refreshQuestionStats();}, (id): string => solo.state?.mode==='ai' ? renderRequeue(id) : renderSessionXp(masteryFor===id?mastery:null,masteryLoading));
 const friends=new FriendsController(deviceId,()=>playerName,(name)=>{playerName=name;writeStore("gb.name",name);render();},()=>match?{...match,my_seat:mySeat}:null,(s)=>{
   if(match?.status==="waiting" && match.id!==s.id)void call("leave_match",{p_match:match.id,p_device:deviceId}).catch(()=>{});
   battleGeneration++;solo.stop();match=null;myChoices=new Map();review=[];reviewLoaded=false;reviewLoading=false;battleReviewPromise=null;
@@ -175,13 +180,15 @@ function applyState(s: MatchState | null): void {
   }
   if (match?.id === s.id && s.invite_token === undefined) s = {...s, invite_token: s.is_private ? match.invite_token : null};
   const newlyFinished=s.status === "finished" && match?.status !== "finished";
+  // 一人で待っていたマッチングに相手が来たら、音と振動で知らせる（待つあいだ別の画面を見ていても気づけるように）。
+  if (match?.id === s.id && s.status === "waiting" && isMatchmaking(s) && !s.rematch_of && match.players.length < 2 && s.players.length >= 2) cue(`${s.id}:found`, "win");
   // マッチング対戦は、終了したらまず問題と解説の振り返りを開く（順位はその後に見る）。
   if (s.status === "finished" && match?.id === s.id && match.status === "playing" && view === "match" && isMatchmaking(s)) {view = "review";window.scrollTo(0, 0);}
   match = s;
   const mine = myChoices.get(s.q_index);
   if (s.phase === "reveal" && s.reveal && s.q_id && mine !== undefined && mine !== s.reveal.answer)
     recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine,choice_order:choiceOrder(s.id,s.q_index,s.q_id,questions.get(s.q_id)?.choices.length??5) });
-  if (newlyFinished) {void refreshPerformance();void prepareBattleReview();}
+  if (newlyFinished) {void refreshPerformance();void prepareBattleReview();void refreshQuestionStats();}
   render();
 }
 
@@ -282,7 +289,8 @@ async function leave(): Promise<void> {
   writeStore("gb.match", null, sessionStorage);
   // 設定画面から戻るときは、見出しのアイコンを元のカードへ戻す。
   navigate(() => {render();window.scrollTo(0, 0);}, "back", returning && document.querySelector(".setup-title"), returning ? () => document.querySelector(`.mode-card[data-mode="${returning}"]`) : undefined);
-  void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();
+  writeStore("gb.match-wait", null, sessionStorage);waitSince = null;
+  void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();void refreshQuestionStats();
 }
 
 async function tick(): Promise<void> {
@@ -398,6 +406,18 @@ async function refreshMastery(session?:string):Promise<void> {
     } else if (view==="practice" && !solo.active || solo.state?.phase==="finished" && !solo.reviewing) render();
   }
 }
+// みんなの正答率。発表・振り返り・一覧に添えるだけなので取得は1分に1回まで。失敗したら前回の値を使う。
+let questionStatsAt=0;
+async function refreshQuestionStats():Promise<void> {
+  if(Date.now()-questionStatsAt<60000)return;
+  questionStatsAt=Date.now();
+  try {
+    if(!applyQuestionStats(await call<unknown>("get_question_stats",{})))return;
+    // 入力欄のある画面（設定・演習）は描き直さず、正答率を表示している画面だけ更新する。
+    if(solo.active||view==="review"||view==="notebook"||view==="catalog"||view==="match")render();
+  } catch { /* 正答率が出なくても学習は続けられる */ }
+}
+
 async function prepareBattleReview():Promise<void> {
   const m=match;if (!m || m.status!=="finished" || reviewLoaded) return;
   if (battleReviewPromise) return battleReviewPromise;
@@ -496,6 +516,8 @@ setInterval(() => {
   if(document.visibilityState==="visible" && navigator.onLine && Date.now()-lastConnectionProbe>30000)void probeConnection();
   if (solo.active) void solo.tick();
   if (view === "setup" && selectedMode === "room" && !busy && !solo.active && document.visibilityState === "visible" && Date.now()-lastRoomsFetch>5000) void refreshPublicRooms();
+  // 一人で待っている間は、提案を出す・消す時刻になったら描き直す。
+  if (view === "match" && aloneInQueue(match) && aiOfferDue(match) !== !!document.querySelector(".ai-offer")) render();
   if (!match || (view !== "match" && view !== "review")) return;
   if(match.status==='finished') {if(document.visibilityState==='visible'&&Date.now()-lastTickAt>10000)void tick();return;}
   if(view!=='match')return;
@@ -524,6 +546,7 @@ const me = (): Player | undefined => match?.players.find((p) => p.seat === mySea
 const myMark = (): Player["mark"] => me()?.mark ?? null;
 
 function updateClock(): void {
+  if (match && waitSince?.id === match.id) {const w = waitClock(waitedSeconds(match)); document.querySelectorAll<HTMLElement>("[data-wait]").forEach((el) => (el.textContent = w));}
   if (!match?.phase_ends_at) return;
   const left = Math.max(0, (Date.parse(match.phase_ends_at) - serverNow()) / 1000);
   const total = match.phase === "question" ? match.answer_seconds : match.phase === "reveal" && isMatchmaking(match) ? MATCH_REVEAL_SECONDS : PHASE_SECONDS[match.phase ?? "waiting"];
@@ -623,12 +646,12 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   finally {busy=false;render();}
 }
 
-function renderPlayers(m: MatchState, withMarks: boolean): string {
-  return `<ul class="players">${m.players
+function renderPlayers(m: MatchState, withMarks: boolean, moment?: Moment): string {
+  return `<ul class="players${moment ? " celebrating" : ""}" ${moment ? `style="${moment.style}"` : ""}>${m.players
     .map((p) => {
       const cls = [`seat-${p.seat % 8}`, p.seat === mySeat ? "me" : "", withMarks && p.mark === "o" ? "winner" : ""].join(" ");
       const mark = withMarks && p.mark ? `<em class="mark ${p.mark}">${p.mark === "o" ? "○" : p.mark === "x" ? "×" : "回答済"}</em>` : "";
-      const score = m.status === "waiting" ? "" : `<span class="pts">${p.score}</span>`;
+      const score = m.status === "waiting" ? "" : `<span class="pts">${p.score}</span>${moment && p.mark === "o" ? plusOne() : ""}${m.status === "playing" && p.score === m.win_score - 1 ? reach() : ""}`;
       const ready=m.status==="waiting"?`<em class="ready-badge ${p.ready?"is-ready":""}">${p.ready?"準備完了":"準備中"}</em>`:"";
       return `<li class="${cls}"><b>${esc(p.name)}</b>${score}${mark}${ready}</li>`;
     })
@@ -653,7 +676,7 @@ function renderWaiting(m: MatchState): string {
              ? `あと<span data-count></span>秒で開始`
              : "2人以上がそろい、全員の準備完了後に10秒で開始します"
        }</p>
-       ${m.phase_ends_at ? `<div class="timer"><i data-bar></i></div>` : `<div class="spinner"></div>`}`;
+       ${m.phase_ends_at ? `<div class="timer"><i data-bar></i></div>` : `<div class="spinner"></div>`}${renderWaitTime(m)}`;
   const action = m.rematch_of ? "" : m.code
     ? isHost
       ? `<button class="btn primary" data-act="start" ${busy || !allReady ? "disabled" : ""}>${m.players.length < 2 ? "もう1人の参加を待っています" : allReady?m.players.length+"人で開始":"全員の準備完了を待っています"}</button>`
@@ -663,6 +686,7 @@ function renderWaiting(m: MatchState): string {
     <section class="panel center waiting-panel">
       <p class="eyebrow">${m.code ? "BATTLE ROOM" : "MATCHMAKING"}</p>
       ${head}
+      ${renderAiOffer(m)}
       ${m.code?`<p class="room-field-summary">出題分野：${esc(m.room_field||"すべての分野")} · 最大${m.q_total}問</p>`:""}
       <p class="count-label">参加者 ${m.players.length} / ${m.capacity ?? 8}・1問${m.answer_seconds}秒</p>
       ${m.rematch_of?"":renderPlayers(m,false)}
@@ -673,11 +697,67 @@ function renderWaiting(m: MatchState): string {
     </section>`;
 }
 
+// ---------- マッチングの待ち時間とAI対戦の提案 ----------
+// 一人のまま15秒待ったら、AI対戦を提案する。相手探しは続け、相手が来たら提案を消す。
+// 「このまま待つ」を選んだら45秒は出さない。待ち始めの時刻は、同じ試合なら再読み込み後も引き継ぐ。
+const AI_OFFER_SECONDS = 15;
+const AI_OFFER_AGAIN_SECONDS = 45;
+let waitSince: { id: string; at: number } | null = null;
+let aiOfferHiddenAt = 0;
+const aloneInQueue = (m: MatchState | null): m is MatchState => !!m && m.status === "waiting" && isMatchmaking(m) && !m.rematch_of && m.players.length < 2;
+function waitedSeconds(m: MatchState): number {
+  if (waitSince?.id !== m.id) {
+    let saved: { id: string; at: number } | null = null;
+    try { const v = JSON.parse(readStore("gb.match-wait", sessionStorage) ?? "null"); if (v?.id === m.id && Number.isFinite(v.at)) saved = v; } catch { /* 壊れた値は使わない */ }
+    waitSince = saved ?? { id: m.id, at: Date.now() };
+    aiOfferHiddenAt = 0;
+    writeStore("gb.match-wait", JSON.stringify(waitSince), sessionStorage);
+  }
+  return Math.max(0, (Date.now() - waitSince.at) / 1000);
+}
+const aiOfferDue = (m: MatchState): boolean => waitedSeconds(m) >= AI_OFFER_SECONDS && Date.now() - aiOfferHiddenAt >= AI_OFFER_AGAIN_SECONDS * 1000;
+const waitClock = (sec: number): string => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+function renderWaitTime(m: MatchState): string {
+  return aloneInQueue(m) ? `<p class="wait-elapsed">待ち時間 <b data-wait>${waitClock(waitedSeconds(m))}</b></p>` : "";
+}
+function renderAiOffer(m: MatchState): string {
+  if (!aloneInQueue(m) || !aiOfferDue(m)) return "";
+  // 待機中は約2秒ごとに描き直されるので、登場の動きは最初に表示した時刻から続きを再生する。
+  return `<section class="ai-offer" aria-labelledby="ai-offer-heading" style="${since(`${m.id}:ai-offer:${aiOfferHiddenAt}`)}">
+    <div class="ai-offer-head"><span class="mode-icon">${icon("bot")}</span><div><p class="eyebrow">NO OPPONENT YET</p><h3 id="ai-offer-heading">いまは対戦相手が見つかりません</h3></div></div>
+    <p class="ai-offer-lead">AIと対戦しませんか？ 相手探しをやめて、すぐに始まります（1問${answerSeconds}秒・5問先取）。</p>
+    <fieldset class="ai-offer-levels"><legend>AIの難易度</legend><div class="match-size-options">${(["easy", "normal", "hard"] as Difficulty[]).map((d) => `<label class="distribution-option ${d === difficulty ? "on" : ""}"><input type="radio" name="ai-offer-level" value="${d}" ${d === difficulty ? "checked" : ""} ${busy ? "disabled" : ""}/><span><strong>${difficultyName[d]}</strong></span></label>`).join("")}</div></fieldset>
+    <div class="ai-offer-actions"><button class="btn primary" data-act="ai-fallback" ${busy ? "disabled" : ""}>${icon("bot")}AIと対戦する${icon("arrow")}</button><button class="btn ghost" data-act="ai-offer-hide" ${busy ? "disabled" : ""}>このまま待つ</button></div>
+  </section>`;
+}
+// 相手探しをやめて、同じ名前でAI対戦を始める。始められなかったら、AI対戦の設定画面でエラーを知らせる。
+async function playAiInstead(): Promise<void> {
+  const m = match;
+  if (!m || busy || !aloneInQueue(m)) return;
+  battleGeneration++;
+  busy = true; error = ""; render();
+  await call("leave_match", { p_match: m.id, p_device: deviceId }).catch(() => {});
+  if (channel) void supabase.removeChannel(channel);
+  channel = null; realtimeState("off");
+  match = null; mySeat = null; waitSince = null;
+  writeStore("gb.match", null, sessionStorage); writeStore("gb.match-wait", null, sessionStorage);
+  busy = false; selectedMode = "ai"; view = "setup";
+  await startSolo("ai");
+  if (solo.state) writeStore("gb.ai-fallback", solo.state.id, sessionStorage);
+  window.scrollTo(0, 0);
+}
+// 相手が見つからずAI対戦に切り替えた試合の結果画面では、もう一度対戦相手を探せるようにする。
+const renderRequeue = (id: string): string => readStore("gb.ai-fallback", sessionStorage) === id
+  ? `<div class="requeue"><p>対戦相手を、もう一度探してみましょう。</p><button class="btn primary" data-act="random">${icon("swords")}マッチング対戦を探す${icon("arrow")}</button></div>` : "";
+
 function renderPlay(m: MatchState): string {
   const q = m.q_id ? questions.get(m.q_id) : undefined;
+  const reveal = m.phase === "reveal" && q ? m.reveal : null;
+  // 発表の瞬間は○×と音で知らせる。観戦中（席なし）は演出しない。
+  const moment = reveal && mySeat !== null ? revealMoment(m.id, m.q_index, myMark() === "o" ? "win" : myMark() === null ? "timeout" : "lose") : undefined;
   const top = `
-    <div class="session-label"><span class="tag">${icon("swords")} ${isMatchmaking(m) ? "マッチング対戦" : "友だちと対戦"}</span><span>5問先取</span></div>
-    ${renderPlayers(m, true)}
+    <div class="session-label"><span class="tag">${icon("swords")} ${isMatchmaking(m) ? "マッチング対戦" : "友だちと対戦"}</span><span>5問先取</span>${renderSoundToggle()}</div>
+    ${renderPlayers(m, true, moment)}
     <div class="qhead">
       <span>第${m.q_index + 1}問<small> / 最大${m.q_total}問</small></span>
       ${q ? `<span class="tag">${esc(q.field)}</span>` : ""}
@@ -687,9 +767,9 @@ function renderPlay(m: MatchState): string {
   if (m.phase === "countdown" || !q) {
     return `${top}<section class="countdown"><span data-count></span><p>まもなく開始</p></section>`;
   }
-  const reveal = m.phase === "reveal" ? m.reveal : null;
   const mine = myChoices.get(m.q_index);
   const locked = reveal !== null || myMark() !== null || sending;
+  const choicesAttr = moment ? ` celebrating" style="${moment.style}` : mine !== undefined ? ` locked-in" style="${since(`${m.id}:${m.q_index}:pick`)}` : "";
   const choices = choiceOrder(m.id,m.q_index,q.id,q.choices.length)
     .map((i, pos) => {
       const cls = [
@@ -697,7 +777,7 @@ function renderPlay(m: MatchState): string {
         mine === i && reveal && reveal.answer !== i ? "wrong" : "",
         mine === i ? "mine" : "",
       ].join(" ");
-      return `<li><button class="choice ${cls}" data-choice="${i}" ${locked ? "disabled" : ""}><span class="num">${pos + 1}</span><span>${esc(q.choices[i])}</span></button></li>`;
+      return `<li><button class="choice ${cls}" data-choice="${i}" ${locked ? "disabled" : ""}><span class="num">${pos + 1}</span><span>${esc(q.choices[i])}</span>${reveal?.answer === i ? icon("check") : ""}</button></li>`;
     })
     .join("");
   let footer = "";
@@ -705,10 +785,13 @@ function renderPlay(m: MatchState): string {
     const [head, ...body] = reveal.explanation.split(/\n{2,}/);
     const banner = myMark() === "o" ? "あなたは正解！" : myMark() === null ? "時間切れ" : "不正解…";
     const correct = m.players.filter((p) => p.mark === "o").map((p) => `${esc(p.name)} さん`);
+    const tone = myMark() === "o" ? "win" : myMark() === "x" ? "lose" : "";
     footer = `
-      <section class="reveal ${myMark() === "o" ? "win" : ""}">
-        <p class="banner">${banner}</p>
+      <section class="reveal ${tone}${moment ? " celebrating" : ""}" ${moment ? `style="${moment.style}"` : ""}>
+        <p class="banner">${tone === "win" ? icon("check") : ""}${banner}</p>
+        ${moment ? streakNote(moment) : ""}
         <p class="note">${correct.length ? `正解者：${correct.join("、")}` : "正解者なし"}</p>
+        ${renderRateInline(q.id)}
         <div class="expl">${richText(head)}${body[0] ? richText(body[0]) : ""}</div>
         <div class="confidence-actions">${currentBattleItem()?uncertainButton(currentBattleItem()!):""}</div>
         <p class="next">次へ <span data-count></span>秒（解説の全文は試合後に読めます）</p>
@@ -721,8 +804,9 @@ function renderPlay(m: MatchState): string {
       <p>${esc(q.question)}</p>
       ${questionImage(q)}
     </section>
-    <ol class="choices">${choices}</ol>
+    <ol class="choices${choicesAttr}">${choices}</ol>
     ${footer}
+    ${moment ? stamp(moment) : ""}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
@@ -743,6 +827,8 @@ function renderResult(m: MatchState): string {
   const leadAt = titleAt + 400, restAt = leadAt + 300;
   const elapsed = Date.now() - resultIntro.at;
   const intro = elapsed < restAt + 600;
+  // 勝者の名前が出る瞬間に、勝った人にはファンファーレ、それ以外には終了の音を合わせる。
+  if (mine) {since(`${m.id}:result`);cue(`${m.id}:result`, champions.length === 1 && champions[0].seat === mySeat ? "fanfare" : "finish", titleAt - elapsed);}
   const burst = `<span class="burst" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => `<i style="--a:${i * 30}deg"></i>`).join("")}</span>`;
   return `
     <section class="panel center result-stage${intro ? " intro" : ""}" ${intro ? `style="--elapsed:${elapsed}ms;--rest-at:${restAt}ms"` : ""}>
@@ -840,7 +926,8 @@ app.addEventListener("change", (e) => {
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
   // 範囲外・空欄のまま離れたら、直前の有効な値に戻す。
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
-  if (input.id === "difficulty") difficulty = input.value as Difficulty;
+  if (input.id === "difficulty") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty);}
+  if (input.name === "ai-offer-level") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty); render(); document.querySelector<HTMLInputElement>(`input[name="ai-offer-level"][value="${difficulty}"]`)?.focus();}
 });
 app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
@@ -899,6 +986,7 @@ app.addEventListener("click", (e) => {
     status?.scrollIntoView({block:"start"});status?.focus({preventScroll:true});
     return;
   }
+  if (act === "sound") {toggleSound();render();return;}
   if (busy || solo.busy) return;
   const resumeId=target.closest<HTMLElement>('[data-resume-study]')?.dataset.resumeStudy;
   if(resumeId){void resumeStudy(resumeId);return;}
@@ -916,6 +1004,8 @@ app.addEventListener("click", (e) => {
   if (act === "refresh-rooms") return void refreshPublicRooms();
   if (act === "toggle-private") return void toggleRoomPrivacy();
   if (act === "copy-room") return void copyRoomLink();
+  if (act === "ai-fallback") return void playAiInstead();
+  if (act === "ai-offer-hide") {aiOfferHiddenAt = Date.now(); render(); return;}
   if (act === "random") void enter("find_match");
   else if (act === "create") void enter("create_room");
   else if (act === "join") void enter("join_room");
@@ -933,8 +1023,8 @@ app.addEventListener("click", (e) => {
   else if (act === "install-prompt") void promptInstall();
   else if (act === "install-copy") void copyAppLink();
   else if (act === "install-dismiss") {dismissInstall(); render();}
-  else if (act === "notebook") {view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
-  else if (act === "catalog") {view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "notebook") {void refreshQuestionStats(); view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "catalog") {void refreshQuestionStats(); view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
   else if (act === "practice") {
     // 入口カードのアイコンと見出しを、演習ページの見出しへ受け渡す。
     const entry=target.closest<HTMLElement>(".practice-entry");
@@ -967,6 +1057,8 @@ app.addEventListener("keydown", (e) => {
 
 async function boot(): Promise<void> {
   installPointerLight(app);
+  // 発表の音は通信の到着時に鳴るので、画面に触れたときに音を出せる状態にしておく。
+  app.addEventListener("pointerdown", unlockAudio, { passive: true });
   watchInstall(() => {if ((view === "home" || view === "install") && !solo.active && !match) render();});
   app.innerHTML = `<p class="loading">読み込み中…</p>`;
   const response = await fetch(`${BASE}questions.json`);
@@ -976,7 +1068,7 @@ async function boot(): Promise<void> {
   list.forEach(q => questions.set(q.id, q));
   // 図は計300KB程度なので先読みして、出題時に待たせない
   list.forEach((q) => q.image && (new Image().src = `${BASE}${q.image}`));
-  void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();void friends.refresh(true);
+  void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();void refreshQuestionStats();void friends.refresh(true);
   await solo.resume();
   if (solo.active) {render();return;}
   const resumeId = readStore("gb.match", sessionStorage);

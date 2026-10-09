@@ -66,7 +66,7 @@ try{
   for(const fn of ['_record_study_answer','_touch_solo_session'])assert.ok((await sb.rpc(fn,{})).error);
   console.log('PASS saved study: owner only, multiple saves, reload state, deferred/choice order, question/reveal/viewed/final explanation, completed list removal, old studies retained');
   console.log('PASS partial records: correct/wrong/viewed before next, duplicates/concurrent saves, completion once, permanent records after session cleanup, AI excluded, RLS');
-}finally{
+}finally{await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[sessions,[],[device,outsider]]).catch(()=>{});
   if(sessions.length)await sql('delete from solo_sessions where id=any($1::uuid[])',[sessions]);
   for(const table of ['study_answer_records','study_completions','study_attempts'])await sql(`delete from ${table} where device_id=$1::uuid`,[device]);
   await sb.removeAllChannels();console.log('Cleaned only this check’s UUIDs');

@@ -85,6 +85,8 @@ try {
   assert.deepEqual(await stats(),again);assert.ok(!('answer' in again));
   console.log('PASS server performance: partial study counted before completion, AI win/loss/draw separate, human sole winner/tied top/loss, cancelled rooms excluded, repeat reads stable');
 } finally {
+  // テストの解答を「みんなの正答率」に残さない（対戦・セッションを消す前に端末を割り出す）。
+  await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[createdSolo,createdMatches,[device]]).catch(()=>{});
   if(createdMatches.length)await sql('delete from public.matches where id=any($1::uuid[])',[createdMatches]);
   if(createdSolo.length)await sql('delete from public.solo_sessions where id=any($1::uuid[])',[createdSolo]);
   await sql('delete from study_attempts where device_id=$1::uuid',[device]);await sql('delete from study_answer_records where device_id=$1::uuid',[device]);await sql('delete from study_completions where device_id=$1::uuid',[device]);

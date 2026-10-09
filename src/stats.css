@@ -1,0 +1,28 @@
+/* みんなの正答率。難しさの色は明暗どちらのテーマにもある変数を使う（基本＝緑・標準＝青緑・やや難＝橙・難問＝赤）。 */
+.tone-basic { --tone:var(--ok); }
+.tone-standard { --tone:var(--s4); }
+.tone-hard { --tone:var(--warn); }
+.tone-tough { --tone:var(--ng); }
+
+.community-rate { display:grid;gap:8px;margin:16px 0;padding:14px 16px;border:1px solid var(--line);border-left:3px solid var(--tone,var(--line));border-radius:10px;background:var(--surface-2);text-align:left; }
+.community-rate-head { display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 10px; }
+.community-rate-label { font-size:12px;color:var(--muted); }
+.community-rate-head strong { font-size:26px;line-height:1;color:var(--tone);font-variant-numeric:tabular-nums; }
+.community-rate-head strong small { font-size:14px;margin-left:1px; }
+.community-rate-bar { display:block;height:8px;border-radius:99px;background:color-mix(in srgb,var(--tone) 16%,var(--surface));overflow:hidden; }
+.community-rate-bar i { display:block;height:100%;border-radius:inherit;background:var(--tone); }
+.community-rate-note { margin:0;font-size:12px;color:var(--muted); }
+.community-rate-tip { margin:0;font-size:13px;line-height:1.75;font-weight:700;color:var(--text);overflow-wrap:anywhere; }
+.community-rate.pending { display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;border-left-color:var(--line); }
+.community-rate.pending small { font-size:12px;color:var(--muted); }
+
+.difficulty-chip { display:inline-flex;align-items:center;font-style:normal;font-size:11px;font-weight:700;line-height:1.5;padding:2px 8px;border-radius:99px;color:var(--tone);border:1px solid color-mix(in srgb,var(--tone) 55%,transparent);background:color-mix(in srgb,var(--tone) 10%,transparent);white-space:nowrap; }
+.community-rate-head .difficulty-chip { margin-left:auto; }
+
+/* 対人戦の発表は3秒なので、1行で読める大きさにする。 */
+.community-rate-inline { display:block;text-align:center;font-size:12px;color:var(--muted);margin:-4px 0 10px; }
+.community-rate-inline b { color:var(--tone);font-size:14px; }
+
+/* 過去問一覧の見出し：分野と難しさを並べる。 */
+.catalog-meta { display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px; }
+.catalog-meta .difficulty-chip { font-size:10px;padding:1px 7px; }

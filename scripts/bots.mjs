@@ -3,6 +3,8 @@
 // .env.local の VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY を使う。
 // 確認すること: 全試合が finished になる／1問に正解者（○）が2人以上いない／配信が届いている。
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
 const env = Object.fromEntries(
@@ -16,7 +18,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function bot(i) {
   const sb = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   const device = crypto.randomUUID();
-  const stats = { id: i, broadcasts: 0, answers: 0, leakedMarks: 0, match: null, final: null };
+  const stats = { id: i, device, broadcasts: 0, answers: 0, leakedMarks: 0, match: null, final: null };
   const rpc = async (fn, args) => {
     const { data, error } = await sb.rpc(fn, args);
     if (error) throw new Error(`${fn}: ${error.message}`);
@@ -64,4 +66,16 @@ console.log(JSON.stringify({
   answers: results.reduce((a, r) => a + r.answers, 0),
   seconds: Math.round((Date.now() - t0) / 1000),
 }));
+// ボットのでたらめな解答を「みんなの正答率」に残さない。消すには ~/.supabase-token（管理用）が必要。
+try {
+  const ref = new URL(env.VITE_SUPABASE_URL).hostname.split(".")[0];
+  const token = readFileSync(join(homedir(), ".supabase-token"), "utf8").trim();
+  const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query: "delete from question_first_answers where device_id=any($1::uuid[])", parameters: [results.map((r) => r.device)] }),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+} catch (e) {
+  console.warn(`ボットの解答を正答率から削除できませんでした（${e instanceof Error ? e.message : e}）。question_first_answers からボットの端末を削除してください。`);
+}
 process.exit(0);

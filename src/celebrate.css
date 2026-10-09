@@ -1,0 +1,109 @@
+/* 正解・不正解の瞬間の演出。--since（その場面を最初に表示してからの経過）を引いて、
+   描き直されても続きから再生する。マッチングは解説が3秒なので、読む邪魔をしないよう約1秒で引く。 */
+:root { --ai:#c5b8e6; }
+:root[data-theme="light"] { --ai:#78529e; }
+
+/* ---------- 画面中央のスタンプ（○・×・時間切れ） ---------- */
+.stamp { --c:var(--ok);position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--c) 22%,transparent),transparent 62%);
+  animation:stamp-flash 1.15s var(--ease-out) both;animation-delay:calc(0ms - var(--since,0ms)); }
+.stamp-lose { --c:var(--ng); }
+.stamp-timeout { --c:var(--warn); }
+.stamp-rival { --c:var(--ai); }
+.stamp-body { display:grid;justify-items:center;gap:2px;padding:18px 30px 16px;border-radius:28px;
+  background:color-mix(in srgb,var(--surface) 88%,transparent);border:2px solid color-mix(in srgb,var(--c) 70%,transparent);
+  box-shadow:0 20px 50px -18px color-mix(in srgb,var(--c) 60%,#0008);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  animation:stamp-pop 1.15s var(--ease-out) both;animation-delay:calc(0ms - var(--since,0ms)); }
+.stamp svg { width:min(34vw,128px);height:auto;overflow:visible; }
+.stamp-stroke { fill:none;stroke:var(--c);stroke-width:11;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;
+  animation:stamp-draw .32s var(--ease-out) forwards;animation-delay:calc(70ms - var(--since,0ms)); }
+.stamp-stroke.second { animation-delay:calc(190ms - var(--since,0ms)); }
+.stamp circle.stamp-stroke { transform:rotate(-90deg);transform-origin:50% 50%; }
+.stamp strong { font-size:clamp(24px,7vw,34px);font-weight:800;letter-spacing:.06em;color:var(--c); }
+.stamp-timeout strong,.stamp-rival strong { padding:6px 4px;font-size:clamp(20px,6vw,28px); }
+.stamp-combo { margin-top:4px;padding:3px 12px;border-radius:99px;font-size:13px;font-weight:800;color:var(--accent-text);background:var(--accent);
+  animation:combo-in .5s var(--ease-spring) both;animation-delay:calc(260ms - var(--since,0ms)); }
+@keyframes stamp-flash { 0% { opacity:0; } 12% { opacity:1; } 55% { opacity:.6; } 100% { opacity:0;visibility:hidden; } }
+@keyframes stamp-pop {
+  0% { opacity:0;transform:scale(1.5) rotate(-6deg); }
+  16% { opacity:1;transform:scale(.94) rotate(1deg); }
+  26% { transform:scale(1) rotate(0); }
+  72% { opacity:1;transform:scale(1); }
+  100% { opacity:0;visibility:hidden;transform:scale(1.04) translateY(-10px); }
+}
+@keyframes stamp-draw { to { stroke-dashoffset:0; } }
+@keyframes combo-in { from { opacity:0;transform:scale(.5); } }
+
+/* ---------- 選択肢：正答は光り、選んだ誤答は揺れる ---------- */
+.choices.celebrating .choice.correct { position:relative;animation:correct-glow .9s var(--ease-out) both;animation-delay:calc(140ms - var(--since,0ms)); }
+.choices.celebrating .choice.correct > .icon { animation:check-pop .5s var(--ease-spring) both;animation-delay:calc(220ms - var(--since,0ms)); }
+.choices.celebrating .choice.wrong { animation:wrong-shake .42s cubic-bezier(.36,.07,.19,.97) both;animation-delay:calc(80ms - var(--since,0ms)); }
+.choice.wrong > .icon { color:var(--ng); }
+/* 対戦で選んだ瞬間：回答を受け付けた手応え */
+.choices.locked-in .choice.mine:not(.correct):not(.wrong) { animation:lock-in .4s var(--ease-spring) both;animation-delay:calc(0ms - var(--since,0ms));box-shadow:0 0 0 1px var(--accent); }
+.choices.locked-in .choice.mine .num { background:var(--accent);color:var(--accent-text); }
+@keyframes correct-glow {
+  0% { transform:scale(1);box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent); }
+  30% { transform:scale(1.025); }
+  100% { transform:scale(1);box-shadow:0 0 0 14px transparent; }
+}
+@keyframes check-pop { from { opacity:0;transform:scale(.3) rotate(-25deg); } }
+@keyframes wrong-shake { 15%,55% { transform:translateX(-7px); } 35%,75% { transform:translateX(6px); } 90% { transform:translateX(-2px); } }
+@keyframes lock-in { 0% { transform:scale(.97); } 55% { transform:scale(1.015); } }
+
+/* ---------- 得点：正解した人に「+1」 ---------- */
+.players li,.duel > div { position:relative; }
+.plus-one { position:absolute;top:-12px;right:-6px;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:800;color:var(--accent-text);background:var(--ok);pointer-events:none;
+  animation:plus-float 1.3s var(--ease-out) both;animation-delay:calc(260ms - var(--since,0ms)); }
+.duel .plus-one { top:-10px;right:auto;left:50%; }
+.players.celebrating li.winner { animation:chip-pop .55s var(--ease-spring) both;animation-delay:calc(200ms - var(--since,0ms)); }
+.players.celebrating li.winner .pts,.duel.celebrating .scored b { display:inline-block;animation:score-bump .5s var(--ease-spring) both;animation-delay:calc(320ms - var(--since,0ms)); }
+.duel.celebrating .scored { animation:chip-pop .55s var(--ease-spring) both;animation-delay:calc(200ms - var(--since,0ms)); }
+@keyframes plus-float {
+  0% { opacity:0;transform:translateY(8px) scale(.5); }
+  18% { opacity:1;transform:translateY(0) scale(1.15); }
+  30% { transform:scale(1); }
+  75% { opacity:1;transform:translateY(-10px); }
+  100% { opacity:0;visibility:hidden;transform:translateY(-18px); }
+}
+@keyframes chip-pop { 0% { transform:scale(1); } 40% { transform:scale(1.08); } }
+@keyframes score-bump { 0% { transform:scale(1); } 40% { transform:scale(1.5); } }
+
+/* ---------- あと1点で勝ちになる人 ---------- */
+.reach { font-style:normal;font-size:10px;font-weight:800;letter-spacing:.08em;padding:1px 7px;border-radius:99px;color:var(--warn);border:1px solid currentColor;animation:reach-pulse 1.6s ease-in-out infinite; }
+.duel .reach { position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--surface); }
+@keyframes reach-pulse { 50% { box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 25%,transparent); } }
+
+/* ---------- 解説欄：正解の手応えを残す ---------- */
+.reveal.celebrating { animation:reveal-rise .45s var(--ease-out) both;animation-delay:calc(180ms - var(--since,0ms)); }
+.reveal.win { border-color:var(--ok);background:linear-gradient(160deg,var(--ok-bg),var(--surface) 55%); }
+.reveal.lose { border-color:color-mix(in srgb,var(--ng) 55%,var(--line)); }
+.reveal .banner { display:flex;align-items:center;gap:8px; }
+.reveal .banner .icon { width:24px;height:24px; }
+.reveal.lose .banner { color:var(--ng); }
+.streak-note { display:inline-flex;align-items:center;gap:6px;margin:-6px 0 12px;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:700;color:var(--accent-text);background:var(--accent); }
+.streak-note .icon { width:15px;height:15px; }
+@keyframes reveal-rise { from { opacity:0;transform:translateY(10px); } }
+
+/* ---------- 効果音の切り替え ---------- */
+.session-label .sound-toggle { margin-left:auto;min-height:34px;padding:5px 12px;font-size:12px;gap:6px;border-radius:99px; }
+.sound-toggle .icon { width:17px;height:17px; }
+.sound-toggle[aria-pressed="false"] { color:var(--muted); }
+
+/* ---------- AI対戦の勝利 ---------- */
+.result-panel.celebrating .result-icon { position:relative;animation:trophy-pop .8s var(--ease-spring) both;animation-delay:calc(0ms - var(--since,0ms)); }
+.result-panel.celebrating.won .result-icon { background:color-mix(in srgb,var(--medal-1) 22%,transparent);color:var(--medal-1);box-shadow:0 0 0 6px color-mix(in srgb,var(--medal-1) 12%,transparent); }
+.result-panel.celebrating h1 { animation:title-pop .7s cubic-bezier(.2,.9,.3,1.25) both;animation-delay:calc(250ms - var(--since,0ms)); }
+.result-panel.celebrating .result-score strong { animation:score-bump .6s var(--ease-spring) both;animation-delay:calc(500ms - var(--since,0ms)); }
+.confetti { position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none; }
+.confetti i { position:absolute;width:8px;height:5px;margin:-2.5px -4px;border-radius:2px;background:var(--medal-1);opacity:0;
+  animation:confetti 1.3s cubic-bezier(.15,.7,.3,1) forwards;animation-delay:calc(200ms - var(--since,0ms)); }
+.confetti i:nth-child(3n+1) { background:var(--s2); }.confetti i:nth-child(4n+2) { background:var(--s4);border-radius:50%;width:6px;height:6px; }.confetti i:nth-child(5n+3) { background:var(--s1); }.confetti i:nth-child(7n) { background:var(--s3); }
+@keyframes trophy-pop { 0% { opacity:0;transform:scale(.3) rotate(-20deg); } 60% { opacity:1;transform:scale(1.18) rotate(6deg); } }
+@keyframes confetti {
+  0% { opacity:1;transform:rotate(var(--a)) translateX(10px) rotate(0); }
+  70% { opacity:1; }
+  100% { opacity:0;transform:rotate(var(--a)) translateX(var(--d)) translateY(30px) rotate(var(--r)); }
+}
+
+@media (prefers-reduced-motion: reduce) { .stamp,.plus-one,.confetti { display:none; } }

@@ -1,5 +1,6 @@
 import { call } from './api';
 import { esc, icon, questionImage, richText, type Question } from './ui';
+import { renderCommunityRate, renderDifficultyChip } from './stats';
 
 // 過去問・問題と解説。問題文は手元の questions.json、正答と解説は開いた問題だけサーバから取得する。
 interface Answer { answer: number; explanation: string; }
@@ -15,7 +16,7 @@ let catalogPage = 0;
 const body = (q: Question): string => {
   const a = answers.get(q.id);
   const choices = `<ol class="review-choices">${q.choices.map((c, n) => `<li class="${a?.answer === n ? 'correct' : ''}"><span class="num">${n + 1}</span>${esc(c)}${a?.answer === n ? '<b class="catalog-answer-mark">正解</b>' : ''}</li>`).join('')}</ol>`;
-  const detail = a ? `<div class="expl">${richText(a.explanation)}</div>`
+  const detail = a ? `<div class="expl">${richText(a.explanation)}</div>${renderCommunityRate(q.id)}`
     : failed.has(q.id) ? `<p class="error" role="alert">解答・解説を取得できませんでした。</p><button class="btn" data-catalog-retry="${esc(q.id)}">再取得する</button>`
     : `<p class="catalog-loading" role="status"><span class="spinner mini"></span>解答・解説を読み込み中…</p>`;
   return `${questionImage(q, true)}${choices}${detail}`;
@@ -30,7 +31,7 @@ export function renderCatalog(questions: Map<string, Question>): string {
   const start = catalogPage * PAGE_SIZE;
   const items = shown.slice(start, start + PAGE_SIZE).map(q => {
     const no = list.indexOf(q) + 1;
-    return `<details class="catalog-item" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no">${no}</span><span class="catalog-summary"><span class="catalog-field">${esc(q.field)}</span><span class="catalog-q">${esc(q.question)}</span></span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details>`;
+    return `<details class="catalog-item" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no">${no}</span><span class="catalog-summary"><span class="catalog-meta"><span class="catalog-field">${esc(q.field)}</span>${renderDifficultyChip(q.id)}</span><span class="catalog-q">${esc(q.question)}</span></span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details>`;
   }).join('');
   const status = `<p id="catalog-page-status" class="catalog-page-status" tabindex="-1" aria-live="polite"><b>${catalogPage + 1}</b> / ${pages}ページ<span>${shown.length}問中 ${start + 1}–${Math.min(start + PAGE_SIZE, shown.length)}問目</span></p>`;
   return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、${PAGE_SIZE}問ずつのページで閲覧できます。問題を押すと、正解と解説を表示します。</p></header>

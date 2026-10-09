@@ -67,3 +67,24 @@
 .match-size-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
 .review-to-result {display:flex;justify-content:center;}
 @media(max-width:540px){.match-size-options {grid-template-columns:1fr;}}
+
+/* マッチングの待ち時間と、一人で待ち続けたときのAI対戦の提案。 */
+.wait-elapsed {margin:12px 0 0;font-size:13px;color:var(--muted);}
+.wait-elapsed b {color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;margin-left:4px;}
+.ai-offer {display:grid;gap:14px;margin:22px auto 6px;max-width:560px;padding:20px;border:2px solid var(--ai);border-radius:16px;background:color-mix(in srgb,var(--ai) 9%,var(--surface));text-align:left;animation:ai-offer-in .35s var(--ease-out,ease-out) both;animation-delay:calc(0ms - var(--since,0ms));}
+.ai-offer-head {display:flex;align-items:center;gap:12px;}
+.ai-offer-head .mode-icon {--mode-color:var(--ai);flex-shrink:0;}
+.ai-offer-head .eyebrow {margin:0 0 2px;color:var(--ai);}
+.ai-offer h3 {margin:0;font-size:17px;line-height:1.5;overflow-wrap:anywhere;}
+.ai-offer-lead {margin:0;font-size:13px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;}
+.ai-offer-levels {padding:0;border:0;min-width:0;margin:0;}
+.ai-offer-levels legend {font-size:12px;margin-bottom:8px;color:var(--muted);}
+.ai-offer-levels .distribution-option {min-height:52px;padding:10px 12px;}
+.ai-offer-actions {display:flex;flex-wrap:wrap;gap:10px;}
+.ai-offer-actions .btn {flex:1;min-width:150px;min-height:50px;margin:0;white-space:normal;}
+.requeue {display:grid;gap:10px;margin:0 0 18px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);}
+.requeue p {margin:0;font-size:13px;color:var(--muted);}
+.requeue .btn {width:100%;}
+@keyframes ai-offer-in {from {opacity:0;transform:translateY(8px) scale(.98);}}
+@media (prefers-reduced-motion:reduce){.ai-offer {animation:none;}}
+@media(max-width:540px){.ai-offer {padding:16px;}.ai-offer-levels .match-size-options {grid-template-columns:repeat(3,minmax(0,1fr));}.ai-offer-levels .distribution-option {padding:10px 8px;gap:6px;}.ai-offer-levels .distribution-option strong {font-size:12px;}.ai-offer-actions .btn {width:100%;}}

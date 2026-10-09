@@ -34,5 +34,7 @@ try {
  const direct=await sb.from('solo_sessions').select('*').eq('device_id',device);assert.ok(direct.error||direct.data.length===0);assert.ok((await sb.rpc('_solo_state',{p_session:initial.id})).error);
  console.log('PASS answer viewing: correct answer/explanation immediately, no score/fake choice, reload, progress/notebook history, next/reset/completion, single question, owner/study only, duplicates/stale actions/defer/answer races, RLS');
 } finally {
+  // テストの解答を「みんなの正答率」に残さない（対戦・セッションを消す前に端末を割り出す）。
+  await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[solos,[],[device,outsider]]).catch(()=>{});
  if(solos.length)await sql('delete from solo_sessions where id=any($1::uuid[])',[solos]);await sql('delete from study_attempts where device_id=$1::uuid',[device]);await sql('delete from study_answer_records where device_id=$1::uuid',[device]);await sql('delete from study_completions where device_id=$1::uuid',[device]);await sb.removeAllChannels();console.log('Cleaned only this check’s fixtures');
 }

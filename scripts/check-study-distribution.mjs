@@ -55,7 +55,7 @@ try{
  for(const args of [{p_distribution:'bad'},{p_distribution:'even',p_order:'given'},{p_distribution:'even',p_mode:'ai',p_order:'given'},{p_ids:[ids[0],ids[0]],p_count:2}])await assert.rejects(()=>rpc('start_solo',{p_device:device,p_mode:'study',p_ids:ids,p_order:'random',p_count:2,...args}),/BAD_SOLO_SETTINGS/);
  console.log('PASS distribution: 1/10/13/26/39/60/99/100 questions, balanced quotas, shortage redistribution, no repeats, field/subset limits, per-field unattempted priority');
  console.log('PASS compatibility: legacy/exam priority, given review/AI, invalid settings, saved distribution/order/deferred choice, answer privacy');
-}finally{
+}finally{await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[sessions,[],[device]]).catch(()=>{});
  if(sessions.length)await sql('delete from solo_sessions where id=any($1::uuid[])',[sessions]);
  for(const table of ['study_attempts','study_answer_records','study_completions'])await sql(`delete from ${table} where device_id=$1::uuid`,[device]);
  await sb.removeAllChannels();console.log('Cleaned only this check’s UUID');

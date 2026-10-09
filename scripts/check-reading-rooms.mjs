@@ -23,4 +23,4 @@ try {
  const resumed=await rpc('get_match',{p_device:host,p_match:p.id});assert.equal(resumed.room_field,'ゲノム構造');assert.equal(resumed.q_total,2);
  assert.ok((await sb.rpc('_pick_field_questions',{p_field:'DNA複製'})).error);const direct=await sb.from('questions').select('id,field,answer');assert.ok(direct.error||direct.data.length===0);
  console.log('PASS room fields: all 13 fields server filtered, max15/no duplicates, legacy/default, invalid field, list/join/resume, short course completes, one unanswered match counted, no answer leakage');
-}finally{if(rooms.length)await sql('delete from matches where id=any($1::uuid[])',[rooms]);await sb.removeAllChannels();console.log('Cleaned only own field-room fixtures');}
+}finally{await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[[],rooms,[host,peer]]).catch(()=>{});if(rooms.length)await sql('delete from matches where id=any($1::uuid[])',[rooms]);await sb.removeAllChannels();console.log('Cleaned only own field-room fixtures');}
