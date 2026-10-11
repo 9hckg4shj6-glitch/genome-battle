@@ -3,19 +3,48 @@
 /* ---------- スタート画面 ---------- */
 #app.title-mode { padding-bottom:env(safe-area-inset-bottom); }
 .title-screen { position:relative;display:flex;flex-direction:column;justify-content:center;gap:22px;min-height:100dvh;max-width:520px;margin:0 auto;padding:48px 0 28px;overflow:hidden; }
-.title-art { position:absolute;top:2%;right:-70px;width:300px;height:420px;display:grid;place-items:center;color:#b9ca6d;opacity:.5;pointer-events:none; }
-/* 回転する二重らせん。段ごとに位相をずらして回し、塩基の玉は常に正面を向かせる */
-.dna3d { position:relative;z-index:1;display:grid;gap:6px;perspective:700px;color:var(--muted); }
-.dna3d i { position:relative;display:flex;justify-content:space-between;align-items:center;width:128px;height:16px;transform-style:preserve-3d;animation:dna-spin 7s linear infinite;animation-delay:calc(var(--i) * -.39s); }
-.dna3d i::before { content:"";position:absolute;left:12px;right:12px;top:50%;height:2px;margin-top:-1px;border-radius:2px;background:currentColor;opacity:.4; }
-.dna3d b { display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--base);color:var(--base-ink);font-size:9px;font-weight:800;line-height:1;box-shadow:0 0 14px color-mix(in srgb,var(--base) 50%,transparent),inset 0 -3px 5px #0003;animation:dna-face 7s linear infinite;animation-delay:calc(var(--i) * -.39s); }
-/* 塩基の4色。らせんの玉とロゴの「BATTLE」のグラデーションに使う */
-.title-screen { --base-A:#ff9a85;--base-T:#7fe3cf;--base-G:#e4ef8a;--base-C:#bba8ff;--base-ink:#0d120e; }
-:root[data-theme="light"] .title-screen { --base-A:#d65a43;--base-T:#14907d;--base-G:#5f7f17;--base-C:#7253c4;--base-ink:#fff; }
-.base-A { --base:var(--base-A); }.base-T { --base:var(--base-T); }.base-G { --base:var(--base-G); }.base-C { --base:var(--base-C); }
-@keyframes dna-spin { to { transform:rotateY(1turn); } }
-@keyframes dna-face { to { transform:rotateY(-1turn); } }
+/* 塩基の4色。ロゴの「BATTLE」のグラデーションに使う */
+.title-screen { --base-A:#ff9a85;--base-T:#7fe3cf;--base-G:#e4ef8a;--base-C:#bba8ff; }
+:root[data-theme="light"] .title-screen { --base-A:#d65a43;--base-T:#14907d;--base-G:#5f7f17;--base-C:#7253c4; }
 .title-copy { position:relative;z-index:1; }
+
+/* T4ファージのマスコット。キャッチコピーの右の空きに立たせる。輪郭の線で、明るい・暗いどちらの背景でも見えるようにする */
+.title-mascot { position:absolute;right:-2px;bottom:-16px;width:92px;cursor:pointer;-webkit-tap-highlight-color:transparent; }
+/* --ink は顔、--line は輪郭と脚。暗い背景では輪郭と脚を明るい線にして沈まないようにする */
+.phage { display:block;width:100%;height:auto;overflow:visible;--ink:#2b2a3a;--line:#e9e5f7;--body:#f5f3ec;--head-a:#d6c9ff;--head-b:#97e8d6; }
+:root[data-theme="light"] .phage { --line:var(--ink);--body:#fff;--head-a:#cdbdff;--head-b:#8fe0cd; }
+.phage-head-a { stop-color:var(--head-a); }.phage-head-b { stop-color:var(--head-b); }
+.phage-shell,.phage-sheath,.phage-plate { stroke:var(--line);stroke-width:2.6;stroke-linejoin:round; }
+.phage-sheath { fill:var(--body); }
+.phage-plate { fill:var(--head-b); }
+.phage-stripes { stroke:var(--ink);stroke-width:1.6;opacity:.3; }
+.phage-facet { fill:none;stroke:#fff;stroke-width:1.4;opacity:.45; }
+.phage-shine { fill:#fff;opacity:.6; }
+.phage-cheek { fill:#ff9fb2;opacity:.75; }
+.phage-eyes ellipse { fill:var(--ink); }
+.phage-glint { fill:#fff; }
+.phage-mouth { fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round; }
+.phage-legs { fill:none;stroke:var(--line);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round; }
+.phage-foot { fill:var(--line); }
+.phage-shadow { fill:var(--ink);opacity:.14; }
+:root:not([data-theme="light"]) .phage-shadow { fill:#000;opacity:.35; }
+/* ふわふわ浮く・脚でステップ・尾がちぢむ・まばたき */
+.phage-bob,.phage-shadow,.phage-legs,.phage-tail,.phage-eyes { transform-box:fill-box; }
+.phage-bob { transform-origin:50% 100%;animation:phage-bob 2.4s ease-in-out infinite; }
+.phage-shadow { transform-origin:50% 50%;animation:phage-shadow 2.4s ease-in-out infinite; }
+.phage-legs-l { transform-origin:100% 0;animation:phage-step 1.2s ease-in-out infinite alternate; }
+.phage-legs-r { transform-origin:0 0;animation:phage-step 1.2s ease-in-out -.6s infinite alternate; }
+.phage-tail { transform-origin:50% 0;animation:phage-squish 2.4s ease-in-out infinite; }
+.phage-eyes { transform-origin:50% 50%;animation:phage-blink 4.6s ease-in-out infinite; }
+@keyframes phage-bob { 0%,100% { transform:translateY(0) rotate(-2deg); } 50% { transform:translateY(-7px) rotate(2deg); } }
+@keyframes phage-shadow { 0%,100% { transform:scaleX(1); } 50% { transform:scaleX(.78);opacity:.08; } }
+@keyframes phage-step { from { transform:rotate(-6deg); } to { transform:rotate(6deg); } }
+@keyframes phage-squish { 0%,100% { transform:scaleY(1); } 50% { transform:scaleY(.9); } }
+@keyframes phage-blink { 0%,90%,100% { transform:scaleY(1); } 94% { transform:scaleY(.1); } }
+@media (min-width:700px) { .title-mascot { width:116px;right:-12px; } }
+/* 押すと跳ねる */
+.title-mascot.is-hop .phage { animation:phage-hop .7s cubic-bezier(.3,1.6,.5,1); }
+@keyframes phage-hop { 0% { transform:scale(1.08,.88); } 35% { transform:translateY(-26px) scale(.94,1.08) rotate(-8deg); } 70% { transform:translateY(0) scale(1.06,.92); } 100% { transform:none; } }
 .title-logo { display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;margin:0;font-size:clamp(40px,12vw,60px);font-weight:900;line-height:1;letter-spacing:.04em; }
 .title-logo > span:last-child { grid-column:2;color:var(--accent);background:linear-gradient(100deg,var(--base-G),var(--base-T) 35%,var(--base-C) 65%,var(--base-A));background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:logo-flow 7s ease-in-out infinite alternate; }
 @keyframes logo-flow { to { background-position:100% 0; } }
@@ -57,7 +86,6 @@
 .title-line .btn { flex:none;white-space:nowrap; }
 .title-foot { position:relative;z-index:1;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;font-size:12px;color:var(--muted); }
 .title-foot .btn { min-height:40px;font-size:12px; }
-:root[data-theme="light"] .title-art { color:#6b863d;opacity:.4; }
 
 /* ---------- ヘッダー（ホーム・ハブ） ---------- */
 .records-title,.menu-title { --mode-color:var(--accent); }
@@ -188,7 +216,6 @@
 @media (max-width:360px) { .menu-header .header-label { display:none; } }
 @media (max-width:440px) {
   .title-screen { padding-top:36px;gap:22px; }
-  .title-art { right:-110px;opacity:.35; }
   .home-player { padding:12px 14px;gap:12px; }
   .home-ready { padding-left:10px; }
   .home-ready strong { font-size:19px; }
@@ -208,8 +235,5 @@
   .tab-bar { width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom));padding:4px;border-radius:18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after { animation:none; }
-  /* 動きを止めても、らせんの形に見えるよう段ごとに角度をずらして止める */
-  .dna3d i { animation:none;transform:rotateY(calc(var(--i) * 20deg)); }
-  .dna3d b { animation:none;transform:rotateY(calc(var(--i) * -20deg)); }
+  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after,.phage *,.title-mascot.is-hop .phage { animation:none; }
 }

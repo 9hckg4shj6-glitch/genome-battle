@@ -1015,6 +1015,9 @@ function goTo(next: View): void {
 app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest<HTMLButtonElement>("button")?.disabled) return;
+  // スタート画面のマスコット（T4ファージ）は、押すと跳ねる。押すたびに最初から再生する。
+  const mascot=target.closest<HTMLElement>(".title-mascot");
+  if (mascot) {mascot.classList.remove("is-hop");void mascot.offsetWidth;mascot.classList.add("is-hop");return;}
   const sizeChoice=target.closest<HTMLElement>("[data-read-size]")?.dataset.readSize;
   if(sizeChoice==="standard"||sizeChoice==="large"||sizeChoice==="xlarge"){setReadSize(sizeChoice);return;}
   const imageId=target.closest<HTMLElement>("[data-image-id]")?.dataset.imageId;
