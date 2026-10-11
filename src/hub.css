@@ -8,47 +8,9 @@
 :root[data-theme="light"] .title-screen { --base-A:#d65a43;--base-T:#14907d;--base-G:#5f7f17;--base-C:#7253c4; }
 .title-copy { position:relative;z-index:1; }
 
-/* キネシンのマスコット。キャッチコピーの右の空きに立たせる。輪郭の線で、明るい・暗いどちらの背景でも見えるようにする */
-.title-mascot { position:absolute;right:-6px;bottom:-14px;width:min(124px,30vw);cursor:pointer;-webkit-tap-highlight-color:transparent; }
-/* --ink は顔、--line は輪郭と脚。暗い背景では輪郭と脚を明るい線にして沈まないようにする */
-.kinesin { display:block;width:100%;height:auto;overflow:visible;--ink:#2b2a3a;--line:#e9e5f7;--cargo-a:#fff4c7;--cargo-b:#ffc59c;--motor-a:#8fe0cd;--motor-b:#c9b8ff;--alpha:#9fd8d4;--beta:#c5b8e6; }
-:root[data-theme="light"] .kinesin { --line:var(--ink);--alpha:#8fd0c9;--beta:#bcaee6; }
-.kin-cargo-a { stop-color:var(--cargo-a); }.kin-cargo-b { stop-color:var(--cargo-b); }
-.kin-vesicle,.kin-motor { stroke:var(--line);stroke-width:2.6; }
-.kin-motor-a { fill:var(--motor-a); }.kin-motor-b { fill:var(--motor-b); }
-.kin-neck,.kin-stalk { fill:none;stroke:var(--line);stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round; }
-.kin-hip { fill:var(--line); }
-.kin-inside { fill:#ff9f7a;opacity:.45; }
-.kin-shine { fill:#fff;opacity:.7; }
-.kin-cheek { fill:#ff8fa6;opacity:.6; }
-.kin-eyes ellipse { fill:var(--ink); }
-.kin-glint { fill:#fff; }
-.kin-mouth { fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round; }
-.kin-alpha { fill:var(--alpha); }.kin-beta { fill:var(--beta); }
-.kin-note { fill:var(--line);font-size:15px;font-weight:700;opacity:0; }
-/* 歩く：着地している脚はレールと同じ速さ（0.6秒で16）で後ろへ、浮いた脚は持ち上げて前へ。2本は半周期ずらす */
-.kin-track { animation:kin-rail .6s linear infinite; }
-@keyframes kin-rail { to { transform:translateX(-16px); } }
-.kin-leg,.kin-lift { transform-box:view-box;transform-origin:60px 84px; }
-.kin-leg-a { animation:kin-swing 1.2s infinite; }
-.kin-leg-b { animation:kin-swing 1.2s -.6s infinite; }
-.kin-lift-a { animation:kin-lift 1.2s infinite; }
-.kin-lift-b { animation:kin-lift 1.2s -.6s infinite; }
-@keyframes kin-swing { 0% { transform:rotate(-20deg);animation-timing-function:linear; } 50% { transform:rotate(20deg);animation-timing-function:ease-in-out; } 100% { transform:rotate(-20deg); } }
-@keyframes kin-lift { 0%,50% { transform:scaleY(1); } 75% { transform:scaleY(.68); } 100% { transform:scaleY(1); } }
-.kin-body { animation:kin-bounce .6s ease-in-out infinite alternate; }
-@keyframes kin-bounce { to { transform:translateY(-2.5px); } }
-.kin-cargo,.kin-eyes,.kin-note { transform-box:fill-box; }
-.kin-cargo { transform-origin:50% 100%;animation:kin-sway 1.2s ease-in-out infinite alternate; }
-@keyframes kin-sway { from { transform:rotate(-4deg); } to { transform:rotate(4deg); } }
-.kin-eyes { transform-origin:50% 50%;animation:kin-blink 4.6s ease-in-out infinite; }
-@keyframes kin-blink { 0%,90%,100% { transform:scaleY(1); } 94% { transform:scaleY(.1); } }
-.kin-note { animation:kin-note 3.6s ease-out 1s infinite; }
-@keyframes kin-note { 0% { opacity:0;transform:translate(0,4px) rotate(-10deg); } 15% { opacity:1; } 45% { opacity:0;transform:translate(8px,-14px) rotate(12deg); } 100% { opacity:0; } }
-@media (min-width:700px) { .title-mascot { width:132px;right:-14px; } }
-/* 押すと跳ねる */
-.title-mascot.is-hop .kinesin { animation:kin-hop .7s cubic-bezier(.3,1.6,.5,1); }
-@keyframes kin-hop { 0% { transform:scale(1.08,.88); } 35% { transform:translateY(-26px) scale(.94,1.08) rotate(-8deg); } 70% { transform:translateY(0) scale(1.06,.92); } 100% { transform:none; } }
+/* ゲノム編集のモデル（src/model.ts が canvas に描く）。左右の端はぼかして画面になじませる */
+.title-model { height:104px;margin:0 -4px; }
+.title-model canvas { display:block;width:100%;height:100%;-webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent); }
 .title-logo { display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;margin:0;font-size:clamp(40px,12vw,60px);font-weight:900;line-height:1;letter-spacing:.04em; }
 .title-logo > span:last-child { grid-column:2;color:var(--accent);background:linear-gradient(100deg,var(--base-G),var(--base-T) 35%,var(--base-C) 65%,var(--base-A));background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:logo-flow 7s ease-in-out infinite alternate; }
 @keyframes logo-flow { to { background-position:100% 0; } }
@@ -239,7 +201,5 @@
   .tab-bar { width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom));padding:4px;border-radius:18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after,.kinesin *,.title-mascot.is-hop .kinesin { animation:none; }
-  /* 歩く途中の姿勢で止める（2本の脚が重なって1本に見えないように） */
-  .kin-leg-a { transform:rotate(-14deg); }.kin-leg-b { transform:rotate(14deg); }
+  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after { animation:none; }
 }

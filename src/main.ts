@@ -33,6 +33,7 @@ import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectA
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 import { markTitleSeen, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab } from "./hub";
 import { applyQuestionStats, renderRateInline } from "./stats";
+import { mountModel } from "./model";
 import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
 import { copyAppLink, dismissInstall, openInBrowser, promptInstall, renderInstall, setInstallDevice, watchInstall } from "./install";
 
@@ -586,7 +587,7 @@ function render(): void {
   if (view === "title" && !solo.active) {
     app.className = "title-mode";
     app.innerHTML = `<div class="title-body${enterScene("title")}">${renderTitle(playerName, error)}</div>`;
-    afterRender();
+    afterRender();mountModel();
     return;
   }
   const lobby = view === "home" && !solo.active;
@@ -1015,9 +1016,6 @@ function goTo(next: View): void {
 app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest<HTMLButtonElement>("button")?.disabled) return;
-  // スタート画面のマスコット（キネシン）は、押すと跳ねる。押すたびに最初から再生する。
-  const mascot=target.closest<HTMLElement>(".title-mascot");
-  if (mascot) {mascot.classList.remove("is-hop");void mascot.offsetWidth;mascot.classList.add("is-hop");return;}
   const sizeChoice=target.closest<HTMLElement>("[data-read-size]")?.dataset.readSize;
   if(sizeChoice==="standard"||sizeChoice==="large"||sizeChoice==="xlarge"){setReadSize(sizeChoice);return;}
   const imageId=target.closest<HTMLElement>("[data-image-id]")?.dataset.imageId;
