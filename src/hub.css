@@ -103,60 +103,51 @@
 .home-menu .eyebrow { margin-bottom:4px; }
 .home-menu h1 { margin:0 0 14px;font-size:22px; }
 .hub-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
-/* 2枚の大カード：方眼のドット・四隅の目盛り・背景図・仕様表を重ねて、計器のような精密さを出す */
-.mode-card.hub-card { min-height:250px;padding:20px 18px 16px;border-radius:20px; }
-.hub-card .mode-top { position:relative;margin-bottom:22px; }
-.hub-card .mode-icon { position:relative;width:52px;height:52px;border-radius:15px; }
-.hub-card .mode-icon::after { content:"";position:absolute;inset:-5px;border-radius:19px;border:1px solid color-mix(in srgb,var(--mode-color) 22%,transparent);pointer-events:none; }
-.hub-card .mode-icon .icon { width:27px;height:27px; }
-.hub-card .mode-en { display:flex;align-items:center;gap:8px;margin-bottom:4px;font-weight:600; }
-.hub-card .mode-en::after { content:"";flex:1;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--mode-color) 40%,transparent),transparent); }
-.hub-no { padding:1px 5px;border-radius:4px;background:color-mix(in srgb,var(--mode-color) 16%,transparent);font-variant-numeric:tabular-nums; }
-.hub-card h3 { font-size:24px;margin-bottom:8px; }
-.hub-card .mode-description { font-size:12px;margin-bottom:14px; }
-.hub-tag { font-size:10px;font-weight:700;padding:3px 9px 3px 8px;border-radius:99px;color:var(--mode-color);border:1px solid color-mix(in srgb,var(--mode-color) 40%,transparent);background:color-mix(in srgb,var(--surface) 70%,transparent); }
-.hub-tag::before { content:"";display:inline-block;width:5px;height:5px;margin:0 6px 1px 0;border-radius:50%;background:currentColor;vertical-align:middle; }
-.hub-card .online-count { font-size:10px; }
-/* 仕様表：項目と値を点線でつなぐ */
-.hub-specs { display:grid;gap:5px;margin:0 0 14px;padding:9px 10px;border:1px solid color-mix(in srgb,var(--mode-color) 16%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--surface) 55%,transparent); }
-.hub-specs > span { display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.4; }
-.hub-specs > span::after { content:"";order:1;flex:1;min-width:8px;border-bottom:1px dotted color-mix(in srgb,var(--mode-color) 45%,var(--line)); }
-.hub-specs small { color:var(--muted);font-size:10px;white-space:nowrap; }
-.hub-specs b { order:2;font-weight:700;white-space:nowrap; }
-.hub-card .mode-bottom { padding-top:12px; }
-/* 背景の装飾。カードの内側いっぱいに敷き、文字より下に置く */
-.hub-card { --base-A:#ff9a85;--base-T:#7fe3cf;--base-G:#e4ef8a;--base-C:#bba8ff; }
-:root[data-theme="light"] .hub-card { --base-A:#d65a43;--base-T:#14907d;--base-G:#5f7f17;--base-C:#7253c4; }
-.hub-deco { position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;overflow:hidden; }
-.hub-deco::before { content:"";position:absolute;inset:0;background:radial-gradient(color-mix(in srgb,var(--mode-color) 30%,transparent) .8px,transparent 1.3px) 0 0/11px 11px;-webkit-mask:radial-gradient(130% 90% at 100% 0,#000,transparent 70%);mask:radial-gradient(130% 90% at 100% 0,#000,transparent 70%);opacity:.7;transition:opacity .4s var(--ease-out); }
-/* 四隅の目盛り（製図の見当線） */
-.hub-deco::after { --c:color-mix(in srgb,var(--mode-color) 50%,transparent);--l:9px;content:"";position:absolute;inset:8px;
-  background:linear-gradient(var(--c),var(--c)) left top/var(--l) 1px,linear-gradient(var(--c),var(--c)) left top/1px var(--l),linear-gradient(var(--c),var(--c)) right top/var(--l) 1px,linear-gradient(var(--c),var(--c)) right top/1px var(--l),
-    linear-gradient(var(--c),var(--c)) left bottom/var(--l) 1px,linear-gradient(var(--c),var(--c)) left bottom/1px var(--l),linear-gradient(var(--c),var(--c)) right bottom/var(--l) 1px,linear-gradient(var(--c),var(--c)) right bottom/1px var(--l);
-  background-repeat:no-repeat;transition:inset .45s var(--ease-spring); }
-.hub-art { position:absolute;fill:none;stroke:var(--mode-color);stroke-width:1;stroke-linecap:round;-webkit-mask:linear-gradient(200deg,#000 20%,transparent 85%);mask:linear-gradient(200deg,#000 20%,transparent 85%);transition:transform .9s var(--ease-out),opacity .4s var(--ease-out); }
-.art-helix { top:-14px;right:-6px;width:96px;height:128px;opacity:.55;transform:rotate(14deg); }
-.art-helix .art-strand { stroke-width:1.4; }
-.art-helix .art-rung { stroke-width:1.2;opacity:.85; }
-.art-helix circle { fill:var(--mode-color);stroke:none; }
-.art-helix .base-A { stroke:var(--base-A); }.art-helix .base-T { stroke:var(--base-T); }.art-helix .base-G { stroke:var(--base-G); }.art-helix .base-C { stroke:var(--base-C); }
-.art-dial { top:-38px;right:-38px;width:150px;height:150px;opacity:.5; }
-.art-dial circle,.art-dial path { stroke-width:.8; }
-.art-dial .art-ticks { stroke-width:.9; }
-.art-dial .art-arc { stroke-width:2.6;opacity:.9; }
-.art-dial .art-dash { stroke-dasharray:2 4; }
-.art-dial .art-dot { fill:var(--mode-color);stroke:none; }
-.art-spin { transform-origin:80px 80px;transition:transform 1.2s var(--ease-out); }
-.mode-card.hub-card:active .hub-deco::after,.hub-card.is-launching .hub-deco::after { inset:5px; }
+/* 2枚の大カード：ゲームのメニューボタン。濃い地・金属の縁取り・内枠・上半分の光沢・下の厚みで、簡素なまま上質に見せる */
+.hub-card { --edge:color-mix(in srgb,var(--trim-lo) 45%,#000);
+  --hub-face:radial-gradient(120% 70% at 50% 0%,color-mix(in srgb,var(--ink) 16%,transparent),transparent 62%) padding-box,linear-gradient(180deg,var(--top),var(--bottom)) padding-box,
+    linear-gradient(160deg,var(--trim-hi),var(--trim-lo) 30%,var(--trim-hi) 52%,var(--trim-lo) 78%,var(--trim-hi)) border-box; }
+.hub-card { --top:#1f4a48;--bottom:#0e2423;--trim-hi:#d9f4ef;--trim-lo:#4d8f8a;--ink:#a9e3dd;--card-text:#f4fbf8; }
+.hub-card.mode-matchmaking { --top:#3c4419;--bottom:#1a1f0a;--trim-hi:#f6f8c8;--trim-lo:#8f9a43;--ink:#e8f294;--card-text:#fbfcef; }
+:root[data-theme="light"] .hub-card { --top:#2c7774;--bottom:#174c4a;--trim-hi:#e6f8f4;--trim-lo:#5d9e98;--ink:#bff0ea;--card-text:#fff; }
+:root[data-theme="light"] .hub-card.mode-matchmaking { --top:#627c2b;--bottom:#3a5016;--trim-hi:#f8fad6;--trim-lo:#a3ae58;--ink:#eef6a6;--card-text:#fff; }
+.hub-grid .mode-card.hub-card { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:226px;margin-bottom:5px;padding:22px 14px 18px;border:1.5px solid transparent;border-radius:22px;text-align:center;color:var(--card-text);
+  background:var(--hub-face);
+  box-shadow:0 5px 0 var(--edge),0 18px 26px -12px #000000a6,inset 0 1px 0 #ffffff2e; }
+/* 内枠 */
+.hub-grid .mode-card.hub-card::before { content:"";position:absolute;inset:5px;z-index:0;border-radius:17px;border:1px solid color-mix(in srgb,var(--trim-hi) 22%,transparent);background:none;opacity:1;pointer-events:none; }
+/* 上半分の光沢 */
+.hub-grid .mode-card.hub-card::after { content:"";position:absolute;left:0;right:0;top:0;height:55%;z-index:0;border-radius:20px 20px 0 0;background:linear-gradient(180deg,#ffffff1c,#ffffff00);opacity:1;transform:none;pointer-events:none; }
+.hub-card > :not(.hub-shine) { position:relative;z-index:1; }
+/* ときどき光が横切る */
+.hub-shine { position:absolute;inset:0;z-index:0;border-radius:inherit;overflow:hidden;pointer-events:none; }
+.hub-shine::before { content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:45%;background:linear-gradient(100deg,transparent,#ffffff2e 50%,transparent);transform:translateX(-160%) skewX(-18deg);animation:hub-shine 7s ease-in-out infinite;animation-delay:calc(1.6s + var(--i,0) * .5s); }
+@keyframes hub-shine { 0% { transform:translateX(-160%) skewX(-18deg); } 18%,100% { transform:translateX(330%) skewX(-18deg); } }
+/* メダルのような紋章 */
+.hub-grid .hub-card .mode-icon { width:60px;height:60px;margin-bottom:12px;border-radius:50%;border:1.5px solid transparent;color:var(--ink);
+  background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--ink) 26%,var(--top)),var(--bottom) 75%) padding-box,linear-gradient(160deg,var(--trim-hi),var(--trim-lo) 45%,var(--trim-hi) 70%,var(--trim-lo)) border-box;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--bottom) 60%,transparent),0 0 0 5px color-mix(in srgb,var(--trim-hi) 25%,transparent),0 6px 14px -4px #0009,inset 0 2px 3px #ffffff26; }
+.hub-grid .hub-card .mode-icon .icon { width:28px;height:28px;filter:drop-shadow(0 1px 0 #0006); }
+.hub-card .mode-en { margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:.32em;padding-left:.32em;color:var(--ink); }
+.hub-grid .hub-card h3 { margin:0;font-size:26px;font-weight:800;letter-spacing:.06em;line-height:1.3;color:var(--card-text);text-shadow:0 2px 0 #0000004d; }
+.hub-orn { display:flex;align-items:center;gap:6px;width:min(120px,70%);margin:9px 0 8px; }
+.hub-orn::before,.hub-orn::after { content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--trim-hi) 60%,transparent)); }
+.hub-orn::after { transform:scaleX(-1); }
+.hub-orn i { width:5px;height:5px;background:var(--trim-hi);transform:rotate(45deg);box-shadow:0 0 6px color-mix(in srgb,var(--ink) 70%,transparent); }
+.hub-grid .hub-card .mode-description { max-width:none;margin:0 0 14px;font-size:12px;line-height:1.6;color:color-mix(in srgb,var(--card-text) 78%,transparent); }
+.hub-foot { display:inline-flex;align-items:center;min-height:24px;padding:3px 11px;border-radius:99px;border:1px solid color-mix(in srgb,var(--trim-hi) 18%,transparent);background:#00000033;font-size:10px;color:color-mix(in srgb,var(--card-text) 80%,transparent); }
+.hub-card .online-count { gap:6px;font-size:10px;color:inherit; }
+.hub-card .online-count i { background:var(--ink);box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 25%,transparent); }
+/* 押すと沈み込む */
+.hub-grid .mode-card.hub-card:active,.hub-grid .mode-card.hub-card.is-launching { transform:translateY(4px);box-shadow:0 1px 0 var(--edge),0 8px 14px -10px #000000a6,inset 0 1px 0 #ffffff2e;transition-duration:.08s; }
+.hub-grid .mode-card.hub-card.is-launching { filter:brightness(1.12); }
+.hub-card:focus-visible { outline-color:var(--trim-lo); }
 @media (hover:hover) and (pointer:fine) {
-  .hub-card:hover .hub-deco::before { opacity:1; }
-  .hub-card:hover .hub-deco::after { inset:5px; }
-  .hub-card:hover .art-helix { opacity:.8;transform:rotate(8deg) translateY(6px); }
-  .hub-card:hover .art-dial { opacity:.75; }
-  .hub-card:hover .art-spin { transform:rotate(45deg); }
+  .hub-grid .mode-card.hub-card:hover { transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 7px 0 var(--edge),0 24px 30px -14px #000000b3,inset 0 1px 0 #ffffff2e; }
+  .hub-grid .mode-card.hub-card:hover .mode-icon { transform:scale(1.05); }
+  .hub-grid .mode-card.hub-card:active { transform:translateY(4px);box-shadow:0 1px 0 var(--edge),0 8px 14px -10px #000000a6,inset 0 1px 0 #ffffff2e; }
 }
-:root[data-theme="light"] .hub-art { opacity:.4; }
-:root[data-theme="light"] .hub-specs { background:#ffffffa6; }
+:root[data-theme="light"] .hub-grid .mode-card.hub-card { background:var(--hub-face);border-color:transparent;box-shadow:0 5px 0 var(--edge),0 16px 24px -12px #1d3a1a80,inset 0 1px 0 #ffffff40; }
 .home-tip { --mode-color:var(--accent);display:flex;align-items:center;gap:14px;margin-top:16px;padding:14px 16px;border:1px dashed color-mix(in srgb,var(--accent) 50%,var(--line));border-radius:16px; }
 .home-tip.is-alert { --mode-color:var(--warn);border-style:solid;border-color:color-mix(in srgb,var(--warn) 55%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface)); }
 .home-tip > div { flex:1;min-width:0; }
@@ -232,14 +223,11 @@
   .home-ready { padding-left:10px; }
   .home-ready strong { font-size:19px; }
   .home-player > .icon { display:none; }
-  .mode-card.hub-card { min-height:232px;padding:16px 14px; }
-  .hub-card h3 { font-size:21px; }
-  .hub-card .mode-description { font-size:11px; }
-  .hub-specs { padding:7px 8px;gap:4px; }
-  .hub-specs > span { font-size:10px;gap:4px; }
-  .hub-specs small { font-size:9px; }
-  .art-helix { width:80px;height:107px; }
-  .art-dial { width:124px;height:124px;top:-32px;right:-32px; }
+  .hub-grid .mode-card.hub-card { min-height:208px;padding:20px 10px 16px; }
+  .hub-grid .hub-card h3 { font-size:22px; }
+  .hub-grid .hub-card .mode-icon { width:54px;height:54px; }
+  .hub-grid .hub-card .mode-description { font-size:11px; }
+  .hub-foot { padding:3px 9px; }
   .hub-card .online-count { white-space:normal;word-break:keep-all;line-height:1.45; }
   .home-tip { flex-wrap:wrap; }
   .home-tip > div { flex-basis:calc(100% - 60px); }
@@ -253,5 +241,5 @@
   .tab-bar { width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom));padding:4px;border-radius:18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after { animation:none; }
+  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after,.hub-shine::before { animation:none; }
 }
