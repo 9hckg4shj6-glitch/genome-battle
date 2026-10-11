@@ -1,52 +1,35 @@
 /* 画面の階層（スタート → ホーム → ハブ）と、画面下のタブ。色は各モードの --mode-color を引き継ぐ。 */
 
-/* ---------- 書体と塩基の色 ----------
-   ロゴ・数字は Unbounded、日本語の見出しは Dela Gothic One。読み込めないときは端末の太字で表示する。
-   A・T・G・C の4色は、スタート画面のらせんとロゴの色に使う。 */
-:root { --font-display:"Unbounded","Hiragino Sans",system-ui,sans-serif;--font-headline:"Dela Gothic One","Hiragino Sans","Noto Sans JP",sans-serif;
-  --base-A:#ff9a85;--base-T:#7fe3cf;--base-G:#e4ef8a;--base-C:#bba8ff;--base-ink:#0d120e;--marker:color-mix(in srgb,var(--base-G) 38%,transparent); }
-:root[data-theme="light"] { --base-A:#d65a43;--base-T:#14907d;--base-G:#5f7f17;--base-C:#7253c4;--base-ink:#fff;--marker:#d9ec8c; }
-
 /* ---------- スタート画面 ---------- */
 #app.title-mode { padding-bottom:env(safe-area-inset-bottom); }
-.title-screen { position:relative;display:grid;align-content:center;min-height:100dvh;max-width:520px;margin:0 auto;padding:40px 0 64px;overflow:hidden; }
-.title-main { position:relative;z-index:1;display:grid;gap:22px; }
-.title-glow { position:absolute;top:-120px;right:-240px;width:560px;height:560px;background:radial-gradient(closest-side at 50% 45%,color-mix(in srgb,var(--base-T) 18%,transparent),transparent),radial-gradient(closest-side at 35% 70%,color-mix(in srgb,var(--base-C) 14%,transparent),transparent);pointer-events:none; }
-.title-art { position:absolute;top:34px;right:-30px;opacity:.55;pointer-events:none; }
-:root[data-theme="light"] .title-glow { opacity:.7; }
+.title-screen { position:relative;display:flex;flex-direction:column;justify-content:center;gap:22px;min-height:100dvh;max-width:520px;margin:0 auto;padding:48px 0 28px;overflow:hidden; }
+.title-art { position:absolute;top:2%;right:-70px;width:300px;height:420px;display:grid;place-items:center;color:#b9ca6d;opacity:.5;pointer-events:none; }
 /* 回転する二重らせん。段ごとに位相をずらして回し、塩基の玉は常に正面を向かせる */
-.dna3d { display:grid;gap:6px;perspective:700px;color:var(--muted); }
+.dna3d { position:relative;z-index:1;display:grid;gap:6px;perspective:700px;color:var(--muted); }
 .dna3d i { position:relative;display:flex;justify-content:space-between;align-items:center;width:128px;height:16px;transform-style:preserve-3d;animation:dna-spin 7s linear infinite;animation-delay:calc(var(--i) * -.39s); }
 .dna3d i::before { content:"";position:absolute;left:12px;right:12px;top:50%;height:2px;margin-top:-1px;border-radius:2px;background:currentColor;opacity:.4; }
-.dna3d b { position:relative;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--base);color:var(--base-ink);font:900 9px/1 var(--font-display);box-shadow:0 0 14px color-mix(in srgb,var(--base) 50%,transparent),inset 0 -3px 5px #0003;animation:dna-face 7s linear infinite;animation-delay:calc(var(--i) * -.39s); }
+.dna3d b { display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--base);color:var(--base-ink);font-size:9px;font-weight:800;line-height:1;box-shadow:0 0 14px color-mix(in srgb,var(--base) 50%,transparent),inset 0 -3px 5px #0003;animation:dna-face 7s linear infinite;animation-delay:calc(var(--i) * -.39s); }
+/* 塩基の4色。らせんの玉とロゴの「BATTLE」のグラデーションに使う */
+.title-screen { --base-A:#ff9a85;--base-T:#7fe3cf;--base-G:#e4ef8a;--base-C:#bba8ff;--base-ink:#0d120e; }
+:root[data-theme="light"] .title-screen { --base-A:#d65a43;--base-T:#14907d;--base-G:#5f7f17;--base-C:#7253c4;--base-ink:#fff; }
 .base-A { --base:var(--base-A); }.base-T { --base:var(--base-T); }.base-G { --base:var(--base-G); }.base-C { --base:var(--base-C); }
 @keyframes dna-spin { to { transform:rotateY(1turn); } }
 @keyframes dna-face { to { transform:rotateY(-1turn); } }
-.title-copy { position:relative; }
-.title-logo { display:grid;margin:0;font-family:var(--font-display);font-weight:900;font-size:clamp(42px,12.6vw,70px);line-height:1;letter-spacing:-.025em; }
-.title-logo-word.is-battle { background:linear-gradient(100deg,var(--base-G),var(--base-T) 35%,var(--base-C) 65%,var(--base-A));background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:logo-flow 7s ease-in-out infinite alternate; }
+.title-copy { position:relative;z-index:1; }
+.title-logo { display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;margin:0;font-size:clamp(40px,12vw,60px);font-weight:900;line-height:1;letter-spacing:.04em; }
+.title-logo > span:last-child { grid-column:2;color:var(--accent);background:linear-gradient(100deg,var(--base-G),var(--base-T) 35%,var(--base-C) 65%,var(--base-A));background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:logo-flow 7s ease-in-out infinite alternate; }
 @keyframes logo-flow { to { background-position:100% 0; } }
-.title-ja { display:flex;align-items:center;gap:12px;margin:14px 0 0;font-size:14px;font-weight:700;letter-spacing:.5em;color:var(--muted); }
-.title-ja::after { content:"";flex:1;max-width:120px;height:1px;background:linear-gradient(90deg,var(--line),transparent); }
-.title-catch { margin:22px 0 0;font-family:var(--font-headline);font-weight:400;font-size:clamp(23px,6.6vw,32px);line-height:1.5;letter-spacing:.02em; }
-.title-catch em { font-style:normal;padding:0 .08em;background:linear-gradient(transparent 58%,var(--marker) 58%,var(--marker) 92%,transparent 92%); }
+.title-logo-icon { grid-row:span 2;display:grid;place-items:center;width:clamp(54px,15vw,72px);height:clamp(64px,18vw,86px);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:16px;color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface)); }
+.title-logo-icon .icon { width:60%;height:60%; }
+.title-ja { margin:14px 0 0;font-size:13px;letter-spacing:.5em;color:var(--muted); }
+.title-catch { margin:20px 0 0;font-size:clamp(17px,4.6vw,21px);font-weight:700;line-height:1.6; }
+.title-catch em { font-style:normal;color:var(--accent); }
 .title-action { position:relative;z-index:1;display:grid;gap:16px; }
-.btn.title-start { position:relative;overflow:hidden;width:100%;min-height:62px;font-family:var(--font-headline);font-weight:400;font-size:21px;letter-spacing:.24em;border-radius:18px; }
-.btn.title-start .icon { width:20px;height:20px; }
+.btn.title-start { position:relative;overflow:hidden;width:100%;min-height:60px;font-size:19px;letter-spacing:.2em;border-radius:18px; }
+/* 数秒おきにボタンを横切る光 */
 .btn.title-start::after { content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,#ffffff59 50%,transparent 65%);transform:translateX(-120%);animation:start-shine 4s ease-in-out 1.2s infinite;pointer-events:none; }
 @keyframes start-shine { 35%,100% { transform:translateX(120%); } }
-/* 画面下を流れる塩基配列 */
-.title-ticker { position:absolute;left:0;bottom:16px;display:flex;width:max-content;font:500 11px/1 var(--font-display);letter-spacing:.55em;color:var(--muted);opacity:.32;white-space:nowrap;animation:ticker 90s linear infinite;pointer-events:none; }
-.title-ticker span { padding-right:.55em; }
-@keyframes ticker { to { transform:translateX(-50%); } }
-/* 開いた瞬間だけ、ロゴ → コピー → 入力の順に立ち上げる */
-.scene-enter .title-logo-word { animation:title-word .8s var(--ease-out,ease-out) backwards; }
-.scene-enter .title-logo-word.is-battle { animation:title-word .8s var(--ease-out,ease-out) .12s backwards,logo-flow 7s ease-in-out .9s infinite alternate; }
-.scene-enter .title-ja,.scene-enter .title-catch,.scene-enter .title-action,.scene-enter .title-foot { animation:scene-rise .6s var(--ease-out,ease-out) backwards; }
-.scene-enter .title-ja { animation-delay:.25s; }.scene-enter .title-catch { animation-delay:.35s; }.scene-enter .title-action { animation-delay:.5s; }.scene-enter .title-foot { animation-delay:.6s; }
-.scene-enter .title-art { animation:title-art-in 1.2s var(--ease-out,ease-out) backwards; }
-@keyframes title-word { from { opacity:0;transform:translateY(18px) skewY(4deg);letter-spacing:.06em; } }
-@keyframes title-art-in { from { opacity:0;transform:translateY(-30px) scale(.9); } }
+.btn.title-start .icon { width:20px;height:20px; }
 .title-form { width:100%;display:grid;gap:10px; }
 .title-label { display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:15px;font-weight:700; }
 .title-label small { font-size:11px;font-weight:400;color:var(--muted); }
@@ -74,12 +57,7 @@
 .title-line .btn { flex:none;white-space:nowrap; }
 .title-foot { position:relative;z-index:1;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;font-size:12px;color:var(--muted); }
 .title-foot .btn { min-height:40px;font-size:12px; }
-@media (min-width:900px) {
-  .title-screen { max-width:1040px;grid-template-columns:minmax(0,520px) 1fr;align-items:center;column-gap:40px; }
-  .title-main { grid-column:1; }
-  .title-art { position:relative;top:auto;right:auto;grid-column:2;grid-row:1;justify-self:center;opacity:1;transform:scale(1.35); }
-  .title-glow { top:50%;right:0;transform:translateY(-50%); }
-}
+:root[data-theme="light"] .title-art { color:#6b863d;opacity:.4; }
 
 /* ---------- ヘッダー（ホーム・ハブ） ---------- */
 .records-title,.menu-title { --mode-color:var(--accent); }
@@ -108,18 +86,16 @@
 /* ---------- ホーム ---------- */
 .lobby-body { max-width:700px;margin:22px auto 30px; }
 .home-player { display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--text);text-align:left;box-shadow:var(--shadow); }
-/* アバターの周りのリング＝次のレベルまでの経験値 */
-.home-avatar { --p:0;flex:none;width:56px;height:56px;padding:4px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p) * 1%),var(--surface-2) 0); }
-.home-avatar > span { display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--surface);color:var(--accent);font:400 21px/1 var(--font-headline); }
+.home-avatar { display:grid;place-items:center;flex:none;width:46px;height:46px;border-radius:14px;background:color-mix(in srgb,var(--accent) 16%,var(--surface));color:var(--accent);font-size:20px;font-weight:800; }
 .home-player-copy { flex:1;min-width:0;display:grid;gap:2px; }
 .home-player-copy small,.home-ready small { font-size:10px;color:var(--muted);letter-spacing:.08em; }
 .home-player-copy strong { font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.home-xp { display:flex;align-items:baseline;gap:10px;font-size:11px;color:var(--muted); }
-.home-xp b { font:700 11px/1 var(--font-display);color:var(--accent);white-space:nowrap; }
-.home-xp b span { margin-left:3px;font-size:17px;font-weight:900; }
+.home-xp { display:flex;align-items:center;gap:8px;font-size:12px; }
+.home-xp b { color:var(--accent);white-space:nowrap; }
+.home-xp-bar { flex:1;max-width:160px;height:6px;border-radius:9px;background:var(--surface-2);overflow:hidden; }
+.home-xp-bar i { display:block;height:100%;border-radius:inherit;background:var(--accent); }
 .home-ready { display:grid;justify-items:end;padding-left:14px;border-left:1px solid var(--line); }
-.home-ready strong { font:900 26px/1.15 var(--font-display);font-variant-numeric:tabular-nums; }
-.home-ready strong small { font-weight:500;font-size:11px;color:var(--muted); }
+.home-ready strong { font-size:22px;line-height:1.2;font-variant-numeric:tabular-nums; }
 .home-player > .icon { width:18px;height:18px;color:var(--muted); }
 .home-continue { margin-top:14px; }
 .home-continue .saved-study-notice { margin:0 0 10px; }
@@ -131,18 +107,14 @@
 .continue-card .btn { flex:none;white-space:nowrap; }
 .home-menu { margin-top:26px; }
 .home-menu .eyebrow { margin-bottom:4px; }
-.home-menu h1 { margin:0 0 16px;font-family:var(--font-headline);font-weight:400;font-size:clamp(24px,7vw,30px);line-height:1.35;letter-spacing:.02em; }
+.home-menu h1 { margin:0 0 14px;font-size:22px; }
 .hub-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
 .mode-card.hub-card { min-height:250px;padding:20px 18px; }
 .hub-card .mode-top { margin-bottom:22px; }
 .hub-card .mode-icon { width:52px;height:52px;border-radius:15px; }
 .hub-card .mode-icon .icon { width:27px;height:27px; }
-.hub-card h3 { font-family:var(--font-headline);font-weight:400;font-size:30px;letter-spacing:.04em;margin-bottom:8px; }
-/* カードの右端に縦書きで大きく置く英字。ポスターのような印象を残す */
-.hub-mark { position:absolute;top:78px;right:2px;z-index:-1;writing-mode:vertical-rl;font:900 28px/1 var(--font-display);letter-spacing:-.02em;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--mode-color) 60%,transparent);opacity:.55;pointer-events:none;transition:opacity .4s,transform .6s var(--ease-spring,ease-out); }
-.hub-card:active .hub-mark,.hub-card.is-launching .hub-mark { opacity:1;transform:translateY(-6px); }
-.setup-title h1,.battle-copy strong { font-family:var(--font-headline);font-weight:400;letter-spacing:.03em; }
-.hub-card .mode-description { font-size:12px;margin-bottom:16px;padding-right:22px; }
+.hub-card h3 { font-size:24px;margin-bottom:8px; }
+.hub-card .mode-description { font-size:12px;margin-bottom:16px; }
 .hub-tag { font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;color:var(--mode-color);border:1px solid color-mix(in srgb,var(--mode-color) 40%,transparent); }
 .hub-card .online-count { font-size:10px; }
 .home-tip { --mode-color:var(--accent);display:flex;align-items:center;gap:14px;margin-top:16px;padding:14px 16px;border:1px dashed color-mix(in srgb,var(--accent) 50%,var(--line));border-radius:16px; }
@@ -215,15 +187,14 @@
 
 @media (max-width:360px) { .menu-header .header-label { display:none; } }
 @media (max-width:440px) {
-  .title-screen { padding-top:30px; }
-  .title-art { top:22px;right:-42px;opacity:.5;transform:scale(.72);transform-origin:top right;-webkit-mask-image:linear-gradient(#000 35%,transparent 78%);mask-image:linear-gradient(#000 35%,transparent 78%); }
+  .title-screen { padding-top:36px;gap:22px; }
+  .title-art { right:-110px;opacity:.35; }
   .home-player { padding:12px 14px;gap:12px; }
   .home-ready { padding-left:10px; }
-  .home-ready strong { font-size:22px; }
-  .home-avatar { width:50px;height:50px; }
+  .home-ready strong { font-size:19px; }
   .home-player > .icon { display:none; }
   .mode-card.hub-card { min-height:232px;padding:16px 14px; }
-  .hub-card h3 { font-size:26px; }
+  .hub-card h3 { font-size:21px; }
   .hub-card .mode-description { font-size:11px; }
   .home-tip { flex-wrap:wrap; }
   .home-tip > div { flex-basis:calc(100% - 60px); }
@@ -237,7 +208,7 @@
   .tab-bar { width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom));padding:4px;border-radius:18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide-entry.is-first,.title-logo-word.is-battle,.btn.title-start::after,.title-ticker { animation:none; }
+  .guide-entry.is-first,.title-logo > span:last-child,.btn.title-start::after { animation:none; }
   /* 動きを止めても、らせんの形に見えるよう段ごとに角度をずらして止める */
   .dna3d i { animation:none;transform:rotateY(calc(var(--i) * 20deg)); }
   .dna3d b { animation:none;transform:rotateY(calc(var(--i) * -20deg)); }

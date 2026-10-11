@@ -15,16 +15,14 @@ const TITLE_KEY = "gb.title-seen";
 export const titleSeen = (): boolean => readStore(TITLE_KEY, sessionStorage) === "1";
 export const markTitleSeen = (): void => writeStore(TITLE_KEY, "1", sessionStorage);
 
-const waitingReview = (): number => { const n = notebook(); return new Set([...Object.keys(n.missed), ...Object.keys(n.uncertain)]).size; };
-
-// スタート画面の象徴になる、回転する二重らせん。塩基対（A–T・G–C）を色分けし、段ごとに回転の位相をずらす。
+// スタート画面の回転する二重らせん。塩基対（A–T・G–C）を色分けし、段ごとに回転の位相をずらす。
 const PAIR: Record<string, string> = { A: "T", T: "A", G: "C", C: "G" };
 const SEQUENCE = "ATGCGTACCAGTTGCAGC";
 function dna3d(): string {
-  return `<div class="dna3d" aria-hidden="true">${[...SEQUENCE].map((b, i) => `<i style="--i:${i}"><b class="base-${b}">${b}</b><b class="base-${PAIR[b]}">${PAIR[b]}</b></i>`).join("")}</div>`;
+  return `<div class="dna3d">${[...SEQUENCE].map((b, i) => `<i style="--i:${i}"><b class="base-${b}">${b}</b><b class="base-${PAIR[b]}">${PAIR[b]}</b></i>`).join("")}</div>`;
 }
-// 画面下を流れる塩基配列。読ませる文字ではないので支援技術からは隠す。
-const ticker = (): string => { const run = "ATGCGTACCAGTTGCAGCTAGGCATCCGATTACG".repeat(3); return `<div class="title-ticker" aria-hidden="true"><span>${run}</span><span>${run}</span></div>`; };
+
+const waitingReview = (): number => { const n = notebook(); return new Set([...Object.keys(n.missed), ...Object.keys(n.uncertain)]).size; };
 
 // 使い方ガイドの入口。初めての人（ガイド未読）には「はじめての方へ」を付けて目立たせる。
 export function renderGuideEntry(cls: string): string {
@@ -42,16 +40,12 @@ export function renderTitle(name: string, error = ""): string {
       <button class="btn primary title-start" data-act="title-start">${icon("play")}スタート</button></div>`;
   const guide = renderGuideEntry("title-guide");
   return `<section class="title-screen">
-    <div class="title-glow" aria-hidden="true"></div>
-    <div class="title-art">${dna3d()}</div>
-    <div class="title-main">
-      <div class="title-copy"><p class="eyebrow accent-eyebrow"><span></span>ゲノム解析学 2025 · 過去問100問</p>
-        <h1 class="title-logo" aria-label="GENOME BATTLE ゲノム対戦"><span class="title-logo-word">GENOME</span><span class="title-logo-word is-battle">BATTLE</span></h1><p class="title-ja"><span>ゲノム対戦</span></p>
-        <p class="title-catch">遊んでいるうちに、<br><em>試験対策</em>が終わっている。</p></div>
-      ${line}<div class="title-action">${first ? guide + form : form + guide}</div>
-      <div class="title-foot"><span id="online-count">${renderOnlineCount()}</span>${renderThemeSwitch()}</div>
-    </div>
-    ${ticker()}
+    <div class="title-art" aria-hidden="true">${dna3d()}<span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div>
+    <div class="title-copy"><p class="eyebrow accent-eyebrow"><span></span>ゲノム解析学 2025 · 過去問100問</p>
+      <h1 class="title-logo"><span class="title-logo-icon">${icon("dna")}</span>GENOME<br><span>BATTLE</span></h1><p class="title-ja">ゲノム対戦</p>
+      <p class="title-catch">遊んでいるうちに、<br><em>試験対策</em>が終わっている。</p></div>
+    ${line}<div class="title-action">${first ? guide + form : form + guide}</div>
+    <div class="title-foot"><span id="online-count">${renderOnlineCount()}</span>${renderThemeSwitch()}</div>
   </section>`;
 }
 
@@ -60,10 +54,8 @@ export function renderHomePlayer(name: string, questions: Map<string, Question>,
   const lv = m ? levelOf(m.xp) : null;
   const r = m && questions.size ? readiness(questions, m) : null;
   const shown = name.trim() || "ゲストプレイヤー";
-  // アバターの周りのリングが、次のレベルまでの経験値を表す。
-  const progress = lv ? Math.round(100 * lv.into / lv.need) : 0;
-  return `<button class="home-player" data-act="records" aria-label="${esc(shown)}の記録を見る"><span class="home-avatar" style="--p:${progress}" aria-hidden="true"><span>${esc([...shown][0])}</span></span>
-    <span class="home-player-copy"><small>PLAYER</small><strong>${esc(shown)}</strong><span class="home-xp"><b>Lv<span>${lv ? lv.level : "—"}</span></b><span>次のレベルまで ${lv ? lv.need - lv.into : "—"} XP</span></span></span>
+  return `<button class="home-player" data-act="records" aria-label="${esc(shown)}の記録を見る"><span class="home-avatar" aria-hidden="true">${esc([...shown][0])}</span>
+    <span class="home-player-copy"><small>PLAYER</small><strong>${esc(shown)}</strong><span class="home-xp"><b>Lv ${lv ? lv.level : "—"}</b><span class="home-xp-bar"><i style="width:${lv ? 100 * lv.into / lv.need : 0}%"></i></span></span></span>
     <span class="home-ready"><small>試験準備度</small><strong>${r ? r.ready : "—"}<small> / ${r ? r.total : questions.size}</small></strong></span>${icon("arrow")}</button>`;
 }
 
@@ -71,8 +63,8 @@ export function renderHomePlayer(name: string, questions: Map<string, Question>,
 export function renderHomeMenu(): string {
   return `<section class="home-menu" aria-labelledby="home-menu-heading"><p class="eyebrow">MAIN MENU</p><h1 id="home-menu-heading">今日は、なにをする？</h1>
     <div class="hub-grid">
-      <button class="mode-card hub-card mode-study" data-mode="study" style="--i:0"><span class="hub-mark" aria-hidden="true">LEARN</span><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon("book")}</span><span class="hub-tag">ひとりで</span></div><p class="mode-en">LEARN</p><h3 data-morph="title">学ぶ</h3><p class="mode-description">問題演習・過去問・復習ノート。解説を読みながら自分のペースで。</p><div class="mode-bottom"><span>時間制限なし</span>${icon("arrow")}</div></button>
-      <button class="mode-card hub-card mode-matchmaking" data-act="hub-battle" style="--i:1"><span class="hub-mark" aria-hidden="true">BATTLE</span><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon("swords")}</span><span class="hub-tag">みんなと</span></div><p class="mode-en">BATTLE</p><h3 data-morph="title">対戦する</h3><p class="mode-description">同級生やAIと、5問先取のクイズバトル。</p><div class="mode-bottom"><span id="online-count">${renderOnlineCount()}</span>${icon("arrow")}</div></button>
+      <button class="mode-card hub-card mode-study" data-mode="study"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon("book")}</span><span class="hub-tag">ひとりで</span></div><p class="mode-en">LEARN</p><h3 data-morph="title">学ぶ</h3><p class="mode-description">問題演習・過去問・復習ノート。解説を読みながら自分のペースで。</p><div class="mode-bottom"><span>時間制限なし</span>${icon("arrow")}</div></button>
+      <button class="mode-card hub-card mode-matchmaking" data-act="hub-battle"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon("swords")}</span><span class="hub-tag">みんなと</span></div><p class="mode-en">BATTLE</p><h3 data-morph="title">対戦する</h3><p class="mode-description">同級生やAIと、5問先取のクイズバトル。</p><div class="mode-bottom"><span id="online-count">${renderOnlineCount()}</span>${icon("arrow")}</div></button>
     </div>${renderGuideEntry("home-guide")}</section>`;
 }
 
