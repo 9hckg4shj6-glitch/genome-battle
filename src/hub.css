@@ -176,8 +176,46 @@
 .home-menu > .eyebrow::after { content:"";flex:1;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 40%,transparent),transparent); }
 
 /* ---------- 学ぶ ---------- */
-.notebook-link { --mode-color:var(--accent);margin-top:14px; }
-.notebook-link .notebook-badge { margin-left:8px; }
+/* 3つの入口：製本したノート。章番号の背表紙（綴じ糸つき）・下に重なったページ・右上の折り返しで、手に取れる教材の感触を出す */
+.study-entry { --entry:#9fd8d4;--spine-ink:#0f2221;--flap:var(--bg); }
+.entry-notebook { --entry:#e5b998;--spine-ink:#2a190b; }
+.entry-catalog { --entry:#aabfec;--spine-ink:#111a2d; }
+:root[data-theme="light"] .study-entry { --entry:#287a79;--spine-ink:#fff; }
+:root[data-theme="light"] .entry-notebook { --entry:#9a5f2e; }
+:root[data-theme="light"] .entry-catalog { --entry:#45649e; }
+.panel.catalog-entry.study-entry { --mode-color:var(--entry);display:flex;align-items:stretch;gap:0;margin:0 0 24px;padding:0;overflow:visible;
+  border:1px solid color-mix(in srgb,var(--entry) 30%,var(--line));border-radius:5px 0 14px 5px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--entry) 8%,var(--surface)),var(--surface) 45%);
+  box-shadow:0 3px 0 -1px var(--surface),0 3px 0 0 color-mix(in srgb,var(--entry) 24%,var(--line)),0 6px 0 -2px var(--surface),0 6px 0 -1px color-mix(in srgb,var(--entry) 14%,var(--line)),0 16px 24px -18px #0007; }
+/* 右上の折り返し */
+.study-entry::after { content:"";position:absolute;top:-1px;right:-1px;z-index:2;width:22px;height:22px;border-bottom-left-radius:5px;pointer-events:none;
+  background:linear-gradient(225deg,var(--flap) 50%,color-mix(in srgb,var(--entry) 22%,var(--surface)) 50%);box-shadow:-2px 2px 3px -1px #0000002e;transition:width .4s var(--ease-spring),height .4s var(--ease-spring); }
+/* 背表紙：丸みの陰影・章番号・縦書きの英字・綴じ糸 */
+.entry-spine { position:relative;flex:none;display:flex;flex-direction:column;align-items:center;gap:8px;width:34px;margin:-1px 0 -1px -1px;padding:13px 0 10px;overflow:hidden;border-radius:5px 0 0 5px;color:var(--spine-ink);
+  background:linear-gradient(90deg,color-mix(in srgb,var(--entry) 78%,#000),var(--entry) 28%,color-mix(in srgb,var(--entry) 84%,#fff) 58%,color-mix(in srgb,var(--entry) 82%,#000)); }
+.entry-spine::after { content:"";position:absolute;top:7px;bottom:7px;right:5px;border-right:1px dashed color-mix(in srgb,var(--spine-ink) 45%,transparent); }
+.entry-spine b { font-family:ui-monospace,SFMono-Regular,monospace;font-size:13px;font-weight:800;line-height:1;padding-right:3px; }
+.entry-spine span { flex:1;min-height:0;overflow:hidden;padding-right:3px;writing-mode:vertical-rl;font-family:ui-monospace,SFMono-Regular,monospace;font-size:9px;font-weight:600;letter-spacing:.22em;white-space:nowrap;opacity:.85; }
+.panel.catalog-entry.study-entry > .entry-body { flex:1;min-width:0;display:grid;gap:8px;padding:16px 20px 13px 16px; }
+.entry-head { display:flex;align-items:center;gap:12px;min-width:0; }
+.study-entry .entry-head .mode-icon { --mode-color:var(--entry);flex:none;width:42px;height:42px;border-radius:11px; }
+.entry-title { display:grid;gap:1px;min-width:0; }
+.study-entry .entry-title .eyebrow { margin:0;font-size:9px;letter-spacing:.2em;color:var(--entry); }
+.study-entry .entry-title strong { font-size:17px;line-height:1.35; }
+.study-entry .entry-body > small { font-size:12px;line-height:1.75;color:var(--muted); }
+.entry-foot { display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;border-top:1px dashed color-mix(in srgb,var(--entry) 28%,var(--line)); }
+.entry-meta { display:flex;flex-wrap:wrap;gap:6px;min-width:0; }
+.study-entry .entry-chip { display:inline-flex;align-items:center;gap:4px;margin:0;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;line-height:1.5;color:var(--entry);background:color-mix(in srgb,var(--entry) 10%,transparent);border:1px solid color-mix(in srgb,var(--entry) 28%,transparent); }
+.study-entry .entry-chip .icon { width:12px;height:12px; }
+.study-entry .entry-chip.is-due { background:var(--entry);border-color:var(--entry);color:var(--spine-ink); }
+.entry-go { display:inline-flex;align-items:center;gap:6px;flex:none;font-size:12px;font-weight:700;color:var(--entry); }
+.entry-go .icon { width:26px;height:26px;padding:5px;border-radius:50%;border:1px solid color-mix(in srgb,var(--entry) 40%,transparent);transition:transform .45s var(--ease-spring),background-color .2s,color .2s; }
+.study-entry:active .entry-go .icon,.study-entry.is-launching .entry-go .icon { background:var(--entry);color:var(--spine-ink);transform:translateX(3px); }
+.study-entry:active::after { width:28px;height:28px; }
+@media (hover:hover) and (pointer:fine) {
+  .study-entry:hover::after { width:30px;height:30px; }
+  .study-entry:hover .entry-go .icon { background:var(--entry);color:var(--spine-ink);transform:translateX(3px); }
+}
 
 /* ---------- 対戦する ---------- */
 .battle-online { margin:-12px 0 16px;font-size:12px; }
@@ -281,6 +319,10 @@
   .continue-card > div { flex-basis:calc(100% - 60px); }
   .continue-card .btn { width:100%; }
   .mode-card.battle-card { padding:16px 14px;gap:12px; }
+  .panel.catalog-entry.study-entry > .entry-body { padding:14px 16px 12px 13px; }
+  .entry-spine { width:30px; }
+  .study-entry .entry-head .mode-icon { width:38px;height:38px; }
+  .study-entry .entry-title strong { font-size:16px; }
   .btn.menu-open,.menu-header .friends-open { font-size:11px;padding:8px 9px;gap:4px; }
   .menu-header .header-actions { gap:6px; }
   .tab-bar { width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom));padding:4px;border-radius:18px; }

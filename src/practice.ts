@@ -2,6 +2,7 @@ import { renderDistribution, type StudyDistribution } from './study-distribution
 import { fieldMastery, renderStars, type Mastery } from './mastery';
 import { esc, icon, readStore, writeStore, type Question } from './ui';
 import { renderCourseGuideButton } from './course-guide';
+import { renderStudyEntry } from './hub';
 
 // 問題演習コーナ（一人で学習の演習設定ページ）。分野は複数選べ、選択はこの端末に保存する。
 // null は「すべての分野」。後から分野が増えても、すべて選んだ状態を保つ。
@@ -39,7 +40,8 @@ export interface PracticeView {
 export function renderPracticeEntry(questions: Map<string, Question>): string {
   const all = fieldsOf(questions).length, chosen = chosenFields(questions).length;
   const current = chosen === all ? 'すべての分野' : chosen ? `${chosen}分野を選択中` : '分野が未選択';
-  return `<button class="panel catalog-entry practice-entry mode-study" data-act="practice"><span class="mode-icon" data-morph="icon">${icon('book')}</span><span><span class="eyebrow">PRACTICE</span><strong data-morph="title">問題演習コーナ</strong><small>分野を組み合わせて、問題数・出題配分を選んで演習します。</small><span class="practice-entry-current">${icon('check')}${current}</span></span>${icon('arrow')}</button>`;
+  return renderStudyEntry({ no: '01', en: 'PRACTICE', title: '問題演習コーナ', text: '分野を組み合わせて、問題数・出題配分を選んで演習します。', icon: 'book', attr: 'data-act="practice"', cls: 'practice-entry entry-practice', morph: true,
+    meta: `<span class="entry-chip practice-entry-current">${icon('check')}${current}</span>` });
 }
 
 export function renderPractice(v: PracticeView): string {

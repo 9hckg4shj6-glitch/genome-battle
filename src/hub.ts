@@ -66,6 +66,15 @@ export function renderHomeMenu(): string {
     <div class="hub-grid">${cards}</div>${renderGuideEntry("home-guide")}</section>`;
 }
 
+// 「学ぶ」の3つの入口。製本したノートのように、章番号の入った背表紙・重なったページ・折り返した角で作る。
+export interface StudyEntry { no: string; en: string; title: string; text: string; icon: string; attr: string; cls: string; meta: string; morph?: boolean }
+export function renderStudyEntry(e: StudyEntry): string {
+  const morph = (k: string): string => e.morph ? ` data-morph="${k}"` : "";
+  return `<button class="panel catalog-entry study-entry ${e.cls}" ${e.attr}><span class="entry-spine" aria-hidden="true"><b>${e.no}</b><span>${e.en}</span></span>
+    <span class="entry-body"><span class="entry-head"><span class="mode-icon"${morph("icon")}>${icon(e.icon)}</span><span class="entry-title"><span class="eyebrow">CHAPTER ${e.no}</span><strong${morph("title")}>${e.title}</strong></span></span>
+    <small>${e.text}</small><span class="entry-foot"><span class="entry-meta">${e.meta}</span><span class="entry-go">開く${icon("arrow")}</span></span></span></button>`;
+}
+
 // 「次の一歩」は1つだけ出す。LINE内での利用 → 復習待ち → ホーム画面への追加 の順。使い方ガイドはホームに常に置く。
 export function renderSuggestion(): string {
   const tip = (cls: string, ic: string, title: string, text: string, act: string, label: string): string =>

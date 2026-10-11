@@ -33,7 +33,7 @@ import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-gui
 import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
-import { markTitleSeen, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab } from "./hub";
+import { markTitleSeen, renderStudyEntry, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab } from "./hub";
 import { applyQuestionStats, renderRateInline } from "./stats";
 import { mountModel } from "./model";
 import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
@@ -687,7 +687,7 @@ function renderSetup(): string {
   const ai = selectedMode === "ai";
   const title = `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
   // 一人で学習は入口だけを並べ、演習の設定は問題演習コーナのページで行う。
-  if (selectedMode === "study") return `${title}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div>${renderPracticeEntry(questions)}${renderNotebookEntry()}<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問をキーワード・分野・学習状態（未着手・誤答・習得など）で検索。正解と解説を確認し、選んだ問題をそのまま演習できます。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
+  if (selectedMode === "study") return `${title}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div>${renderPracticeEntry(questions)}${renderNotebookEntry()}${renderStudyEntry({no:"03",en:"QUESTION LIST",title:"過去問・問題と解説",text:"キーワード・分野・学習状態（未着手・誤答・習得など）で検索。正解と解説を確認し、選んだ問題をそのまま演習できます。",icon:"zoom",attr:'data-act="catalog"',cls:"entry-catalog",meta:`<span class="entry-chip">全${questions.size}問</span><span class="entry-chip">正解・解説つき</span>`})}${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
   return `${title}<section class="panel setup-panel"><label class="field"><span>プレイヤー名</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
@@ -955,7 +955,8 @@ function renderReview(): string {
 function renderNotebookEntry(): string {
   const n = notebook();
   const waiting = new Set([...Object.keys(n.missed),...Object.keys(n.uncertain)]).size;
-  return `<button class="panel catalog-entry notebook-link" data-act="notebook"><span class="mode-icon">${icon("bookmark")}</span><span><span class="eyebrow">REVIEW NOTEBOOK${waiting ? `<span class="notebook-badge">復習待ち ${waiting}問</span>` : ""}</span><strong>復習ノート</strong><small>間違えた問題・回答を見た問題・迷った問題・保存した問題を解き直します。</small></span>${icon("arrow")}</button>`;
+  return renderStudyEntry({no:"02",en:"NOTEBOOK",title:"復習ノート",text:"間違えた問題・回答を見た問題・迷った問題・保存した問題を解き直します。",icon:"bookmark",attr:'data-act="notebook"',cls:"notebook-link entry-notebook",
+    meta:waiting?`<span class="entry-chip is-due">復習待ち ${waiting}問</span>`:`<span class="entry-chip">復習待ちなし</span>`});
 }
 
 function renderNotebook(): string {
