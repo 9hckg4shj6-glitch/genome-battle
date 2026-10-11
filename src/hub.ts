@@ -15,27 +15,30 @@ const TITLE_KEY = "gb.title-seen";
 export const titleSeen = (): boolean => readStore(TITLE_KEY, sessionStorage) === "1";
 export const markTitleSeen = (): void => writeStore(TITLE_KEY, "1", sessionStorage);
 
-// スタート画面のマスコット：T4ファージ（ハーシー＝チェイスの実験で遺伝物質がDNAだと示した、月着陸船のようなウイルス）。
-// 正二十面体の頭に顔を付け、ふわふわ浮きながら脚（尾繊維）でステップを踏み、ときどきまばたきする。押すと跳ねる。
-function phage(): string {
-  const leg = (d: string, x: number, y: number): string => `<path d="${d}"/><circle cx="${x}" cy="${y}" r="2.6" class="phage-foot"/>`;
-  return `<svg class="phage" viewBox="0 0 120 176" aria-hidden="true">
-    <defs><linearGradient id="phage-head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="phage-head-a"/><stop offset="1" class="phage-head-b"/></linearGradient></defs>
-    <ellipse class="phage-shadow" cx="60" cy="170" rx="28" ry="4"/>
-    <g class="phage-bob">
-      <g class="phage-legs phage-legs-l">${leg("M47 133 L32 146 L24 163", 24, 163)}${leg("M51 135 L42 150 L39 166", 39, 166)}</g>
-      <g class="phage-legs phage-legs-r">${leg("M73 133 L88 146 L96 163", 96, 163)}${leg("M69 135 L78 150 L81 166", 81, 166)}</g>
-      <g class="phage-tail"><rect x="52" y="90" width="16" height="40" rx="4" class="phage-sheath"/><path d="M52 98h16M52 105h16M52 112h16M52 119h16" class="phage-stripes"/><rect x="43" y="128" width="34" height="7" rx="3.5" class="phage-plate"/></g>
-      <rect x="49" y="85" width="22" height="7" rx="2.5" class="phage-sheath"/>
-      <g class="phage-head">
-        <path d="M60 6 L97 27 L97 69 L60 90 L23 69 L23 27 Z" fill="url(#phage-head)" class="phage-shell"/>
-        <path d="M60 6 L60 48 M23 27 L60 48 L97 27 M60 48 L60 90" class="phage-facet"/>
-        <ellipse cx="40" cy="30" rx="7" ry="4" class="phage-shine" transform="rotate(-30 40 30)"/>
-        <ellipse cx="38" cy="61" rx="6" ry="3.4" class="phage-cheek"/><ellipse cx="82" cy="61" rx="6" ry="3.4" class="phage-cheek"/>
-        <g class="phage-eyes"><ellipse cx="47" cy="51" rx="5" ry="6.5"/><ellipse cx="73" cy="51" rx="5" ry="6.5"/><circle cx="48.8" cy="48.6" r="1.8" class="phage-glint"/><circle cx="74.8" cy="48.6" r="1.8" class="phage-glint"/></g>
-        <path d="M55 61 Q60 66.5 65 61" class="phage-mouth"/>
+// スタート画面のマスコット：キネシン（微小管の上を2本の脚で交互に歩き、小胞を運ぶモータータンパク質）。
+// 背中の小胞に顔を付け、レール（α・βチューブリンが交互に並ぶ微小管）を流して前へ歩いているように見せる。
+// 着地している脚はレールと同じ速さで後ろへ動くので、足が滑って見えない。押すと跳ねる。
+function kinesin(): string {
+  const tubulin = Array.from({ length: 18 }, (_, i) => `<circle cx="${i * 8 - 4}" cy="117" r="4" class="${i % 2 ? "kin-beta" : "kin-alpha"}"/>`).join("");
+  const leg = (k: string): string => `<g class="kin-leg kin-leg-${k}"><g class="kin-lift kin-lift-${k}"><path d="M60 84 L60 102" class="kin-neck"/><ellipse cx="60" cy="107" rx="8.5" ry="5.5" class="kin-motor kin-motor-${k}"/></g></g>`;
+  return `<svg class="kinesin" viewBox="0 0 120 128" aria-hidden="true">
+    <defs><radialGradient id="kin-cargo" cx=".35" cy=".3" r=".8"><stop offset="0" class="kin-cargo-a"/><stop offset="1" class="kin-cargo-b"/></radialGradient><clipPath id="kin-rail"><rect x="2" y="110" width="116" height="14" rx="7"/></clipPath></defs>
+    <g clip-path="url(#kin-rail)"><g class="kin-track">${tubulin}</g></g>
+    ${leg("b")}
+    <g class="kin-body">
+      <path d="M60 85 q4 -3 0 -6 q-4 -3 0 -6 q4 -3 0 -6 q-4 -3 0 -5" class="kin-stalk"/>
+      <g class="kin-cargo">
+        <circle cx="60" cy="36" r="26" fill="url(#kin-cargo)" class="kin-vesicle"/>
+        <circle cx="48" cy="22" r="2.4" class="kin-inside"/><circle cx="74" cy="20" r="1.8" class="kin-inside"/><circle cx="78" cy="48" r="2.2" class="kin-inside"/>
+        <ellipse cx="47" cy="25" rx="6" ry="3.5" class="kin-shine" transform="rotate(-35 47 25)"/>
+        <ellipse cx="45" cy="44" rx="5" ry="3" class="kin-cheek"/><ellipse cx="75" cy="44" rx="5" ry="3" class="kin-cheek"/>
+        <g class="kin-eyes"><ellipse cx="52" cy="36" rx="3.8" ry="5"/><ellipse cx="68" cy="36" rx="3.8" ry="5"/><circle cx="53.4" cy="34" r="1.4" class="kin-glint"/><circle cx="69.4" cy="34" r="1.4" class="kin-glint"/></g>
+        <path d="M56 44 Q60 48.5 64 44" class="kin-mouth"/>
       </g>
+      <circle cx="60" cy="84" r="3" class="kin-hip"/>
     </g>
+    ${leg("a")}
+    <text x="90" y="18" class="kin-note">♪</text>
   </svg>`;
 }
 
@@ -57,7 +60,7 @@ export function renderTitle(name: string, error = ""): string {
       <button class="btn primary title-start" data-act="title-start">${icon("play")}スタート</button></div>`;
   const guide = renderGuideEntry("title-guide");
   return `<section class="title-screen">
-    <div class="title-copy"><div class="title-mascot" title="T4ファージ">${phage()}</div><p class="eyebrow accent-eyebrow"><span></span>ゲノム解析学 2025 · 過去問100問</p>
+    <div class="title-copy"><div class="title-mascot" title="キネシン">${kinesin()}</div><p class="eyebrow accent-eyebrow"><span></span>ゲノム解析学 2025 · 過去問100問</p>
       <h1 class="title-logo"><span class="title-logo-icon">${icon("dna")}</span>GENOME<br><span>BATTLE</span></h1><p class="title-ja">ゲノム対戦</p>
       <p class="title-catch">遊んでいるうちに、<br><em>試験対策</em>が終わっている。</p></div>
     ${line}<div class="title-action">${first ? guide + form : form + guide}</div>
