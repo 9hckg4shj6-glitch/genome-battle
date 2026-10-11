@@ -234,6 +234,33 @@
 :root[data-theme="light"] .tab-study { --mode-color:#287a79; }
 :root[data-theme="light"] .tab-battle { --mode-color:#526e27; }
 
+/* ---------- ヘッダーとタブの仕上げ：大ボタンほど飾らず、枠・小さな厚み・押した手応えを揃える ---------- */
+:root { --edge-soft:#0b0d0b; }
+:root[data-theme="light"] { --edge-soft:#d6dfcb; }
+.menu-header .brand .brand-icon { border-radius:12px;border-color:color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 14%,var(--surface)),color-mix(in srgb,var(--accent) 4%,var(--surface)));box-shadow:0 2px 0 var(--edge-soft),inset 0 1px 0 #ffffff1a;transition:transform .45s var(--ease-spring,ease-out),box-shadow .2s; }
+.menu-header .brand:active .brand-icon { transform:translateY(2px);box-shadow:0 0 0 var(--edge-soft),inset 0 1px 0 #ffffff1a;transition-duration:.08s; }
+.menu-header .header-actions .btn.ghost { min-height:40px;padding:7px 14px 7px 11px;gap:7px;border:1px solid color-mix(in srgb,var(--accent) 18%,var(--line));border-radius:99px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 5%,var(--surface)),var(--surface));color:var(--text);font-size:12px;font-weight:700;box-shadow:0 2px 0 var(--edge-soft),inset 0 1px 0 #ffffff12; }
+.menu-header .header-actions .btn.ghost .icon { width:18px;height:18px;color:var(--accent); }
+.menu-header .header-actions .btn.ghost[aria-current="page"] { border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 11%,var(--surface));color:var(--text); }
+.menu-header .header-actions .btn.ghost:active:not(:disabled) { transform:translateY(2px);box-shadow:0 0 0 var(--edge-soft),inset 0 1px 0 #ffffff12; }
+@media (hover:hover) and (pointer:fine) { .menu-header .header-actions .btn.ghost:hover:not(:disabled) { border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--text); } }
+.menu-header #friends-badge { min-width:18px;padding:0 5px;line-height:18px;text-align:center;font-weight:800;font-size:10px;box-shadow:0 0 0 2px var(--surface); }
+/* タブ：内枠と、選んでいる項目の立体的な札・下の目印 */
+.tab-bar::before { content:"";position:absolute;inset:3px;border-radius:19px;border:1px solid color-mix(in srgb,var(--accent) 9%,transparent);pointer-events:none; }
+.tab-bar { box-shadow:0 18px 40px -18px #000a,0 2px 6px #0003,inset 0 1px 0 #ffffff12; }
+.tab-item { position:relative; }
+.tab-item[aria-current="page"] .tab-icon { background:linear-gradient(180deg,color-mix(in srgb,var(--mode-color) 26%,transparent),color-mix(in srgb,var(--mode-color) 11%,transparent));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mode-color) 32%,transparent),inset 0 1px 0 #ffffff1f,0 3px 8px -4px color-mix(in srgb,var(--mode-color) 55%,transparent); }
+.tab-item[aria-current="page"] .tab-icon .icon { stroke-width:2; }
+.tab-item[aria-current="page"] .tab-label { font-weight:800; }
+.tab-item[aria-current="page"]::after { content:"";position:absolute;bottom:1px;left:50%;width:14px;height:3px;margin-left:-7px;border-radius:2px;background:var(--mode-color); }
+.tab-badge { box-shadow:0 0 0 2px var(--surface); }
+:root[data-theme="light"] .tab-bar { box-shadow:0 18px 40px -20px #27452b59,0 2px 6px #27452b14,inset 0 1px 0 #fff; }
+
+@media (max-width:440px) {
+  .menu-header .header-actions .btn.ghost { min-height:36px;padding:5px 8px 5px 7px;gap:4px;font-size:11px; }
+  .menu-header .header-actions .btn.ghost .icon { width:16px;height:16px; }
+  .menu-header .brand .brand-icon { border-radius:10px; }
+}
 @media (max-width:360px) { .menu-header .header-label { display:none; } }
 @media (max-width:440px) {
   .title-screen { padding-top:36px;gap:22px; }
