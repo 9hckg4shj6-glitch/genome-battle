@@ -37,6 +37,7 @@ import { markTitleSeen, renderBattleHub, renderHomeMenu, renderHomePlayer, rende
 import { applyQuestionStats, renderRateInline } from "./stats";
 import { mountModel } from "./model";
 import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
+import { clearUpdateMark, reloadIfUpdated } from "./update";
 import { copyAppLink, dismissInstall, openInBrowser, promptInstall, renderInstall, setInstallDevice, watchInstall } from "./install";
 
 const BASE = import.meta.env.BASE_URL;
@@ -549,6 +550,8 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     void probeConnection();void friends.refresh(true);
+    // 試合・学習の途中では読み込み直さない
+    if((view==='home'||view==='title')&&!solo.active&&!match)void reloadIfUpdated();
     if((view==='home'||view==='records')&&!solo.active){void refreshSavedStudies();void refreshPerformance();void refreshMastery();}
     if (match && view === "match") void tick();
     if (solo.active) void solo.tick();
@@ -1174,6 +1177,8 @@ app.addEventListener("keydown", (e) => {
 });
 
 async function boot(): Promise<void> {
+  clearUpdateMark();
+  void reloadIfUpdated();
   installPointerLight(app);
   // 発表の音は通信の到着時に鳴るので、画面に触れたときに音を出せる状態にしておく。
   app.addEventListener("pointerdown", unlockAudio, { passive: true });
