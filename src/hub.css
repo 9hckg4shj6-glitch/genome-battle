@@ -2,7 +2,7 @@
 
 /* ---------- スタート画面 ---------- */
 #app.title-mode { padding-bottom:env(safe-area-inset-bottom); }
-.title-screen { position:relative;display:flex;flex-direction:column;justify-content:center;gap:26px;min-height:100dvh;max-width:520px;margin:0 auto;padding:48px 0 28px;overflow:hidden; }
+.title-screen { position:relative;display:flex;flex-direction:column;justify-content:center;gap:22px;min-height:100dvh;max-width:520px;margin:0 auto;padding:48px 0 28px;overflow:hidden; }
 .title-art { position:absolute;top:2%;right:-70px;width:300px;height:420px;display:grid;place-items:center;color:#b9ca6d;opacity:.5;pointer-events:none; }
 .title-art .helix { width:190px;height:330px;animation:title-float 7s ease-in-out infinite; }
 .title-copy { position:relative;z-index:1; }
@@ -13,36 +13,55 @@
 .title-ja { margin:14px 0 0;font-size:13px;letter-spacing:.5em;color:var(--muted); }
 .title-catch { margin:20px 0 0;font-size:clamp(17px,4.6vw,21px);font-weight:700;line-height:1.6; }
 .title-catch em { font-style:normal;color:var(--accent); }
-.title-action { position:relative;z-index:1;display:grid;gap:10px;justify-items:center; }
-.btn.title-start { width:100%;min-height:64px;font-size:19px;letter-spacing:.2em;border-radius:20px;animation:title-pulse 2.6s ease-in-out infinite; }
+.title-action { position:relative;z-index:1;display:grid;gap:16px; }
+.btn.title-start { width:100%;min-height:60px;font-size:19px;letter-spacing:.2em;border-radius:18px; }
 .btn.title-start .icon { width:20px;height:20px; }
-.title-hint { margin:0;font-size:13px;color:var(--muted); }
-.title-card { width:100%;display:grid;gap:12px;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--surface);box-shadow:var(--shadow); }
-.title-card h2 { margin:0;font-size:19px; }
-.title-card > p:not(.eyebrow):not(.error) { margin:0;font-size:13px;color:var(--muted); }
-.title-card .eyebrow { margin:0;color:var(--accent); }
-.title-card input { width:100%;min-height:50px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text);font-size:16px; }
-.title-card .error { margin:0; }
-.title-steps { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 0;padding:14px 0 0;border-top:1px solid var(--line);list-style:none; }
-.title-steps li { display:grid;justify-items:center;gap:2px;font-size:13px;font-weight:700;text-align:center; }
-.title-steps b { display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font-size:12px; }
-.title-steps small { font-size:10px;font-weight:400;color:var(--muted); }
+.title-form { width:100%;display:grid;gap:10px; }
+.title-label { display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:15px;font-weight:700; }
+.title-label small { font-size:11px;font-weight:400;color:var(--muted); }
+.title-form input { width:100%;min-height:54px;padding:12px 16px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--text);font-size:17px; }
+.title-form input:focus-visible { outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent); }
+.title-form input[aria-invalid="true"] { border-color:var(--ng); }
+.title-form .error { margin:0; }
+/* 使い方ガイドの入口（スタート画面・ホーム）。初めての人には帯とバッジで目立たせる */
+.guide-entry { --mode-color:var(--accent);position:relative;display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:1.5px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:18px;background:var(--surface);color:var(--text);text-align:left;box-shadow:var(--shadow);transition:transform .45s var(--ease-spring,ease-out),border-color .2s; }
+.guide-entry .mode-icon { flex:none; }
+.guide-entry-copy { flex:1;min-width:0;display:grid;gap:2px; }
+.guide-entry-copy strong { font-size:15px; }
+.guide-entry-copy small { font-size:12px;color:var(--muted);line-height:1.6; }
+.guide-entry > .icon:last-child { flex:none;width:20px;height:20px;color:var(--accent);transition:transform .45s var(--ease-spring,ease-out); }
+.guide-entry:active { transform:scale(.98); }
+.guide-entry:active > .icon:last-child { transform:translateX(4px); }
+.guide-entry.is-first { margin-top:12px;padding:18px 16px 16px;border-width:2px;border-color:var(--accent);background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 16%,var(--surface)),var(--surface) 75%);animation:guide-glow 2.6s ease-in-out infinite; }
+.guide-entry.is-first strong { font-size:17px; }
+.guide-entry-badge { position:absolute;top:-12px;left:14px;padding:3px 12px;border-radius:99px;background:var(--accent);color:var(--accent-text);font-size:11px;font-weight:800;letter-spacing:.05em; }
+.home-guide { margin-top:12px; }
+@keyframes guide-glow { 50% { box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 14%,transparent),var(--shadow); } }
+@media (hover:hover) and (pointer:fine) { .guide-entry:hover { border-color:var(--accent); } .guide-entry:hover > .icon:last-child { transform:translateX(4px); } }
 .title-line { position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin:0;padding:12px 14px;border:1px solid color-mix(in srgb,var(--warn) 55%,var(--line));border-radius:14px;background:color-mix(in srgb,var(--warn) 9%,var(--surface));font-size:12px;line-height:1.7; }
 .title-line > .icon { color:var(--warn); }
 .title-line .btn { flex:none;white-space:nowrap; }
 .title-foot { position:relative;z-index:1;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;font-size:12px;color:var(--muted); }
 .title-foot .btn { min-height:40px;font-size:12px; }
 @keyframes title-float { 50% { transform:rotate(22deg) translateY(-10px); } }
-@keyframes title-pulse { 50% { box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 12%,transparent); } }
 :root[data-theme="light"] .title-art { color:#6b863d;opacity:.4; }
 
 /* ---------- ヘッダー（ホーム・ハブ） ---------- */
 .records-title,.menu-title { --mode-color:var(--accent); }
-/* 見出しの上の「← 戻り先」。いまどの階層にいるかを示す */
-.crumb { display:inline-flex;align-items:center;gap:6px;margin:0 0 14px -6px;padding:6px 10px 6px 6px;border:0;border-radius:99px;background:none;color:var(--muted);font-size:13px;font-weight:600; }
-.crumb .icon { width:17px;height:17px;transition:transform .45s var(--ease-spring,ease-out); }
-.crumb:active .icon { transform:translateX(-3px); }
-@media (hover:hover) and (pointer:fine) { .crumb:hover { color:var(--text);background:var(--surface-2); } }
+/* 戻るボタン。見出しの上に置き、スクロールしても画面上部に残す。ページの一番下にも同じボタンを置く。
+   どの画面でも同じ形・同じ位置（左上）にして、「ここを押せば戻る」と覚えられるようにする。 */
+.crumb,.back-bottom,.btn.back-btn { --back-color:var(--accent);display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:6px 18px 6px 6px;border:1.5px solid color-mix(in srgb,var(--back-color) 60%,var(--line));border-radius:99px;background:color-mix(in srgb,var(--surface) 94%,transparent);color:var(--text);font-size:15px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 8px 20px -14px #000a; }
+.crumb { position:sticky;top:calc(10px + env(safe-area-inset-top));z-index:15;margin:0 0 18px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px); }
+.back-arrow { display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:var(--back-color);color:var(--accent-text);transition:transform .45s var(--ease-spring,ease-out); }
+.back-arrow .icon { width:19px;height:19px; }
+.crumb:active .back-arrow,.back-bottom:active .back-arrow,.btn.back-btn:active .back-arrow { transform:translateX(-4px); }
+.btn.back-bottom { display:flex;width:100%;justify-content:center;margin:28px 0 0;padding-right:44px; }
+.btn.back-btn { min-height:44px;padding:4px 14px 4px 4px;font-size:13px;gap:8px; }
+.btn.back-btn .back-arrow { width:34px;height:34px; }
+@media (hover:hover) and (pointer:fine) {
+  .crumb:hover,.back-bottom:hover,.btn.back-btn:hover { border-color:var(--back-color);background:color-mix(in srgb,var(--back-color) 9%,var(--surface)); }
+  .crumb:hover .back-arrow,.back-bottom:hover .back-arrow,.btn.back-btn:hover .back-arrow { transform:translateX(-3px); }
+}
 .menu-header .header-actions { margin-left:auto; }
 .btn.menu-open { font-size:12px;padding:9px 12px;min-height:40px;white-space:nowrap; }
 .btn.menu-open[aria-current="page"] { border-color:var(--accent);color:var(--accent); }
@@ -175,4 +194,4 @@
   .menu-header .header-actions { gap:6px; }
   .tab-bar { width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom));padding:4px;border-radius:18px; }
 }
-@media (prefers-reduced-motion: reduce) { .title-art .helix,.btn.title-start { animation:none; } }
+@media (prefers-reduced-motion: reduce) { .title-art .helix,.guide-entry.is-first { animation:none; } }

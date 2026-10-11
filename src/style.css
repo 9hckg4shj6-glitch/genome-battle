@@ -431,8 +431,6 @@ input::placeholder { color:#87917d; }
   .theme-switch { gap:2px;padding:3px; }
   .theme-switch button { gap:4px;padding:0 9px;font-size:12px; }
   .theme-switch .icon { width:17px;height:17px; }
-  .arena .back-btn { font-size:0;gap:0;padding:7px;min-width:32px; }
-  .arena .back-btn .icon { width:18px;height:18px; }
 }
 @media (max-width:400px) {
   /* 使い方・フレンド・明暗の3つを1行に収める。収まらない幅では明暗を次の行の右端へ送る */

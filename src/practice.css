@@ -43,7 +43,6 @@
 .practice-step .study-start-actions { margin-top:0; }
 .practice-step .study-order-help { margin:0; }
 .practice-step .count-row input:disabled { opacity:.5; }
-.practice-back { display:flex;width:fit-content;margin:0 auto 20px; }
 
 /* ページに入ったら、分野カードが順に立ち上がる */
 .scene-enter .practice-field { animation:card-rise .5s var(--ease-out) backwards;animation-delay:calc(120ms + var(--i,0) * 28ms); }

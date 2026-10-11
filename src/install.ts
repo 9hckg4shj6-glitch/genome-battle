@@ -237,5 +237,5 @@ export function renderInstall(): string {
     <div><dt>${icon("help")}「ホーム画面に追加」が見つからない</dt><dd>${device === "android" ? "Chrome以外のブラウザでは、メニューの名前が違うことがあります。Chromeで開き直してから試してください。" : "共有メニューの一番下の「アクションを編集」から「ホーム画面に追加」を表示できます。Chromeなど他のブラウザでも、共有ボタンから追加できます。"}</dd></div>
     <div><dt>${icon("globe")}ボタンを押してもブラウザが開かない</dt><dd>アドレスをコピーして、${g.browser}のアドレス欄に貼り付けて開いてください。<span class="install-copy"><button class="btn" data-act="install-copy">アドレスをコピー</button><span id="install-copy-status" role="status">${esc(appLink())}</span></span></dd></div>
   </dl></section>
-  <div class="panel guide-end"><p>追加できたら、さっそく始めましょう。</p><div><button class="btn primary" data-act="leave">ホームへ戻る</button><button class="btn ghost" data-act="guide">使い方ガイドを見る</button></div></div>`;
+  <div class="panel guide-end"><p>追加できたら、さっそく始めましょう。</p><div><button class="btn" data-act="guide">使い方ガイドを見る${icon("arrow")}</button></div></div>`;
 }

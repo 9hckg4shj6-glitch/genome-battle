@@ -72,6 +72,5 @@ export function renderPractice(v: PracticeView): string {
       <label class="field"><span>プレイヤー名（任意）</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(v.playerName)}" ${v.busy ? 'disabled' : ''}/></label>
       <div class="study-start-actions"><button class="btn primary" data-study-order="unattempted" ${disabled}>${v.busy ? '<span class="spinner mini"></span>準備中…' : `未着手の問題を優先的に演習${icon('arrow')}`}</button><button class="btn" data-study-order="random" ${disabled}>ランダム演習${icon('arrow')}</button></div>
       <p class="study-order-help">${orderHelp}${chosen.size > 1 && v.distribution === 'even' ? '選んだ配分を保ち、各分野内で未着手の問題を優先します。' : 'まだ解答も回答の確認もしていない問題を優先します。'}不足分は演習済みから補います。後回しは未着手のままです。</p>
-      ${v.error ? `<p class="error" role="alert">${esc(v.error)}</p>` : ''}</section>
-    <button class="btn ghost practice-back" data-act="practice-back">${icon('back')}「学ぶ」に戻る</button>`;
+      ${v.error ? `<p class="error" role="alert">${esc(v.error)}</p>` : ''}</section>`;
 }

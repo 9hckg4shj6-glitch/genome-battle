@@ -7,7 +7,7 @@
 .catalog-entry small { font-size:12px;line-height:1.7;color:var(--muted); }
 .catalog-entry > .icon { flex:none;width:20px;height:20px;color:var(--muted); }
 .catalog-entry .mode-icon { flex:none; }
-.catalog-tools { grid-template-columns:auto 1fr;align-items:end;padding:20px 22px; }
+.catalog-tools { grid-template-columns:1fr;align-items:end;padding:20px 22px; }
 .catalog-tools .field { margin:0; }
 /* キーワード検索と学習状態の絞り込み。 */
 .catalog-search { grid-column:1 / -1;display:grid;gap:6px; }

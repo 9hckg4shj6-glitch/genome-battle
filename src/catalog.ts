@@ -71,7 +71,7 @@ export function renderCatalog(questions: Map<string, Question>, m: Mastery | nul
   const list = [...questions.values()];
   const fields = [...new Set(list.map(q => q.field))];
   return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・分野・学習状態で絞り込んで閲覧できます。問題を押すと、正解と解説を表示します。</p></header>
-    <div class="panel catalog-tools"><button class="btn ghost" data-act="catalog-back">${icon('back')}「学ぶ」に戻る</button>
+    <div class="panel catalog-tools">
       <label class="field catalog-search"><span>キーワードで探す</span><span class="catalog-search-box">${icon('zoom')}<input id="catalog-search" type="search" value="${esc(catalogQuery)}" placeholder="例：PCR、塩基配列、12" enterkeyhint="search" autocomplete="off" aria-describedby="catalog-search-hint"/></span><small id="catalog-search-hint">問題文・選択肢・分野名から探します。スペースで区切ると、すべての語を含む問題に絞ります。数字は問題番号でも探せます。</small></label>
       <label class="field"><span>分野で絞り込む</span><select id="catalog-field" aria-label="分野で絞り込む"><option value="">すべての分野（${list.length}問）</option>${fields.map(f => `<option value="${esc(f)}" ${f === catalogField ? 'selected' : ''}>${esc(f)}（${list.filter(q => q.field === f).length}問）</option>`).join('')}</select></label></div>
     <div id="catalog-filtered">${renderFiltered(questions, m)}</div>`;

@@ -77,17 +77,18 @@ export function renderGuide(): string {
   <section id="guide-start" class="panel guide-section"><p class="eyebrow">STEP BY STEP</p><h2 tabindex="-1">はじめに：3ステップで始める</h2>
     <div class="guide-quick">
       <div><b>1</b><strong>モードを選ぶ</strong><p>ホームで「<b>学ぶ</b>」か「<b>対戦する</b>」を選び、次の画面で遊び方を選びます。迷ったら「学ぶ」から。</p></div>
-      <div><b>2</b><strong>設定して始める</strong><p>ログインや登録は不要です。対戦では表示する名前（12文字まで）を入れます。学ぶときは名前は任意です。</p></div>
+      <div><b>2</b><strong>設定して始める</strong><p>ログインや登録は不要です。スタート画面でニックネーム（12文字まで）を入れて「スタート」。対戦では相手にこの名前が表示されます。</p></div>
       <div><b>3</b><strong>解いて、解説を読む</strong><p>答えるたびに正解と解説が出ます。間違えた問題は自動で復習ノートに入ります。</p></div>
     </div>
     <dl class="guide-defs guide-map">
-      <div><dt>${icon("home")}ホーム</dt><dd>「続きから」と、<b>学ぶ</b>・<b>対戦する</b>の2つの入口。上のプレイヤーカードを押すと記録が開きます。</dd></div>
+      <div><dt>${icon("home")}ホーム</dt><dd>「続きから」と、<b>学ぶ</b>・<b>対戦する</b>の2つの入口、この<b>使い方ガイド</b>。上のプレイヤーカードを押すと記録が開きます。</dd></div>
       <div><dt>${icon("book")}学ぶ</dt><dd>問題演習コーナ・復習ノート・過去問・保存した学習の続き。</dd></div>
       <div><dt>${icon("swords")}対戦する</dt><dd>マッチング対戦・AI対戦・対戦室の3つから選びます。</dd></div>
       <div><dt>${icon("chart")}記録</dt><dd>学習レベル・試験準備度・分野マスタリー・学習と対戦の成績。</dd></div>
       <div><dt>${icon("menu")}メニュー</dt><dd>右上から。画面の明るさ・文字サイズ・プレイヤー名・このガイド。</dd></div>
     </dl>
-    <p class="guide-note">${icon("check")}<span>画面の下のタブ（ホーム・学ぶ・対戦・復習・記録）で、どこからでも1回で移動できます。各画面の見出しの上の「←」で、ひとつ前の階層に戻れます。</span></p>
+    <p class="guide-note">${icon("check")}<span>画面の下のタブ（ホーム・学ぶ・対戦・復習・記録）で、どこからでも1回で移動できます。</span></p>
+    <p class="guide-note">${icon("back")}<span><b>前の画面に戻るには</b>、画面の左上にある「<b>← ○○に戻る</b>」を押します（下へスクロールしても上に残ります）。ページの一番下にも同じボタンがあります。スマートフォンの「戻る」操作（Androidの戻るボタン・iPhoneの画面左端からのスワイプ）でも戻れます。対戦・学習の途中は、画面上部の「← ホームへ」「← 中断してホームへ」を押してください。</span></p>
     <p class="guide-note">${icon("check")}<span>記録は<b>このブラウザ</b>に保存されます。別の端末・別のブラウザには引き継がれないので、いつも同じ場所から開くのがおすすめです。<b>LINEから開いた方は、始める前に次の「ホーム画面に追加」を済ませておきましょう。</b></span></p>
   </section>
 
@@ -169,7 +170,7 @@ export function renderGuide(): string {
       <div><dt>${icon("zoom")}図の拡大</dt><dd>図のある問題は、図をタップすると拡大表示できます。＋／−で拡大し、指で動かせます。対戦中は拡大している間も時間が進みます。</dd></div>
       <div><dt>${icon("user")}フレンド</dt><dd>画面右上の「フレンド」で、10文字のフレンドコードを交換して申請・承認します。フレンドは対戦室に招待できます。</dd></div>
       <div><dt>${icon("globe")}通信状態・オンライン人数</dt><dd>オンライン人数は「対戦する」とメニューに、通信状態は対戦・学習中の画面上部とメニューに出ます。ほかの画面でも、通信エラーのときは上部に「再接続」が出ます。</dd></div>
-      <div><dt>${icon("help")}このガイド</dt><dd>右上の「メニュー」から、いつでも開き直せます。</dd></div>
+      <div><dt>${icon("help")}このガイド</dt><dd>ホーム・スタート画面・右上の「メニュー」から、いつでも開き直せます。</dd></div>
     </dl>
   </section>
 
@@ -186,5 +187,5 @@ export function renderGuide(): string {
     </div>
   </section>
 
-  <div class="panel guide-end"><p>準備ができたら、さっそく始めましょう。</p><div>${openPractice("問題演習コーナから始める", true)}<button class="btn ghost" data-act="leave">ホームへ戻る</button></div></div>`;
+  <div class="panel guide-end"><p>準備ができたら、さっそく始めましょう。</p><div>${openPractice("問題演習コーナから始める", true)}</div></div>`;
 }

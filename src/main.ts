@@ -31,7 +31,7 @@ import { SoloController, difficultyName, type Difficulty, type SoloMode } from "
 import { clearCatalogFilters, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, toggleCatalogItem, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
-import { markTitleSeen, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab, type TitleStep } from "./hub";
+import { markTitleSeen, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab } from "./hub";
 import { applyQuestionStats, renderRateInline } from "./stats";
 import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
 import { copyAppLink, dismissInstall, openInBrowser, promptInstall, renderInstall, setInstallDevice, watchInstall } from "./install";
@@ -88,7 +88,9 @@ let live = false;
 // 階層：title（スタート）→ home → study（setup の study）/ battle → 各モードの setup。records・settings はホームから開く。
 type View = "title" | "home" | "battle" | "records" | "settings" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" | "install";
 let view: View = roomCodeDraft ? "setup" : "home";
-let titleStep: TitleStep = "start";
+// 使い方ガイド・ホーム画面に追加の手順は、開いた画面へ戻る（スタート画面・ホーム・メニュー・ガイド）。
+let guideFrom: View = "home";
+let installFrom: View = "home";
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
@@ -583,7 +585,7 @@ function currentTab(): Tab | null {
 function render(): void {
   if (view === "title" && !solo.active) {
     app.className = "title-mode";
-    app.innerHTML = `<div class="title-body${enterScene("title")}">${renderTitle(titleStep, playerName, error)}</div>`;
+    app.innerHTML = `<div class="title-body${enterScene("title")}">${renderTitle(playerName, error)}</div>`;
     afterRender();
     return;
   }
@@ -612,30 +614,54 @@ function render(): void {
   const toolbar = reading
     ? `<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div>`
     : view === "settings" ? "" : `<div id="connection-status" class="connection-strip quiet">${renderConnection()}</div>`;
+  // 戻るボタンは見出しの上（スクロールしても画面上部に残る）と、ページの一番下の2か所に置く。
   const parent = playing ? null : parentView();
-  const crumb = parent ? `<button class="crumb" data-act="${parent.act}" ${busy||solo.busy?"disabled":""}>${icon("back")}${parent.label}</button>` : "";
-  app.innerHTML = `${playing ? renderHeader() : renderMenuHeader()}${toolbar}<div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${crumb}${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>${playing ? "" : renderTabBar(currentTab())}`;
+  const back = (cls: string): string => parent ? `<button class="${cls}" data-act="${parent.act}" ${busy||solo.busy?"disabled":""}><span class="back-arrow">${icon("back")}</span>${parent.label}に戻る</button>` : "";
+  app.innerHTML = `${playing ? renderHeader() : renderMenuHeader()}${toolbar}<div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${back("crumb")}${body}${back("btn back-bottom")}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>${playing ? "" : renderTabBar(currentTab())}`;
   updateClock();
   solo.updateClock();friends.update();
   afterRender();
+  syncHistory();
 }
 
 // 対戦・学習中のヘッダー。進行を見失わないよう、戻る・フレンド・明暗だけにする。
 function renderHeader(): string {
   const navigationBusy=busy||solo.busy;
   const backLabel=solo.state?.mode==='study'&&solo.state.phase!=='finished'?'中断してホームへ':'ホームへ';
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button><button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button><span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button><button class="btn back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}><span class="back-arrow">${icon("back")}</span>${backLabel}</button><span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
 }
 
-// ひとつ上の階層。見出しの上の「← 戻り先」に使う。
+// ひとつ上の階層。戻るボタン（上・下）と、端末の「戻る」操作の行き先。
+const RETURNS: Partial<Record<View, {act:string;label:string}>> = {
+  title:{act:"title",label:"スタート画面"}, home:{act:"leave",label:"ホーム"},
+  settings:{act:"settings",label:"メニュー"}, guide:{act:"guide",label:"使い方ガイド"},
+};
 function parentView(): {act:string;label:string}|null {
-  if (view === "home") return null;
-  if (view === "practice") return {act:"practice-back",label:"学ぶ"};
-  if (view === "catalog") return {act:"catalog-back",label:"学ぶ"};
-  if (view === "setup" && selectedMode !== "study") return {act:"back-battle",label:"対戦する"};
-  if (view === "guide" || view === "install") return {act:"settings",label:"メニュー"};
-  return {act:"leave",label:"ホーム"};
+  if (view === "home" || view === "title") return null;
+  if (view === "practice" || view === "catalog") return {act:view === "practice" ? "practice-back" : "catalog-back",label:"「学ぶ」"};
+  if (view === "setup" && selectedMode !== "study") return {act:"back-battle",label:"「対戦する」"};
+  if (view === "guide") return RETURNS[guideFrom] ?? RETURNS.home!;
+  if (view === "install") return RETURNS[installFrom] ?? RETURNS.home!;
+  return RETURNS.home!;
 }
+
+// 端末の「戻る」（Androidの戻るボタン・iPhoneの端からのスワイプ）でも、アプリを閉じずにひとつ上の階層へ戻る。
+// ホーム以外にいるあいだだけ履歴を1つ積み、戻る操作が来たら画面の戻るボタンと同じ処理をする。
+let historyGuard = false;
+let skipPop = false;
+function syncHistory(): void {
+  const needed = inPlay() || !!parentView();
+  if (needed && !historyGuard) {history.pushState({gb:"guard"},"");historyGuard=true;}
+  else if (!needed && historyGuard && history.state?.gb === "guard") {skipPop=true;historyGuard=false;history.back();}
+}
+window.addEventListener("popstate", () => {
+  if (skipPop) {skipPop=false;return;}
+  historyGuard=false;
+  // 対戦・学習の途中は、誤操作で抜けないよう何もしない。
+  if (inPlay() || busy || solo.busy) {syncHistory();return;}
+  const crumb=document.querySelector<HTMLButtonElement>(".crumb");
+  if (crumb) crumb.click(); else syncHistory();
+});
 
 // ホーム・各ハブのヘッダー。設定類は「メニュー」に集め、ここにはフレンド・メニューだけを置く。
 function renderMenuHeader(): string {
@@ -1063,18 +1089,11 @@ app.addEventListener("click", (e) => {
   if (act === "ai-fallback") return void playAiInstead();
   if (act === "ai-offer-hide") {aiOfferHiddenAt = Date.now(); render(); return;}
   if (act === "title-start") {
-    // 名前が未設定の人だけ、ホームへ進む前に名前を決める画面を挟む。
-    if (!playerName.trim()) {titleStep="name";error="";render();document.getElementById("title-name")?.focus();}
-    else goTo("home");
-    return;
-  }
-  if (act === "title-name") {
     const name=(document.querySelector<HTMLInputElement>("#title-name")?.value??"").trim().slice(0,12);
-    if (!name) {error="名前を入力するか、「あとで決める」を選んでください";render();document.getElementById("title-name")?.focus();return;}
+    if (!name) {error="ニックネームを入力してください";render();document.getElementById("title-name")?.focus();return;}
     playerName=name;writeStore("gb.name",name);goTo("home");return;
   }
-  if (act === "title-skip") {playerName="";goTo("home");return;}
-  if (act === "title") {titleStep="start";goTo("title");return;}
+  if (act === "title") {goTo("title");return;}
   if (act === "tab-home") return void leave("home");
   if (act === "back-battle") return void leave("battle");
   if (act === "hub-battle") {
@@ -1097,8 +1116,13 @@ app.addEventListener("click", (e) => {
   else if (act === "review") void openReview();
   else if (act === "show-result") {view = "match"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "leave" || act === "study-pause") void leave();
-  else if (act === "guide") {markGuideSeen(); goTo("guide");}
-  else if (act === "install") goTo("install");
+  else if (act === "guide") {
+    // スタート画面で入力中のニックネームは、ガイドから戻っても残す。
+    if (view === "title") {const name=(document.querySelector<HTMLInputElement>("#title-name")?.value??"").trim().slice(0,12);if(name){playerName=name;writeStore("gb.name",name);}}
+    if (view !== "install" && view !== "guide") guideFrom=RETURNS[view]?view:"home";
+    markGuideSeen();goTo("guide");
+  }
+  else if (act === "install") {if (view !== "install") installFrom=RETURNS[view]?view:"home";goTo("install");}
   else if (act === "install-browser") openInBrowser();
   else if (act === "install-prompt") void promptInstall();
   else if (act === "install-copy") void copyAppLink();
@@ -1129,7 +1153,7 @@ app.addEventListener("click", (e) => {
 });
 app.addEventListener("keydown", (e) => {
   const id = (e.target as HTMLElement).id;
-  if (e.key === "Enter" && id === "title-name") document.querySelector<HTMLElement>('[data-act="title-name"]')?.click();
+  if (e.key === "Enter" && id === "title-name") document.querySelector<HTMLElement>('[data-act="title-start"]')?.click();
   if (e.key === "Enter" && id === "name" && !busy) {
     if (selectedMode === "study" || selectedMode === "ai") void startSolo();
     else void enter(selectedMode === "room" ? "create_room" : "find_match");
