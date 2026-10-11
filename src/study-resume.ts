@@ -13,4 +13,11 @@ export function renderSavedStudies(studies: SavedStudy[], loading: boolean, erro
   return `<section class="saved-studies" aria-labelledby="saved-study-heading">${notice?`<p class="saved-study-notice" role="status">${esc(notice)}</p>`:''}<details id="saved-study-panel" ${expanded?'open':''}><summary class="saved-study-toggle"><span class="saved-study-heading"><span class="eyebrow">CONTINUE STUDY</span><h2 id="saved-study-heading">保存した学習の続き</h2></span><span class="saved-study-count">${studies.length?`${studies.length}件`:error?'取得失敗':loading?'確認中…':'0件'}</span><span class="saved-study-toggle-label" aria-hidden="true"><span class="when-closed">開く</span><span class="when-open">閉じる</span>${icon('arrow')}</span></summary><div class="saved-study-body">${studies.slice(0,3).map(card).join('')}${studies.length>3?`<details><summary>ほかの保存した学習（${studies.length-3}件）</summary>${studies.slice(3).map(card).join('')}</details>`:''}${loading?'<p role="status">保存した学習を確認中…</p>':''}${error?'<p role="alert">保存した学習を取得できませんでした。接続を確認して、もう一度お試しください。</p><button class="btn" data-act="refresh-saved-studies">再取得する</button>':''}<p class="saved-study-help">問題順・後回し・解説の状態を保存しています。同じブラウザで後から再開できます。</p></div></details></section>`;
 }
 
+// ホーム用。直近の1件だけを「続きから」として出し、ほかは「学ぶ」の一覧に任せる。
+export function renderContinue(studies: SavedStudy[], notice=''): string {
+  const s=studies[0];
+  if (!s && !notice) return '';
+  return `<section class="home-continue" aria-label="続きから">${notice?`<p class="saved-study-notice" role="status">${esc(notice)}</p>`:''}${s?`<article class="continue-card mode-study"><span class="mode-icon">${icon('clock')}</span><div><p class="eyebrow">CONTINUE</p><h2>${esc(s.field)}</h2><p>${s.answered} / ${s.q_total}問 · 残り${s.q_total-s.answered}問${studies.length>1?` · ほか${studies.length-1}件は「学ぶ」に`:''}</p></div><button class="btn primary" data-resume-study="${esc(s.id)}" aria-label="続きから再開：${esc(s.field)}、${s.answered} / ${s.q_total}問">続きから${icon('arrow')}</button></article>`:''}</section>`;
+}
+
 export const getSavedStudies=(device:string):Promise<SavedStudy[]>=>call<SavedStudy[]>('list_saved_studies',{p_device:device});

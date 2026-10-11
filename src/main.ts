@@ -9,32 +9,32 @@ import "./guide.css";
 import "./practice.css";
 import "./motion.css";
 import "./install.css";
-import "./quicknav.css";
+import "./hub.css";
 import "./celebrate.css";
 import "./stats.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
 import { renderOnlineCount, startPresence } from "./presence";
-import { markGuideSeen, renderGuide, renderGuideWelcome } from "./guide";
+import { markGuideSeen, renderGuide } from "./guide";
 import { FriendsController, friendsIcon } from "./friends";
 import { cachedPerformance, cachePerformance, renderPerformance, reviewCourse, renderReviewCourse, type Performance } from "./learning";
 import { cachedMastery, cacheMastery, renderMastery, renderSessionXp, validMastery, type Mastery } from "./mastery";
-import { dismissThemeHint, renderThemeSwitch, setTheme } from "./theme";
+import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
-import { esc, richText, readStore, writeStore, icon, helix, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
+import { esc, richText, readStore, writeStore, icon, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
 import { studyDistribution } from './study-distribution';
-import { getSavedStudies, renderSavedStudies, type SavedStudy } from './study-resume';
+import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { clearCatalogFilters, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, toggleCatalogItem, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
-import { renderQuickNav } from "./quicknav";
+import { markTitleSeen, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab, type TitleStep } from "./hub";
 import { applyQuestionStats, renderRateInline } from "./stats";
 import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
-import { copyAppLink, dismissInstall, inLineApp, openInBrowser, promptInstall, renderInstall, renderInstallEntry, setInstallDevice, watchInstall } from "./install";
+import { copyAppLink, dismissInstall, openInBrowser, promptInstall, renderInstall, setInstallDevice, watchInstall } from "./install";
 
 const BASE = import.meta.env.BASE_URL;
 const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
@@ -85,7 +85,10 @@ let match: MatchState | null = null;
 let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
-let view: "home" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" | "install" = roomCodeDraft ? "setup" : "home";
+// 階層：title（スタート）→ home → study（setup の study）/ battle → 各モードの setup。records・settings はホームから開く。
+type View = "title" | "home" | "battle" | "records" | "settings" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" | "install";
+let view: View = roomCodeDraft ? "setup" : "home";
+let titleStep: TitleStep = "start";
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
@@ -103,7 +106,10 @@ async function refreshSavedStudies():Promise<void> {
   finally{savedStudiesLoading=false;updateSavedStudies();if(savedStudiesAgain){savedStudiesAgain=false;void refreshSavedStudies();}}
 }
 function updateSavedStudies():void {
-  if(view==='home'&&!solo.active){const region=document.getElementById('saved-study-region');if(region)region.innerHTML=renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded);}
+  const region=solo.active?null:document.getElementById('saved-study-region');if(!region)return;
+  // ホームは直近の1件だけ、「学ぶ」では保存した学習をすべて出す。
+  if(view==='home')region.innerHTML=renderContinue(savedStudies,savedStudyNotice);
+  else if(view==='setup'&&selectedMode==='study')region.innerHTML=renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded);
 }
 async function resumeStudy(id:string):Promise<void> {
   if(busy||solo.busy||solo.active)return;
@@ -157,9 +163,9 @@ let performanceLoading=false;
 let performanceAgain=false;
 const modeInfo = {
   matchmaking: {title:"マッチング対戦",sub:"MATCHMAKING",icon:"swords",description:"同級生と対戦",label:"対戦相手を探す"},
-  study: {title:"一人で学習",sub:"SOLO STUDY",icon:"book",description:"焦らず、着実に。理解を深める時間。",label:"学習をはじめる"},
+  study: {title:"学ぶ",sub:"LEARN",icon:"book",description:"一人で、焦らず着実に。演習・過去問・復習はここから。",label:"学習をはじめる"},
   ai: {title:"AI対戦",sub:"AI BATTLE",icon:"bot",description:"いつでも挑戦できる、あなたの練習相手。",label:"AIと対戦する"},
-  room: {title:"対戦室作成",sub:"BATTLE ROOMS",icon:"room",description:"仲間を誘って、同じ問題に挑もう。",label:"対戦室を作成する"},
+  room: {title:"対戦室",sub:"BATTLE ROOMS",icon:"room",description:"仲間を誘って、同じ問題に挑もう。",label:"対戦室を作成する"},
 } as const;
 
 const errorText = (e: unknown): string => {
@@ -269,7 +275,8 @@ async function enter(fn: "find_match" | "create_room" | "join_room" | "join_publ
   }
 }
 
-async function leave(): Promise<void> {
+// to：戻り先。対戦の各モードの設定画面からは「対戦する」へ戻る。
+async function leave(to: "home" | "battle" = "home"): Promise<void> {
   if(busy||solo.busy)return;
   if(solo.state?.mode==='study' && solo.state.phase!=='finished') {
     busy=true;render();
@@ -284,11 +291,11 @@ async function leave(): Promise<void> {
   channel = null;realtimeState("off");
   match = null;
   mySeat = null;
-  const returning = view === "setup" ? selectedMode : view === "practice" ? "study" : null;
-  view = "home";
-  writeStore("gb.match", null, sessionStorage);
   // 設定画面から戻るときは、見出しのアイコンを元のカードへ戻す。
-  navigate(() => {render();window.scrollTo(0, 0);}, "back", returning && document.querySelector(".setup-title"), returning ? () => document.querySelector(`.mode-card[data-mode="${returning}"]`) : undefined);
+  const returning = view === "setup" ? `.mode-card[data-mode="${selectedMode}"]` : view === "practice" ? '.mode-card[data-mode="study"]' : view === "battle" ? '.hub-card[data-act="hub-battle"]' : null;
+  view = to;
+  writeStore("gb.match", null, sessionStorage);
+  navigate(() => {render();window.scrollTo(0, 0);}, "back", returning ? document.querySelector(".setup-title") : null, returning ? () => document.querySelector(returning) : undefined);
   writeStore("gb.match-wait", null, sessionStorage);waitSince = null;
   void refreshPerformance();void refreshMastery();void refreshStudyProgress();void refreshSavedStudies();void refreshQuestionStats();
 }
@@ -373,7 +380,7 @@ async function refreshPerformance():Promise<void> {
   } catch {performanceError="学習・対戦の記録を取得できませんでした。";}
   finally {
     performanceLoading=false;
-    if (view==="home" && !solo.active) {
+    if (view==="records" && !solo.active) {
       const region=document.querySelector<HTMLElement>("#performance-panels");
       if (region) region.innerHTML=renderPerformance(performance,performanceError);
     }
@@ -401,6 +408,9 @@ async function refreshMastery(session?:string):Promise<void> {
     masteryLoading=false;
     if (masteryAgain) {masteryAgain=false;void refreshMastery();}
     else if (view==="home" && !solo.active) {
+      const region=document.querySelector<HTMLElement>("#home-player");
+      if (region) region.innerHTML=renderHomePlayer(playerName,questions,mastery);
+    } else if (view==="records" && !solo.active) {
       const region=document.querySelector<HTMLElement>("#mastery-region");
       if (region) region.innerHTML=renderMastery(questions,mastery,masteryError);
     } else if (view==="catalog" && !solo.active) updateCatalogResults(questions,mastery);
@@ -534,7 +544,7 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     void probeConnection();void friends.refresh(true);
-    if(view==='home'&&!solo.active){void refreshSavedStudies();void refreshPerformance();void refreshMastery();}
+    if((view==='home'||view==='records')&&!solo.active){void refreshSavedStudies();void refreshPerformance();void refreshMastery();}
     if (match && view === "match") void tick();
     if (solo.active) void solo.tick();
     if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
@@ -560,12 +570,32 @@ function updateClock(): void {
   });
 }
 
+// 対戦・学習の進行中（問題や解説を読んでいる画面）。タブは出さず、文字サイズと通信状態を上部に出す。
+const inPlay = (): boolean => solo.active || view === "match" || view === "review";
+function currentTab(): Tab | null {
+  if (view === "home") return "home";
+  if (view === "practice" || view === "catalog" || view === "setup" && selectedMode === "study") return "study";
+  if (view === "battle" || view === "setup") return "battle";
+  if (view === "notebook") return "notebook";
+  return view === "records" ? "records" : null;
+}
+
 function render(): void {
+  if (view === "title" && !solo.active) {
+    app.className = "title-mode";
+    app.innerHTML = `<div class="title-body${enterScene("title")}">${renderTitle(titleStep, playerName, error)}</div>`;
+    afterRender();
+    return;
+  }
   const lobby = view === "home" && !solo.active;
-  app.className = lobby ? "lobby" : "arena";
+  const playing = inPlay();
+  app.className = `${lobby ? "lobby" : "arena"}${playing ? "" : " has-tabs"}`;
   let body: string;
   if (solo.active) body = solo.render();
   else if (view === "setup") body = renderSetup();
+  else if (view === "battle") body = renderBattleHub();
+  else if (view === "records") body = renderRecords(renderMastery(questions,mastery,masteryError),renderPerformance(performance,performanceError));
+  else if (view === "settings") body = renderSettings(playerName);
   else if (view === "practice") body = renderPractice({questions,playerName,busy,error,count:studyCount,distribution,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError,mastery});
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
@@ -577,29 +607,47 @@ function render(): void {
   else if (match.status === "playing") body = renderPlay(match);
   else body = renderResult(match);
   const scene = lobby ? "home" : solo.active ? "solo" : view === "setup" ? `setup:${selectedMode}` : view;
-  app.innerHTML = `${renderHeader(lobby)}<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div><div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>${lobby ? renderQuickNav() : ""}`;
+  // 文字サイズは問題文を読む画面だけに出す。ほかの画面では通信の異常だけを知らせ、設定はメニューにまとめる。
+  const reading = playing || view === "notebook" || view === "catalog";
+  const toolbar = reading
+    ? `<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div>`
+    : view === "settings" ? "" : `<div id="connection-status" class="connection-strip quiet">${renderConnection()}</div>`;
+  const parent = playing ? null : parentView();
+  const crumb = parent ? `<button class="crumb" data-act="${parent.act}" ${busy||solo.busy?"disabled":""}>${icon("back")}${parent.label}</button>` : "";
+  app.innerHTML = `${playing ? renderHeader() : renderMenuHeader()}${toolbar}<div class="${lobby ? "lobby-body" : "arena-body"}${enterScene(scene)}">${crumb}${body}</div><footer class="site-footer"><span>${icon("dna")} GENOME BATTLE</span><span>知識をつなぐ。理解を深める。</span></footer>${playing ? "" : renderTabBar(currentTab())}`;
   updateClock();
   solo.updateClock();friends.update();
   afterRender();
 }
 
-function renderHeader(lobby: boolean): string {
+// 対戦・学習中のヘッダー。進行を見失わないよう、戻る・フレンド・明暗だけにする。
+function renderHeader(): string {
   const navigationBusy=busy||solo.busy;
   const backLabel=solo.state?.mode==='study'&&solo.state.phase!=='finished'?'中断してホームへ':'ホームへ';
-  // 対戦・学習の途中でガイドへ移ると進行を見逃すので、そのあいだは出さない。
-  const guideButton=!solo.active&&view!=="match"&&view!=="review"?`<button class="btn guide-open" data-act="guide" ${navigationBusy?"disabled":""} ${view==="guide"?'aria-current="page"':""}>${icon("help")}使い方</button>`:"";
-  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button>${lobby ? `<span class="header-note"><i></i> ゲノム解析学 / 2025</span>` : `<button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button>`}<span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions">${guideButton}<button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch(lobby)}</div></header>`;
+  return `<header class="app-header"><button class="brand" data-act="leave" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button><button class="btn ghost back-btn" data-act="leave" ${navigationBusy ? "disabled" : ""}>${icon("back")}${backLabel}</button><span class="profile">${icon("user")}<span>${esc(playerName || "ゲストプレイヤー")}</span></span><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}フレンド <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}</div></header>`;
+}
+
+// ひとつ上の階層。見出しの上の「← 戻り先」に使う。
+function parentView(): {act:string;label:string}|null {
+  if (view === "home") return null;
+  if (view === "practice") return {act:"practice-back",label:"学ぶ"};
+  if (view === "catalog") return {act:"catalog-back",label:"学ぶ"};
+  if (view === "setup" && selectedMode !== "study") return {act:"back-battle",label:"対戦する"};
+  if (view === "guide" || view === "install") return {act:"settings",label:"メニュー"};
+  return {act:"leave",label:"ホーム"};
+}
+
+// ホーム・各ハブのヘッダー。設定類は「メニュー」に集め、ここにはフレンド・メニューだけを置く。
+function renderMenuHeader(): string {
+  const navigationBusy=busy||solo.busy;
+  return `<header class="app-header menu-header"><button class="brand" data-act="tab-home" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}<span class="header-label">フレンド</span> <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button><button class="btn ghost menu-open" data-act="settings" ${view==="settings"?'aria-current="page"':""} ${navigationBusy?"disabled":""}>${icon("menu")}<span class="header-label">メニュー</span></button></div></header>`;
 }
 
 function renderHome(): string {
-  // おすすめ（ホーム画面への追加）は、LINEの中で開いているときだけ一番上に出す。
-  const recommend=renderInstallEntry();
-  return `${inLineApp?recommend:""}${renderGuideWelcome()}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div><section class="lobby-hero"><div class="hero-copy"><p class="eyebrow accent-eyebrow"><span></span> KNOWLEDGE IS YOUR POWER</p><h1>遊んでいるうちに、<br><em>試験対策</em>が<wbr>終わっている。</h1><p class="hero-description">学んで、挑んで、強くなる。<br>ゲノム解析学の知識で戦う、クイズバトル。</p><div class="hero-tags"><span>${icon("book")}2025年度 過去問100問</span><span>${icon("swords")}最大8人で対戦</span></div><button class="btn hero-guide" data-act="guide">${icon("help")}はじめての方は「使い方ガイド」${icon("arrow")}</button></div><div class="dna-art">${helix()}<span class="dna-caption">DECODE. LEARN. BATTLE.</span><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span></div></section>
-  <section class="mode-section"><div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR MODE</p><h2>今日は、どんな挑戦を？</h2></div><span class="section-note">4つのモードで、理解をその先へ。</span></div><div class="mode-grid">${(Object.keys(modeInfo) as Mode[]).map((mode,i) => {const m=modeInfo[mode];return `<button class="mode-card mode-${mode}" data-mode="${mode}" style="--i:${i}"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><span class="mode-number">0${i+1}</span></div><p class="mode-en">${m.sub}</p><h3 data-morph="title">${m.title}</h3><p class="mode-description">${m.description}</p><div class="mode-bottom"><span>${mode === "matchmaking" ? "2–4人 / 1問20秒" : mode === "study" ? "分野別 / 解説付き" : mode === "ai" ? "3段階の難易度" : "公開ルーム / 招待"}</span>${icon("arrow")}</div></button>`;}).join("")}</div><button class="panel catalog-entry guide-entry" data-act="guide"><span class="mode-icon">${icon("help")}</span><span><span class="eyebrow">HOW TO USE</span><strong>使い方ガイド</strong><small>どのモードを選べばいいか迷ったら。はじめの3ステップ、対戦のルール、復習のしかたをまとめています。</small></span>${icon("arrow")}</button></section>
-  <div id="mastery-region">${renderMastery(questions,mastery,masteryError)}</div>
-  ${inLineApp?"":recommend}${renderNotebookEntry()}
-  <section id="performance-panels">${renderPerformance(performance,performanceError)}</section>
-  <section class="howto"><span class="howto-icon">${icon("swords")}</span><div><h2>先に5問正解した人の勝ち。</h2><p>対戦は最大15問。対人戦は全員が1回ずつ解答し、正解した人全員に1点。AI対戦は先に正解した方に1点。毎問の解説と試合後の振り返りで、知識を自分のものに。</p></div><span class="howto-badge">LEARN BY PLAYING</span></section>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
+  return `<div id="home-player">${renderHomePlayer(playerName,questions,mastery)}</div>
+  <div id="saved-study-region">${renderContinue(savedStudies,savedStudyNotice)}</div>
+  ${renderHomeMenu()}
+  ${renderSuggestion()}${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
 
 function renderSetup(): string {
@@ -607,7 +655,7 @@ function renderSetup(): string {
   const ai = selectedMode === "ai";
   const title = `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
   // 一人で学習は入口だけを並べ、演習の設定は問題演習コーナのページで行う。
-  if (selectedMode === "study") return `${title}${renderPracticeEntry(questions)}<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問をキーワード・分野・学習状態（未着手・誤答・習得など）で検索。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
+  if (selectedMode === "study") return `${title}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div>${renderPracticeEntry(questions)}${renderNotebookEntry()}<button class="panel catalog-entry" data-act="catalog"><span class="mode-icon">${icon("book")}</span><span><span class="eyebrow">QUESTION LIST</span><strong>過去問・問題と解説</strong><small>全${questions.size}問をキーワード・分野・学習状態（未着手・誤答・習得など）で検索。問題を押すと正解と解説を表示します。</small></span>${icon("arrow")}</button>${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
   return `${title}<section class="panel setup-panel"><label class="field"><span>プレイヤー名</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
@@ -874,10 +922,8 @@ function renderReview(): string {
 
 function renderNotebookEntry(): string {
   const n = notebook();
-  const missed = Object.keys(n.missed).length;
-  const uncertain = Object.keys(n.uncertain).length;
   const waiting = new Set([...Object.keys(n.missed),...Object.keys(n.uncertain)]).size;
-  return `<button class="progress-panel notebook-entry" data-act="notebook"><div class="progress-intro"><span class="progress-icon">${icon("bookmark")}</span><div><p class="eyebrow">REVIEW NOTEBOOK<span class="notebook-badge">${waiting ? `復習待ち ${waiting}問` : "苦手克服"}</span></p><h2>復習ノートで、間違えた問題を得点源に。</h2><p>間違えた問題・回答を見た問題・正解しても迷った問題を集めます。解き直して弱点をつぶそう。</p></div></div><div class="progress-stats"><div><strong>${missed}<small>問</small></strong><span>誤答・わからない</span></div><div><strong>${uncertain}<small>問</small></strong><span>迷った問題</span></div><div><strong>${Object.keys(n.saved).length}<small>問</small></strong><span>保存した問題</span></div></div><span class="notebook-cta">復習する${icon("arrow")}</span></button>`;
+  return `<button class="panel catalog-entry notebook-link" data-act="notebook"><span class="mode-icon">${icon("bookmark")}</span><span><span class="eyebrow">REVIEW NOTEBOOK${waiting ? `<span class="notebook-badge">復習待ち ${waiting}問</span>` : ""}</span><strong>復習ノート</strong><small>間違えた問題・回答を見た問題・迷った問題・保存した問題を解き直します。</small></span>${icon("arrow")}</button>`;
 }
 
 function renderNotebook(): string {
@@ -911,7 +957,7 @@ app.addEventListener("toggle", (e) => {
 
 app.addEventListener("input", (e) => {
   const input = e.target as HTMLInputElement;
-  if (input.id === "name") playerName = input.value;
+  if (input.id === "name" || input.id === "menu-name" || input.id === "title-name") playerName = input.value;
   if (input.id === "code") roomCodeDraft = input.value;
   if (input.id === "invite-key") roomInviteDraft = input.value;
   if (input.id === "catalog-search") {setCatalogQuery(input.value);updateCatalogResults(questions,mastery);}
@@ -922,6 +968,7 @@ app.addEventListener("input", (e) => {
 app.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
   if (input.id === "room-private") roomPrivateDraft = input.checked;
+  if (input.id === "menu-name") {playerName=input.value.trim().slice(0,12);input.value=playerName;writeStore("gb.name",playerName||null);}
   if (input.id === "capacity") capacity = Number(input.value) || null;
   if (input.name === "match-size") {matchCapacity=matchSize(input.value);writeStore("gb.match-capacity",String(matchCapacity));render();document.querySelector<HTMLInputElement>(`input[name="match-size"][value="${matchCapacity}"]`)?.focus();}
   if (input.id === "room-field") {roomFieldDraft=input.value;render();}
@@ -934,6 +981,11 @@ app.addEventListener("change", (e) => {
   if (input.id === "difficulty") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty);}
   if (input.name === "ai-offer-level") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty); render(); document.querySelector<HTMLInputElement>(`input[name="ai-offer-level"][value="${difficulty}"]`)?.focus();}
 });
+// 一覧・設定などの画面へ移る（対戦・学習の後片付けが要らない移動）。
+function goTo(next: View): void {
+  view=next;error="";
+  navigate(()=>{render();window.scrollTo(0,0);});
+}
 app.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest<HTMLButtonElement>("button")?.disabled) return;
@@ -943,7 +995,6 @@ app.addEventListener("click", (e) => {
   if(imageId){const q=questions.get(imageId);if(q)imageViewer.open(q,solo.active?solo.state?.mode==="ai"&&solo.state.phase!=="finished":match?.status==="playing");return;}
   const themeChoice = target.closest<HTMLElement>("[data-theme-choice]")?.dataset.themeChoice;
   if (themeChoice === "light" || themeChoice === "dark") {setTheme(themeChoice); return;}
-  if (target.closest('[data-act="theme-hint-dismiss"]')) {dismissThemeHint(); return;}
   const mode = target.closest<HTMLElement>("[data-mode]")?.dataset.mode as Mode | undefined;
   if (mode && mode in modeInfo) {
     const card=target.closest<HTMLElement>(".mode-card");
@@ -1011,6 +1062,31 @@ app.addEventListener("click", (e) => {
   if (act === "copy-room") return void copyRoomLink();
   if (act === "ai-fallback") return void playAiInstead();
   if (act === "ai-offer-hide") {aiOfferHiddenAt = Date.now(); render(); return;}
+  if (act === "title-start") {
+    // 名前が未設定の人だけ、ホームへ進む前に名前を決める画面を挟む。
+    if (!playerName.trim()) {titleStep="name";error="";render();document.getElementById("title-name")?.focus();}
+    else goTo("home");
+    return;
+  }
+  if (act === "title-name") {
+    const name=(document.querySelector<HTMLInputElement>("#title-name")?.value??"").trim().slice(0,12);
+    if (!name) {error="名前を入力するか、「あとで決める」を選んでください";render();document.getElementById("title-name")?.focus();return;}
+    playerName=name;writeStore("gb.name",name);goTo("home");return;
+  }
+  if (act === "title-skip") {playerName="";goTo("home");return;}
+  if (act === "title") {titleStep="start";goTo("title");return;}
+  if (act === "tab-home") return void leave("home");
+  if (act === "back-battle") return void leave("battle");
+  if (act === "hub-battle") {
+    // ホームのカードから来たときは、カードのアイコンと見出しを「対戦する」の見出しへ受け渡す。
+    const card=target.closest<HTMLElement>(".hub-card");
+    if (card) tapFeedback();
+    view="battle";error="";
+    navigate(()=>{render();window.scrollTo(0,0);},"forward",card,card?()=>document.querySelector(".battle-title"):undefined);
+    return;
+  }
+  if (act === "records") {void refreshPerformance();void refreshMastery();goTo("records");return;}
+  if (act === "settings") {goTo("settings");return;}
   if (act === "random") void enter("find_match");
   else if (act === "create") void enter("create_room");
   else if (act === "join") void enter("join_room");
@@ -1021,15 +1097,14 @@ app.addEventListener("click", (e) => {
   else if (act === "review") void openReview();
   else if (act === "show-result") {view = "match"; error = ""; render(); window.scrollTo(0, 0);}
   else if (act === "leave" || act === "study-pause") void leave();
-  else if (act === "guide") {markGuideSeen(); view = "guide"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
-  else if (act === "guide-dismiss") {markGuideSeen(); render();}
-  else if (act === "install") {view = "install"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "guide") {markGuideSeen(); goTo("guide");}
+  else if (act === "install") goTo("install");
   else if (act === "install-browser") openInBrowser();
   else if (act === "install-prompt") void promptInstall();
   else if (act === "install-copy") void copyAppLink();
   else if (act === "install-dismiss") {dismissInstall(); render();}
-  else if (act === "notebook") {void refreshQuestionStats(); view = "notebook"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
-  else if (act === "catalog") {void refreshQuestionStats(); void refreshMastery(); view = "catalog"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);});}
+  else if (act === "notebook") {void refreshQuestionStats(); goTo("notebook");}
+  else if (act === "catalog") {void refreshQuestionStats(); void refreshMastery(); goTo("catalog");}
   else if (act === "practice") {
     // 入口カードのアイコンと見出しを、演習ページの見出しへ受け渡す。
     const entry=target.closest<HTMLElement>(".practice-entry");
@@ -1054,6 +1129,7 @@ app.addEventListener("click", (e) => {
 });
 app.addEventListener("keydown", (e) => {
   const id = (e.target as HTMLElement).id;
+  if (e.key === "Enter" && id === "title-name") document.querySelector<HTMLElement>('[data-act="title-name"]')?.click();
   if (e.key === "Enter" && id === "name" && !busy) {
     if (selectedMode === "study" || selectedMode === "ai") void startSolo();
     else void enter(selectedMode === "room" ? "create_room" : "find_match");
@@ -1065,7 +1141,7 @@ async function boot(): Promise<void> {
   installPointerLight(app);
   // 発表の音は通信の到着時に鳴るので、画面に触れたときに音を出せる状態にしておく。
   app.addEventListener("pointerdown", unlockAudio, { passive: true });
-  watchInstall(() => {if ((view === "home" || view === "install") && !solo.active && !match) render();});
+  watchInstall(() => {if ((view === "home" || view === "install" || view === "settings" || view === "title") && !solo.active && !match) render();});
   app.innerHTML = `<p class="loading">読み込み中…</p>`;
   const response = await fetch(`${BASE}questions.json`);
   if (!response.ok) throw new Error("QUESTIONS_UNAVAILABLE");
@@ -1087,10 +1163,13 @@ async function boot(): Promise<void> {
       return;
     }
   }
+  // タブを開いたときは、まずスタート画面。招待リンクから来た人は対戦室へ直接進む。
+  if (view === "home" && !titleSeen()) view = "title";
+  markTitleSeen();
   render();
   if (view === "setup" && selectedMode === "room") void refreshPublicRooms();
 }
 
 void boot().catch(() => {
-  app.innerHTML = `${renderHeader(false)}<section class="panel center"><h1>読み込みできませんでした</h1><p>接続を確認して、もう一度お試しください。</p><button class="btn primary" data-act="reload">再読み込み</button></section>`;
+  app.innerHTML = `${renderHeader()}<section class="panel center"><h1>読み込みできませんでした</h1><p>接続を確認して、もう一度お試しください。</p><button class="btn primary" data-act="reload">再読み込み</button></section>`;
 });

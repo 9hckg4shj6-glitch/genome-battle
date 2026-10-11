@@ -67,7 +67,7 @@ export function enterScene(scene: string): string {
 }
 
 // 指・カーソルの位置にカードの光を置く。
-const LIT = ".mode-card,.catalog-entry,.notebook-entry";
+const LIT = ".mode-card,.catalog-entry";
 export function installPointerLight(root: HTMLElement): void {
   const place = (e: PointerEvent): void => {
     const el = (e.target as Element | null)?.closest<HTMLElement>(LIT);

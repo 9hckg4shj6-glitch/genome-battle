@@ -32,6 +32,10 @@ const paths: Record<string,string> = {
   zoom:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6M10 7v6M7 10h6"/>',
   help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.8M12 17h.01"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  home:'<path d="M3 11 12 4l9 7M5.5 9.5V20h5v-6h3v6h5V9.5"/>',
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  chart:'<path d="M3 20h18M6 20v-7M11 20V5M16 20v-10M21 20"/>',
+  play:'<path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.8l-10-6.5A1 1 0 0 0 8 5.5Z"/>',
 };
 export const icon = (name: string): string => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.dna}</svg>`;
 export function helix(): string {
