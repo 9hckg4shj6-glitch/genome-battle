@@ -52,13 +52,43 @@ export function renderHomePlayer(name: string, questions: Map<string, Question>,
     <span class="home-ready"><small>試験準備度</small><strong>${r ? r.ready : "—"}<small> / ${r ? r.total : questions.size}</small></strong></span>${icon("arrow")}</button>`;
 }
 
+// ホームの2枚のカードの背景図。学ぶ＝DNAの二重らせん（横木は塩基の4色）、対戦する＝照準の目盛り盤。
+const f1 = (n: number): string => n.toFixed(1);
+const HELIX_ART = (() => {
+  const x = (y: number, side: number): number => 60 + side * 30 * Math.cos(Math.PI * y / 40);
+  const strand = (side: number): string => `<path class="art-strand" d="M${Array.from({ length: 81 }, (_, i) => `${f1(x(i * 2, side))} ${i * 2}`).join("L")}"/>`;
+  const rungs = Array.from({ length: 16 }, (_, i) => {
+    const y = 5 + i * 10;
+    return `<path class="art-rung base-${"GTCA"[i % 4]}" d="M${f1(x(y, 1))} ${y}H${f1(x(y, -1))}"/><circle cx="${f1(x(y, 1))}" cy="${y}" r="1.6"/><circle cx="${f1(x(y, -1))}" cy="${y}" r="1.6"/>`;
+  }).join("");
+  return `<svg class="hub-art art-helix" viewBox="0 0 120 160">${rungs}${strand(1)}${strand(-1)}</svg>`;
+})();
+const DIAL_ART = (() => {
+  const ticks = Array.from({ length: 72 }, (_, i) => {
+    const a = i * Math.PI / 36, inner = i % 6 ? 64 : 58;
+    return `M${f1(80 + inner * Math.cos(a))} ${f1(80 + inner * Math.sin(a))}L${f1(80 + 68 * Math.cos(a))} ${f1(80 + 68 * Math.sin(a))}`;
+  }).join("");
+  return `<svg class="hub-art art-dial" viewBox="0 0 160 160"><g class="art-spin"><circle cx="80" cy="80" r="76"/><path class="art-ticks" d="${ticks}"/>
+    <path class="art-arc" d="M80 30A50 50 0 0 1 130 80M80 130A50 50 0 0 1 30 80"/></g>
+    <circle class="art-dash" cx="80" cy="80" r="38"/><circle cx="80" cy="80" r="18"/><path d="M80 4v38M80 118v38M4 80h38M118 80h38"/><circle class="art-dot" cx="80" cy="80" r="3"/></svg>`;
+})();
+
+const HUBS = [
+  { no: "01", cls: "mode-study", attr: 'data-mode="study"', art: HELIX_ART, icon: "book", tag: "ひとりで", en: "LEARN", title: "学ぶ",
+    text: "問題演習・過去問・復習ノート。解説を読みながら理解を深める。", specs: [["解説", "毎問つき"], ["制限時間", "なし"]], foot: () => "<span>自分のペースで</span>" },
+  { no: "02", cls: "mode-matchmaking", attr: 'data-act="hub-battle"', art: DIAL_ART, icon: "swords", tag: "みんなと", en: "BATTLE", title: "対戦する",
+    text: "同級生やAIとクイズで勝負。試合後はそのまま復習に。", specs: [["ルール", "5問先取"], ["人数", "2〜8人"]], foot: () => `<span id="online-count">${renderOnlineCount()}</span>` },
+] as const;
+
 // メインメニュー。最初に選ぶのは「学ぶ」か「対戦する」の2つだけ。
 export function renderHomeMenu(): string {
+  const cards = HUBS.map((h, i) => `<button class="mode-card hub-card ${h.cls}" ${h.attr} style="--i:${i}"><span class="hub-deco" aria-hidden="true">${h.art}</span>
+      <div class="mode-top"><span class="mode-icon" data-morph="icon">${icon(h.icon)}</span><span class="hub-tag">${h.tag}</span></div>
+      <p class="mode-en"><span class="hub-no">${h.no}</span>${h.en}</p><h3 data-morph="title">${h.title}</h3><p class="mode-description">${h.text}</p>
+      <span class="hub-specs">${h.specs.map(([k, v]) => `<span><small>${k}</small><b>${v}</b></span>`).join("")}</span>
+      <div class="mode-bottom">${h.foot()}${icon("arrow")}</div></button>`).join("");
   return `<section class="home-menu" aria-labelledby="home-menu-heading"><p class="eyebrow">MAIN MENU</p><h1 id="home-menu-heading">今日は、なにをする？</h1>
-    <div class="hub-grid">
-      <button class="mode-card hub-card mode-study" data-mode="study"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon("book")}</span><span class="hub-tag">ひとりで</span></div><p class="mode-en">LEARN</p><h3 data-morph="title">学ぶ</h3><p class="mode-description">問題演習・過去問・復習ノート。解説を読みながら自分のペースで。</p><div class="mode-bottom"><span>時間制限なし</span>${icon("arrow")}</div></button>
-      <button class="mode-card hub-card mode-matchmaking" data-act="hub-battle"><div class="mode-top"><span class="mode-icon" data-morph="icon">${icon("swords")}</span><span class="hub-tag">みんなと</span></div><p class="mode-en">BATTLE</p><h3 data-morph="title">対戦する</h3><p class="mode-description">同級生やAIと、5問先取のクイズバトル。</p><div class="mode-bottom"><span id="online-count">${renderOnlineCount()}</span>${icon("arrow")}</div></button>
-    </div>${renderGuideEntry("home-guide")}</section>`;
+    <div class="hub-grid">${cards}</div>${renderGuideEntry("home-guide")}</section>`;
 }
 
 // 「次の一歩」は1つだけ出す。LINE内での利用 → 復習待ち → ホーム画面への追加 の順。使い方ガイドはホームに常に置く。
