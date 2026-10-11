@@ -107,10 +107,10 @@
 .hub-card { --edge:color-mix(in srgb,var(--trim-lo) 45%,#000);
   --hub-face:radial-gradient(120% 70% at 50% 0%,color-mix(in srgb,var(--ink) 16%,transparent),transparent 62%) padding-box,linear-gradient(180deg,var(--top),var(--bottom)) padding-box,
     linear-gradient(160deg,var(--trim-hi),var(--trim-lo) 30%,var(--trim-hi) 52%,var(--trim-lo) 78%,var(--trim-hi)) border-box; }
-.hub-card { --top:#1f4a48;--bottom:#0e2423;--trim-hi:#d9f4ef;--trim-lo:#4d8f8a;--ink:#a9e3dd;--card-text:#f4fbf8; }
-.hub-card.mode-matchmaking { --top:#3c4419;--bottom:#1a1f0a;--trim-hi:#f6f8c8;--trim-lo:#8f9a43;--ink:#e8f294;--card-text:#fbfcef; }
-:root[data-theme="light"] .hub-card { --top:#2c7774;--bottom:#174c4a;--trim-hi:#e6f8f4;--trim-lo:#5d9e98;--ink:#bff0ea;--card-text:#fff; }
-:root[data-theme="light"] .hub-card.mode-matchmaking { --top:#627c2b;--bottom:#3a5016;--trim-hi:#f8fad6;--trim-lo:#a3ae58;--ink:#eef6a6;--card-text:#fff; }
+.hub-card { --top:#1f4a48;--bottom:#0e2423;--trim-hi:#bfe3dd;--trim-lo:#4a8681;--ink:#a9e3dd;--card-text:#f4fbf8; }
+.hub-card.mode-matchmaking { --top:#3c4419;--bottom:#1a1f0a;--trim-hi:#e6ebb4;--trim-lo:#87913f;--ink:#e8f294;--card-text:#fbfcef; }
+:root[data-theme="light"] .hub-card { --top:#3a7a76;--bottom:#22514e;--trim-hi:#eaf5f1;--trim-lo:#86b3ac;--ink:#c9eee8;--card-text:#fff; }
+:root[data-theme="light"] .hub-card.mode-matchmaking { --top:#52753a;--bottom:#2f4b22;--trim-hi:#eef4dc;--trim-lo:#98b07c;--ink:#e2efb4;--card-text:#fff; }
 .hub-grid .mode-card.hub-card { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:226px;margin-bottom:5px;padding:22px 14px 18px;border:1.5px solid transparent;border-radius:22px;text-align:center;color:var(--card-text);
   background:var(--hub-face);
   box-shadow:0 5px 0 var(--edge),0 18px 26px -12px #000000a6,inset 0 1px 0 #ffffff2e; }
@@ -121,7 +121,7 @@
 .hub-card > :not(.hub-shine) { position:relative;z-index:1; }
 /* ときどき光が横切る */
 .hub-shine { position:absolute;inset:0;z-index:0;border-radius:inherit;overflow:hidden;pointer-events:none; }
-.hub-shine::before { content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:45%;background:linear-gradient(100deg,transparent,#ffffff2e 50%,transparent);transform:translateX(-160%) skewX(-18deg);animation:hub-shine 7s ease-in-out infinite;animation-delay:calc(1.6s + var(--i,0) * .5s); }
+.hub-shine::before { content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:45%;background:linear-gradient(100deg,transparent,#ffffff21 50%,transparent);transform:translateX(-160%) skewX(-18deg);animation:hub-shine 7s ease-in-out infinite;animation-delay:calc(1.6s + var(--i,0) * .5s); }
 @keyframes hub-shine { 0% { transform:translateX(-160%) skewX(-18deg); } 18%,100% { transform:translateX(330%) skewX(-18deg); } }
 /* メダルのような紋章 */
 .hub-grid .hub-card .mode-icon { width:60px;height:60px;margin-bottom:12px;border-radius:50%;border:1.5px solid transparent;color:var(--ink);
@@ -147,7 +147,7 @@
   .hub-grid .mode-card.hub-card:hover .mode-icon { transform:scale(1.05); }
   .hub-grid .mode-card.hub-card:active { transform:translateY(4px);box-shadow:0 1px 0 var(--edge),0 8px 14px -10px #000000a6,inset 0 1px 0 #ffffff2e; }
 }
-:root[data-theme="light"] .hub-grid .mode-card.hub-card { background:var(--hub-face);border-color:transparent;box-shadow:0 5px 0 var(--edge),0 16px 24px -12px #1d3a1a80,inset 0 1px 0 #ffffff40; }
+:root[data-theme="light"] .hub-grid .mode-card.hub-card { background:var(--hub-face);border-color:transparent;box-shadow:0 5px 0 var(--edge),0 16px 24px -14px #1d3a1a59,inset 0 1px 0 #ffffff40; }
 .home-tip { --mode-color:var(--accent);display:flex;align-items:center;gap:14px;margin-top:16px;padding:14px 16px;border:1px dashed color-mix(in srgb,var(--accent) 50%,var(--line));border-radius:16px; }
 .home-tip.is-alert { --mode-color:var(--warn);border-style:solid;border-color:color-mix(in srgb,var(--warn) 55%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface)); }
 .home-tip > div { flex:1;min-width:0; }
@@ -156,6 +156,24 @@
 .home-tip p:last-child { margin:0;font-size:12px;color:var(--muted);line-height:1.7; }
 .home-tip .mode-icon { flex:none; }
 .home-tip .btn { flex:none;white-space:nowrap; }
+/* ホームの周りのカードにも、2枚の大ボタンと同じ作り（内枠・下の厚み・上からの光・丸い紋章）を控えめに持たせて揃える */
+.lobby-body { --panel-trim:color-mix(in srgb,var(--accent) 20%,var(--line));--panel-edge:#0b0d0b;--panel-drop:#000000a6;--panel-face:linear-gradient(180deg,color-mix(in srgb,var(--accent) 5%,var(--surface)),var(--surface) 65%); }
+:root[data-theme="light"] .lobby-body { --panel-edge:#d6dfcb;--panel-drop:#27452b33;--panel-face:linear-gradient(180deg,#fff,#fbfcf7); }
+.lobby-body :is(.home-player,.home-guide,.home-tip,.continue-card) { position:relative;border:1px solid var(--panel-trim);border-radius:20px;box-shadow:0 3px 0 var(--panel-edge),0 14px 24px -18px var(--panel-drop),inset 0 1px 0 #ffffff12; }
+.lobby-body :is(.home-player,.home-guide,.home-tip) { background:var(--panel-face); }
+.lobby-body :is(.home-player,.home-guide,.home-tip,.continue-card)::before { content:"";position:absolute;inset:4px;border-radius:16px;border:1px solid color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none; }
+.lobby-body .home-tip.is-alert { border-color:color-mix(in srgb,var(--warn) 55%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface)); }
+.lobby-body :is(.home-player,.home-guide):active { transform:translateY(2px);box-shadow:0 1px 0 var(--panel-edge),0 8px 16px -14px var(--panel-drop),inset 0 1px 0 #ffffff12;transition-duration:.08s; }
+.lobby-body :is(.home-avatar,.home-guide .mode-icon,.home-tip .mode-icon,.continue-card .mode-icon) { border-radius:50%;box-shadow:0 0 0 3px var(--surface),0 0 0 4px color-mix(in srgb,var(--mode-color,var(--accent)) 28%,transparent),inset 0 1px 0 #ffffff1f; }
+.lobby-body .home-avatar { background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--accent) 22%,var(--surface)),color-mix(in srgb,var(--accent) 8%,var(--surface)) 75%); }
+.lobby-body .home-xp-bar { box-shadow:inset 0 1px 1px #0000001f; }
+.lobby-body .home-tip .btn { position:relative;border-color:var(--panel-trim);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 12%,var(--surface-2)),var(--surface-2));color:var(--text);box-shadow:0 2px 0 var(--panel-edge),inset 0 1px 0 #ffffff14; }
+.lobby-body .home-tip .btn .icon { color:var(--accent); }
+.lobby-body .home-tip .btn:active:not(:disabled) { transform:translateY(2px);box-shadow:0 0 0 var(--panel-edge),inset 0 1px 0 #ffffff14; }
+/* 見出しにも大ボタンと同じ◆の飾り */
+.home-menu > .eyebrow { display:flex;align-items:center;gap:8px;color:var(--accent); }
+.home-menu > .eyebrow::before { content:"";flex:none;width:5px;height:5px;background:currentColor;transform:rotate(45deg); }
+.home-menu > .eyebrow::after { content:"";flex:1;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 40%,transparent),transparent); }
 
 /* ---------- 学ぶ ---------- */
 .notebook-link { --mode-color:var(--accent);margin-top:14px; }
