@@ -74,13 +74,12 @@ const battles: ModeGuide[] = [
 ];
 
 export function renderGuide(): string {
-  return `<header class="hero small guide-hero"><p class="eyebrow">HOW TO USE</p><h1>使い方ガイド</h1><p class="lead">はじめての人向けに、このアプリでできることと使い方をまとめました。気になる項目から読めます。</p></header>
+  return `<header class="hero small guide-hero"><p class="eyebrow">HOW TO USE</p><h1>使い方ガイド</h1><p class="lead">はじめての人向けに、このアプリでできることと使い方をまとめました。気になる項目から読めます。収録しているのは、ゲノム解析学の<b>2025年度・2024年度の過去問 各100問（計200問）</b>です。</p></header>
   <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
   <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
     <ul>
       <li><b class="guide-new">NEW</b><span><b>過去問を読んで学ぶ</b>：「過去問・問題と解説」が、解説を読むための「<b>読んで学ぶ</b>」と、問題を集めて解く「<b>選んで演習</b>」に分かれました。1問ずつ読み進める<b>解説リーダー</b>（答えを隠して読む・しおり）、<b>読んだ</b>の記録と「解説未読」の絞り込みが使えます。演習のバーは問題を選んだときだけ出ます。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>2024年度の過去問100問を追加</b>：2025年度と合わせて200問になりました。問題演習コーナの「<b>出題する年度</b>」と、過去問・問題と解説の「<b>年度で絞り込む</b>」のボタンで、年度ごとに分けて演習・閲覧できます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
-      <li><b class="guide-new">NEW</b><span><b>過去問から選んで演習</b>：「過去問・問題と解説」で、問題の右端の四角を押して選んだ問題だけを、そのまま演習できるようになりました。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>各コーナーの「使い方はこちら」</b>：問題演習コーナ・復習ノート・過去問・問題と解説の各ページの一番上から、そのコーナーだけの使い方を図解で開けます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
     </ul>
   </section>
@@ -93,7 +92,7 @@ export function renderGuide(): string {
     </div>
     <dl class="guide-defs guide-map">
       <div><dt>${icon("home")}ホーム</dt><dd>「続きから」と、<b>学ぶ</b>・<b>対戦する</b>の2つの入口、この<b>使い方ガイド</b>。上のプレイヤーカードを押すと記録が開きます。</dd></div>
-      <div><dt>${icon("book")}学ぶ</dt><dd>問題演習コーナ・復習ノート・過去問・問題と解説（選んだ問題の演習も）・保存した学習の続き。</dd></div>
+      <div><dt>${icon("book")}学ぶ</dt><dd>問題演習コーナ・復習ノート・過去問・問題と解説（解説を読んで学ぶ・選んで演習）・保存した学習の続き。</dd></div>
       <div><dt>${icon("swords")}対戦する</dt><dd>マッチング対戦・AI対戦・対戦室の3つから選びます。</dd></div>
       <div><dt>${icon("chart")}記録</dt><dd>学習レベル・試験準備度・分野マスタリー・学習と対戦の成績。</dd></div>
       <div><dt>${icon("menu")}メニュー</dt><dd>右上から。画面の明るさ・文字サイズ・プレイヤー名・このガイド。</dd></div>
@@ -118,6 +117,8 @@ export function renderGuide(): string {
   <section id="guide-choose" class="panel guide-section"><p class="eyebrow">WHICH MODE?</p><h2 tabindex="-1">どのモードを選べばいい？</h2>
     <ul class="guide-choose">
       <li><span>試験勉強をしたい・苦手な分野を集中して解きたい</span>${openMode("study", "学ぶ")}</li>
+      <li><span>解かずに、過去問の問題と解説をじっくり読みたい</span><button class="btn" data-act="catalog">過去問・問題と解説${icon("arrow")}</button></li>
+      <li><span>1年度分の過去問を通して解きたい</span><button class="btn" data-act="practice">問題演習コーナ${icon("arrow")}</button></li>
       <li><span>同級生と勝負したい</span>${openMode("matchmaking", "マッチング対戦")}</li>
       <li><span>一人で対戦の練習をしたい</span>${openMode("ai", "AI対戦")}</li>
       <li><span>決まった友だちと遊びたい・分野をしぼって対戦したい</span>${openMode("room", "対戦室")}</li>
@@ -150,7 +151,7 @@ export function renderGuide(): string {
     <dl class="guide-defs">
       <div><dt>${icon("book")}問題演習コーナ</dt><dd>年度・分野・問題数・出題配分を選んで演習します（このセクションの手順）。</dd></div>
       <div><dt>${icon("bookmark")}復習ノート</dt><dd>間違えた・わからなかった・迷った・保存した問題を見直し、まとめて解き直します。</dd></div>
-      <div><dt>${icon("zoom")}過去問・問題と解説</dt><dd>全問題を探して読み、選んだ問題だけを演習できます（<button class="guide-inline-link" data-guide-jump="guide-catalog">詳しくは次のセクション</button>）。</dd></div>
+      <div><dt>${icon("zoom")}過去問・問題と解説</dt><dd>全問題を探して読めます。「読んで学ぶ」では1問ずつ読み進める解説リーダー、「選んで演習」では選んだ問題だけの演習が使えます（<button class="guide-inline-link" data-guide-jump="guide-catalog">詳しくは次のセクション</button>）。</dd></div>
     </dl>
     <p class="guide-note">${icon("help")}<span>各コーナーのページの一番上にある「<b>使い方はこちら</b>」を押すと、そのコーナーだけの使い方を画面の図つきで確認できます。下のボタンからも開けます。</span></p>
     <div class="guide-actions">${openCourse("practice", "問題演習コーナの使い方（図解）")}${openCourse("notebook", "復習ノートの使い方（図解）")}${openCourse("catalog", "過去問・問題と解説の使い方（図解）")}</div>
@@ -166,6 +167,9 @@ export function renderGuide(): string {
     <p class="guide-intro">右端の四角で<b>気になる問題だけを選んで、そのまま演習</b>できます。演習のバーは1問以上選んだときだけ画面下に出ます。</p>
     ${renderCatalogFigure()}
     ${tips([
+      "「1問ずつ読む」は、いまの絞り込み（年度・分野・キーワード・学習状態）の問題を一覧と同じ順で読みます。まだ読んでいない最初の問題から始まります",
+      "途中でやめても、一覧の上の「<b>続きから読む</b>」や「学ぶ」の過去問カードのしおりから、同じ問題に戻れます",
+      "解説リーダーでは、左右のスワイプ（パソコンでは ← → キー）でも前後の問題へ移れます",
       "「読んだ」の記録はこの端末に保存され、正答率・学習レベルには入りません。学習状態の「<b>解説未読</b>」で、まだ読んでいない問題だけに絞れます",
       "選んだ問題は、ページや絞り込みを切り替えても残ります。いろいろな条件から少しずつ集められます",
       "出題は問題番号の順です。バーの「<b>ランダムな順で出題</b>」をオンにすると順番を混ぜます",
@@ -186,6 +190,7 @@ export function renderGuide(): string {
       <li><b>先に5問正解した人の勝ち。</b>最大15問で、問題がなくなったときは得点の多い人の勝ち（同点は引き分け）。</li>
       <li><b>同級生との対戦</b>（マッチング・対戦室）は全員が1回ずつ答え、正解した人<b>全員</b>に1点。答えている間は、ほかの人が正解したかは見えません。</li>
       <li><b>AI対戦</b>は早押し。AIより先に正解すると1点です。</li>
+      <li>出題は2025年度・2024年度の全問題からです（対戦室は分野をしぼれます）。</li>
       <li>選択肢の並びは問題ごとに入れ替わります。番号ではなく内容で覚えましょう。</li>
       <li>結果発表は下位から順に表示します。画面をタップするとすぐ最後まで表示できます。</li>
     </ul>
@@ -195,7 +200,7 @@ export function renderGuide(): string {
     <dl class="guide-defs">
       <div><dt>${icon("bookmark")}復習ノート</dt><dd>画面下のタブの「復習」か、「学ぶ」の「復習ノート」から開きます。「誤答・わからない」「迷った問題」「保存した問題」の3つのタブがあり、「この○問を演習する」でまとめて解き直せます。</dd></div>
       <div><dt>${icon("target")}終わった後の復習コース</dt><dd>学習や対戦の後の振り返りで、間違えた・わからなかった・迷った問題だけをまとめてすぐ解き直せます。</dd></div>
-      <div><dt>${icon("check")}問題の保存</dt><dd>振り返り画面の「この問題を保存」で、覚えておきたい問題を「保存した問題」に残せます。</dd></div>
+      <div><dt>${icon("check")}問題の保存</dt><dd>振り返り画面の「この問題を保存」や、解説リーダーの「あとで解く」で、覚えておきたい問題を「保存した問題」に残せます。</dd></div>
       <div><dt>${icon("clock")}保存した学習の続き</dt><dd>「中断して保存」した学習は、ホームの「続きから」で戻れます。2件以上あるときは「学ぶ」の「保存した学習の続き」に並びます。</dd></div>
       <div><dt>${icon("dna")}学習レベルと試験準備度</dt><dd>学ぶ（一人で学習）・復習コースで解くとXP（経験値）がたまり、レベルが上がります。正解10・不正解3・回答を見た1XP。初めての正解や、間違えた問題を克服した正解にはボーナスがあります。同じ日に同じ問題を解き直した分は半分です。XPが減ることはありません。</dd></div>
       <div><dt>${icon("target")}習得・定着と分野の★</dt><dd>直近2回続けて正解した問題が「習得」、3回続けて正解すると「定着」。間違えたり回答を見たりすると、また1回目から数え直します。習得以上の問題数が「試験準備度」です。「迷った」に記録中の問題は数えません。分野ごとに、全問に取り組むと★1、全問習得で★2、全問定着で★3。問題演習コーナの分野カードにも表示されるので、★の少ない分野から選ぶのがおすすめです。</dd></div>
@@ -205,7 +210,7 @@ export function renderGuide(): string {
 
   <section id="guide-tools" class="panel guide-section"><p class="eyebrow">TOOLS</p><h2 tabindex="-1">便利な機能</h2>
     <dl class="guide-defs">
-      <div><dt>文字サイズ</dt><dd>「メニュー」の「標準・大・特大」で、問題文・選択肢・解説の文字を大きくできます。対戦・学習・復習ノート・過去問では画面上部からも変えられます。</dd></div>
+      <div><dt>文字サイズ</dt><dd>「メニュー」の「標準・大・特大」で、問題文・選択肢・解説の文字を大きくできます。対戦・学習・復習ノート・過去問・解説リーダーでは画面上部からも変えられます。</dd></div>
       <div><dt>${icon("sun")}ライト／ダーク</dt><dd>はじめは明るい画面です。「メニュー」かスタート画面の「ダーク」で暗い画面になり、「ライト」でいつでも戻せます。</dd></div>
       <div><dt>${icon("zoom")}図の拡大</dt><dd>図のある問題は、図をタップすると拡大表示できます。＋／−で拡大し、指で動かせます。対戦中は拡大している間も時間が進みます。</dd></div>
       <div><dt>${icon("user")}フレンド</dt><dd>画面右上の「フレンド」で、10文字のフレンドコードを交換して申請・承認します。フレンドは対戦室に招待できます。</dd></div>
@@ -222,14 +227,16 @@ export function renderGuide(): string {
       <details><summary>「出題配分」が選べません</summary><p>出題配分は、2つ以上の分野を選んだときに選べます。1つの分野だけのときは、その分野の問題だけを出題します。</p></details>
       <details><summary>間違えた問題だけを解き直したい</summary><p>画面下の「復習」タブを開き、「誤答・わからない」タブで「この○問を演習する」を押してください。学習や対戦の直後なら、振り返り画面の復習コースからも解き直せます。「過去問・問題と解説」で学習状態を「誤答」に絞り込み、まとめて選んで演習することもできます。</p></details>
       <details><summary>特定の問題だけを選んで解きたい</summary><p>「学ぶ」の「過去問・問題と解説」を開き、上の切り替えを「選んで演習」にして、解きたい問題の右端の四角を押して選びます。画面下のバーの「選んだ○問を演習する」で、その問題だけの演習が始まります。1問だけなら、問題を開いて「この問題を演習する」を押してもかまいません。</p><button class="btn" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></details>
+      <details><summary>過去問一覧に、演習用の四角や「選んだ問題を演習する」のバーがありません</summary><p>「過去問・問題と解説」は、最初は解説を読むための「読んで学ぶ」になっていて、四角とバーを出していません。一番上の切り替えで「選んで演習」にすると四角が出ます。バーは1問以上選んだときだけ画面下に出ます。切り替えはこの端末に保存されます。</p></details>
+      <details><summary>答えを見ずに、自分で考えてから解説を読みたい</summary><p>解説リーダーの「答えを隠して読む」をオンにしてください。選択肢を押すか「正解と解説を見る」を押すまで、正解と解説を伏せておきます。選んだ答えの正誤も出ますが、記録には残りません。</p></details>
       <details><summary>各コーナーの使い方を図で見たい</summary><p>問題演習コーナ・復習ノート・過去問・問題と解説のページの一番上にある「使い方はこちら」を押してください。そのコーナーの画面を図にして、どこを押せばよいかを番号つきで説明しています。</p></details>
       <details><summary>対戦が始まりません</summary><p>全員が「準備完了」を押すと始まります。マッチング対戦は、選んだ人数がそろうまで待ちます。対戦室は、部屋を作った人が「開始」を押します。</p></details>
-      <details><summary>記録や復習ノートが消えました</summary><p>記録はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。</p></details>
+      <details><summary>記録や復習ノートが消えました</summary><p>記録（学習成績・復習ノート・解説を読んだ記録・しおり）はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。</p></details>
       <details><summary>通信が切れました</summary><p>画面上部の「再接続」を押すか、ページを再読み込みしてください。同じタブで再読み込みすれば、進行中の対戦や学習に戻れます。タブを閉じてしまった場合、学習は「中断して保存」したものだけホームの「続きから」で再開できます。</p></details>
       <details><summary>選択肢の番号が前と違います</summary><p>選択肢は問題ごとに並べ替えています。番号ではなく内容で答えを覚えましょう。</p></details>
       <details><summary>ホーム画面にアプリを置きたい・LINEから開いている</summary><p>ブラウザの共有メニューから「ホーム画面に追加」を選ぶと、アプリのように開けます。LINEから開いている場合は、先にSafari・Chromeなどで開き直してください。iPhone・iPad・Androidごとの手順を図で説明しています。</p><button class="btn" data-act="install">ホーム画面に追加する方法を見る${icon("arrow")}</button></details>
     </div>
   </section>
 
-  <div class="panel guide-end"><p>準備ができたら、さっそく始めましょう。</p><div>${openPractice("問題演習コーナから始める", true)}</div></div>`;
+  <div class="panel guide-end"><p>準備ができたら、さっそく始めましょう。</p><div>${openPractice("問題演習コーナから始める", true)}<button class="btn" data-act="catalog">${icon("zoom")}過去問の解説を読む${icon("arrow")}</button></div></div>`;
 }

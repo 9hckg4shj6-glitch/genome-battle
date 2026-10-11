@@ -57,16 +57,18 @@ function notebookFigure(): string {
 
 function catalogFigure(): string {
   const rows = [false, true, false].map((on, i) => {
-    const y = 132 + i * 40;
-    return `${box(18, y, 284, 34, on ? "fig-card fig-card-on" : "fig-card", 9)}<circle class="fig-soft" cx="34" cy="${y + 17}" r="9"/>${t(34, y + 21, String(i + 1), "fig-strong", "middle")}${box(50, y + 8, 70, 4, "fig-accent", 2)}${box(50, y + 18, 180 - i * 30, 5, "fig-ink", 2)}<path class="fig-chevron" d="M252 ${y + 14}l4 4 4-4"/>${check(272, y + 9.5, on, 15)}`;
+    const y = 172 + i * 38;
+    return `${box(18, y, 284, 32, on ? "fig-card fig-card-on" : "fig-card", 9)}<circle class="fig-soft" cx="34" cy="${y + 16}" r="9"/>${t(34, y + 20, String(i + 1), "fig-strong", "middle")}${box(50, y + 8, 70, 4, "fig-accent", 2)}${box(50, y + 18, 180 - i * 30, 5, "fig-ink", 2)}<path class="fig-chevron" d="M252 ${y + 13}l4 4 4-4"/>${check(272, y + 8.5, on, 15)}`;
   }).join("");
-  return svg("過去問一覧の画面。キーワード・年度・分野・学習状態で絞り込み、問題を押すと解説、右端の四角で演習する問題を選ぶ", 330, `
+  const chip = (x: number, y: number, w: number, label: string, on = false): string => `${box(x, y, w, 18, on ? "fig-primary" : "fig-btn", 9)}${t(x + w / 2, y + 12.5, label, on ? "fig-on-text fig-small-strong" : "fig-small-strong", "middle")}`;
+  return svg("過去問一覧を「選んで演習」にした画面。キーワード・年度・分野・学習状態で絞り込み、右端の四角で演習する問題を選ぶと画面下にバーが出る", 370, `
     ${t(18, 28, "過去問・問題と解説", "fig-title")}
-    ${box(18, 40, 284, 26, "fig-btn", 8)}<circle class="fig-glyph" cx="32" cy="53" r="5"/><path class="fig-glyph" d="M36 57l4 4"/>${t(46, 57, "例：PCR、塩基配列、12", "fig-muted")}${hl(13, 35, 294, 36)}${badge(300, 38, 1)}
-    ${box(18, 76, 284, 24, "fig-btn", 8)}${t(28, 92, "2024年度 · すべての分野")}<path class="fig-chevron" d="M284 86l4 4 4-4"/>${hl(13, 72, 294, 32)}${badge(300, 74, 2)}
-    ${["すべて", "未着手", "誤答", "習得"].map((l, i) => `${box(18 + i * 62, 108, 56, 18, i === 0 ? "fig-primary" : "fig-btn", 9)}${t(46 + i * 62, 120.5, l, i === 0 ? "fig-on-text fig-small-strong" : "fig-small-strong", "middle")}`).join("")}${hl(13, 104, 254, 26, 13)}${badge(284, 117, 3)}
-    ${rows}${hl(46, 136, 196, 26, 6)}${badge(242, 136, 4)}${hl(266, 168, 27, 28, 6)}${badge(302, 168, 5)}
-    ${box(12, 260, 296, 58, "fig-bar-card", 12)}${t(24, 280, "2問を選択中", "fig-strong")}${check(210, 270, false, 11)}${t(225, 280, "ランダムな順", "fig-small")}${btn(24, 288, 272, 22, "選んだ2問を演習する", true)}${hl(18, 284, 284, 30, 15)}${badge(300, 286, 6)}`);
+    ${box(18, 38, 284, 26, "fig-btn", 13)}${t(90, 55, "読んで学ぶ", "fig-small", "middle")}${box(162, 41, 137, 20, "fig-primary", 10)}${t(230, 55, "選んで演習", "fig-on-text fig-small-strong", "middle")}${hl(13, 33, 294, 36)}${badge(300, 36, 1)}
+    ${box(18, 74, 284, 24, "fig-btn", 8)}<circle class="fig-glyph" cx="32" cy="86" r="5"/><path class="fig-glyph" d="M36 90l4 4"/>${t(46, 90, "例：PCR、塩基配列、12", "fig-muted")}${hl(13, 70, 294, 32)}${badge(300, 72, 2)}
+    ${chip(18, 108, 54, "すべて")}${chip(76, 108, 54, "2025")}${chip(134, 108, 54, "2024", true)}${box(194, 108, 108, 18, "fig-btn", 6)}${t(202, 121, "すべての分野", "fig-small")}<path class="fig-chevron" d="M288 115l4 4 4-4"/>${hl(13, 104, 294, 26)}${badge(300, 106, 3)}
+    ${chip(18, 140, 50, "すべて", true)}${chip(72, 140, 62, "解説未読")}${chip(138, 140, 50, "未着手")}${chip(192, 140, 44, "誤答")}${hl(13, 136, 228, 26, 13)}${badge(250, 149, 4)}
+    ${rows}${hl(46, 175, 196, 26, 6)}${badge(242, 175, 5)}${hl(266, 207, 27, 28, 6)}${badge(302, 207, 6)}
+    ${box(12, 298, 296, 60, "fig-bar-card", 12)}${t(24, 318, "1問を選択中", "fig-strong")}${check(210, 308, false, 11)}${t(225, 318, "ランダムな順", "fig-small")}${btn(24, 326, 272, 22, "選んだ1問を演習する", true)}${hl(18, 322, 284, 30, 15)}${badge(300, 324, 7)}`);
 }
 
 // ---------- 部品 ----------
@@ -97,12 +99,13 @@ export const renderReaderFigure = (): string => figure(readerFigure(), [
 interface Guide { eyebrow: string; title: string; lead: string; body: string; start: string; }
 // 過去問一覧の図と番号つき説明。全体の使い方ガイドでも使う。
 export const renderCatalogFigure = (): string => figure(catalogFigure(), [
+  "一番上の切り替えを<b>選んで演習</b>にする（「読んで学ぶ」のときは、四角と演習のバーは出ません）",
   "<b>キーワード</b>で探す。問題文・選択肢・分野名が対象です。スペースで区切るとすべての語を含む問題に、数字だけなら問題番号・年度でも探せます",
-  "<b>年度</b>（2024・2025）と<b>分野</b>で絞り込む",
-  "<b>学習状態</b>（未着手・誤答・取り組み中・習得）で絞り込む",
+  "<b>年度</b>（すべて・2025・2024）のボタンと<b>分野</b>で絞り込む。分野の問題数は選んだ年度の中で数えます",
+  "<b>学習状態</b>（解説未読・未着手・誤答・取り組み中・習得）で絞り込む",
   "<b>問題を押す</b>と、正解と解説が開きます。開いた問題の下の「この問題を演習する」で1問だけ解くこともできます",
-  "上の切り替えを<b>選んで演習</b>にすると、右端に四角が出ます。押すと演習する問題に選ばれます（もう一度押すと外れます）",
-  "1問以上選ぶと画面下にバーが出ます。<b>選んだN問を演習する</b>で開始。一覧の上の「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
+  "<b>右端の四角</b>を押すと、演習する問題に選ばれます（もう一度押すと外れます）。一覧の上の「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
+  "1問以上選ぶと画面下に<b>バー</b>が出ます。「<b>選んだN問を演習する</b>」で開始。「ランダムな順」をオンにすると順番を混ぜます",
 ]);
 
 const GUIDES: Record<Course, Guide> = {
@@ -138,7 +141,7 @@ const GUIDES: Record<Course, Guide> = {
     body: section("HOW IT FILLS", "問題がたまる仕組み", `<div class="course-lanes">
         <div><span>学習・対戦で<b>間違えた</b><br>「<b>わからないので回答を見る</b>」で確認した</span>${icon("arrow")}<strong>誤答・わからない</strong></div>
         <div><span>正解したあとに<br>「<b>正解したけど迷った</b>」を押した</span>${icon("arrow")}<strong>迷った問題</strong></div>
-        <div><span>振り返り画面で<br>「<b>この問題を保存</b>」を押した</span>${icon("arrow")}<strong>保存した問題</strong></div>
+        <div><span>振り返り画面の「<b>この問題を保存</b>」<br>解説リーダーの「<b>あとで解く</b>」を押した</span>${icon("arrow")}<strong>保存した問題</strong></div>
       </div>`)
       + section("HOW TO USE", "見直して、解き直す", figure(notebookFigure(), [
         "<b>タブ</b>で、見直したい種類を選ぶ。数字はたまっている問題数です",
@@ -149,6 +152,7 @@ const GUIDES: Record<Course, Guide> = {
       + section("TIPS", "うまく使うコツ", tips([
         "「誤答・わからない」の問題は、解き直して正解しても自動では消えません。覚えたと思ったら「リストから外す」で整理しましょう",
         "画面下の「復習」タブや「学ぶ」に出る<b>復習待ち</b>の数が、いまたまっている問題の目安です",
+        "過去問の解説を読んでいて気になった問題は、解説リーダーの「あとで解く」で保存しておくと、ここからまとめて解けます",
         "記録はこのブラウザに保存されます。いつも同じブラウザ・ホーム画面のアイコンから開くと、ノートがひとつにまとまります",
       ])),
     start: "ノートを見る",

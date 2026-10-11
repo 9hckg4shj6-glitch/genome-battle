@@ -36,7 +36,7 @@ export function revealReader(guess?: number): void {
 export function retryReader(): void { if (s) s.failed = false; }
 export function saveReaderQuestion(): void {
   const id = s?.ids[s.index], a = id ? answerOf(id) : undefined;
-  if (id && a) toggleSaved({ id, answer: a.answer, explanation: a.explanation, my_choice: null });
+  if (id && a) toggleSaved({ id, answer: a.answer, explanation: a.explanation, my_choice: null, answer_viewed: true });
 }
 
 // 描画のあとに呼ぶ。表示中の問題の正解・解説を取得し、解説が見えたら「読んだ」としおりを記録する。
