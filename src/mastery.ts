@@ -61,7 +61,7 @@ export const renderStars = (stars: number): string =>
 
 const LABELS: Record<QuestionState, string> = { settled: '定着', mastered: '習得', learning: '取り組み中', new: '未着手' };
 const ORDER: QuestionState[] = ['settled', 'mastered', 'learning', 'new'];
-const stack = (counts: Record<QuestionState, number>, total: number, cls: string): string =>
+export const stack = (counts: Record<QuestionState, number>, total: number, cls: string): string =>
   `<span class="${cls}" aria-hidden="true">${ORDER.map(s => counts[s] ? `<i class="st-${s}" style="width:${100 * counts[s] / total}%"></i>` : '').join('')}</span>`;
 
 // 分野一覧の開閉は再描画・再取得のあいだ保つ。

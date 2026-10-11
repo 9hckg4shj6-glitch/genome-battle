@@ -20,11 +20,13 @@ function practiceSetupFigure(): string {
     const x = 18 + (i % 2) * 144, y = 52 + Math.floor(i / 2) * 36, on = i !== 3;
     return `${box(x, y, 136, 30, on ? "fig-card fig-card-on" : "fig-card")}${check(x + 9, y + 8.5, on)}${t(x + 30, y + 19, f)}`;
   }).join("");
-  return svg("問題演習コーナの設定画面。分野を選び、問題数と出題配分を決め、出題の順番を選んで始める", 300, `
+  const orders = ["未着手優先", "苦手優先", "仕上げ", "ランダム"].map((o, i) => `${box(18 + i * 71, 248, 66, 22, i === 1 ? "fig-card fig-card-on" : "fig-card", 7)}${t(51 + i * 71, 263, o, i === 1 ? "fig-small-strong" : "fig-small", "middle")}`).join("");
+  return svg("問題演習コーナの設定画面。分野を選び、問題数と出題配分、出題方法を決め、画面下のバーから始める", 340, `
     ${t(18, 28, "問題演習コーナ", "fig-title")}${t(18, 44, "1 学習する分野", "fig-label")}${cards}${hl(13, 47, 294, 76)}${badge(300, 50, 1)}
     ${t(18, 146, "2 問題数と出題配分", "fig-label")}<path class="fig-track" d="M24 164h200"/><path class="fig-track-on" d="M24 164h86"/><circle class="fig-knob-accent" cx="110" cy="164" r="7"/>${box(238, 153, 52, 22, "fig-btn", 6)}${t(264, 168, "20問", "fig-strong", "middle")}
     ${box(18, 184, 136, 28, "fig-card fig-card-on")}${t(86, 202, "過去問の配分", "fig-strong", "middle")}${box(162, 184, 140, 28)}${t(232, 202, "分野を均等に", "", "middle")}${hl(13, 151, 294, 66)}${badge(300, 154, 2)}
-    ${t(18, 240, "3 演習をはじめる", "fig-label")}${btn(18, 250, 160, 30, "未着手の問題を優先的に演習", true)}${btn(186, 250, 116, 30, "ランダム演習")}${hl(13, 245, 294, 40, 18)}${badge(300, 248, 3)}`);
+    ${t(18, 240, "3 出題方法", "fig-label")}${orders}${hl(13, 243, 294, 32)}${badge(300, 246, 3)}
+    ${box(12, 284, 296, 44, "fig-bar-card", 12)}${t(24, 304, "10問", "fig-strong")}${t(24, 318, "3分野 · 苦手優先", "fig-small")}${btn(196, 292, 100, 28, "はじめる", true)}${hl(190, 288, 112, 36, 18)}${badge(186, 290, 4)}`);
 }
 
 function practiceSessionFigure(): string {
@@ -90,7 +92,8 @@ const GUIDES: Record<Course, Guide> = {
     body: section("STEP 1", "設定して始める", figure(practiceSetupFigure(), [
       "<b>学習する分野</b>を選ぶ。いくつでも組み合わせられます（「すべて選択」「選択を解除」もあります）",
       "<b>問題数</b>をスライダーか数字で決め、2分野以上なら<b>出題配分</b>（過去問の配分／分野を均等に）を選ぶ",
-      "<b>未着手の問題を優先的に演習</b>（まだ解いていない問題から出す）か<b>ランダム演習</b>を押して開始",
+      "<b>出題方法</b>を選ぶ。<b>未着手優先</b>・<b>苦手優先</b>（取り組み中・間違えた問題）・<b>仕上げ</b>（あと1回の正解で定着する問題）・<b>ランダム</b>の4つ。右に対象の問題数が出ます",
+      "画面の下に留まる<b>はじめる</b>を押して開始。どこまでスクロールしていても、すぐに始められます",
     ]))
       + section("STEP 2", "解いて、解説を読む", figure(practiceSessionFigure(), [
         "選択肢を押して解答。すぐに正解と解説が出ます",

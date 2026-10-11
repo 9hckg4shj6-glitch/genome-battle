@@ -8,12 +8,17 @@
 .practice-step-head h2 { margin:0;font-size:17px;line-height:1.5; }
 .practice-step-head p { margin:4px 0 0;font-size:12px;line-height:1.8;color:var(--muted); }
 .practice-step-no { flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 12%,transparent);border:1px solid color-mix(in srgb,var(--mode-color) 35%,transparent); }
-.practice-step { --mode-color:#9fd8d4; }
-:root[data-theme="light"] .practice-step { --mode-color:#287a79; }
+.practice-step, .practice-startbar { --mode-color:#9fd8d4; }
+/* 分野カードの進み具合は、記録の学習レベルと同じ4色 */
+.practice-step { --st-settled:var(--ok);--st-mastered:color-mix(in srgb,var(--ok) 52%,var(--surface));--st-learning:color-mix(in srgb,var(--warn) 62%,var(--surface));--st-new:var(--line); }
+:root[data-theme="light"] .practice-step, :root[data-theme="light"] .practice-startbar { --mode-color:#287a79; }
 
 .practice-bulk { display:flex;flex-wrap:wrap;gap:8px; }
 .practice-bulk .btn { min-height:40px;padding:8px 14px;font-size:12px; }
 .practice-bulk .btn:disabled { opacity:.45;cursor:default; }
+/* 苦手・未着手が残る分野をまとめて選ぶ。右の数字は該当する分野数。 */
+.practice-smart { gap:7px;border-color:color-mix(in srgb,var(--mode-color) 35%,var(--line)); }
+.practice-smart b { display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;font-size:11px;font-variant-numeric:tabular-nums;color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 14%,transparent); }
 
 .practice-fields { display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px; }
 .practice-field { position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;
@@ -27,7 +32,14 @@
 .practice-check .icon { width:15px;height:15px;stroke-width:3; }
 .practice-field.on .practice-check { background:var(--mode-color);border-color:var(--mode-color);color:var(--bg); }
 :root[data-theme="light"] .practice-field.on .practice-check { color:#fff; }
-.practice-field-copy { display:grid;gap:2px;min-width:0; }
+.practice-field-copy { display:grid;gap:3px;min-width:0;flex:1; }
+.practice-field-copy small b { color:var(--text);font-weight:700; }
+.practice-major { display:inline-block;margin-left:6px;padding:0 6px;border-radius:99px;font-style:normal;font-size:10px;font-weight:700;line-height:17px;color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 14%,transparent);vertical-align:1px; }
+.practice-bar { margin:2px 0 1px; }
+.practice-weak { white-space:nowrap;font-weight:600;color:color-mix(in srgb,var(--warn) 75%,var(--text)); }
+.practice-legend { display:flex;flex-wrap:wrap;gap:4px 14px;margin:-6px 0 0;font-size:11px;color:var(--muted); }
+.practice-legend span { display:inline-flex;align-items:center;gap:5px; }
+.practice-legend i { width:10px;height:10px;border-radius:3px; }
 .practice-field-copy strong { font-size:14px;line-height:1.5;overflow-wrap:anywhere; }
 .practice-field-copy small { font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums; }
 /* 切り替えた瞬間だけ、チェックが弾む */
@@ -40,9 +52,31 @@
 .practice-summary b { color:var(--mode-color);font-variant-numeric:tabular-nums; }
 .practice-summary.empty { color:var(--ng);background:var(--ng-bg); }
 .practice-step .study-distribution { margin-top:0; }
-.practice-step .study-start-actions { margin-top:0; }
 .practice-step .study-order-help { margin:0; }
 .practice-step .count-row input:disabled { opacity:.5; }
+
+/* 出題方法。2×2のカードから1つ選び、右に対象の問題数を出す。 */
+.practice-orders { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;margin:0;padding:0;border:0; }
+.practice-order { position:relative;display:flex;align-items:center;gap:10px;min-height:68px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;
+  transition:background-color .2s var(--ease-out),border-color .2s var(--ease-out),box-shadow .3s var(--ease-out); }
+.practice-order input { flex:none;width:18px;height:18px;margin:0;accent-color:var(--mode-color); }
+.practice-order.on { border-color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 9%,var(--surface));box-shadow:0 8px 20px -14px color-mix(in srgb,var(--mode-color) 70%,transparent); }
+.practice-order:has(input:disabled) { cursor:default;opacity:.5; }
+.practice-order:has(input:focus-visible) { outline:2px solid var(--accent);outline-offset:2px; }
+.practice-order-copy { display:grid;gap:2px;flex:1;min-width:0; }
+.practice-order-copy strong { font-size:14px;line-height:1.5; }
+.practice-order-copy small { font-size:11px;line-height:1.6;color:var(--muted); }
+.practice-order-count { flex:none;font-size:11px;font-weight:600;color:var(--mode-color);font-variant-numeric:tabular-nums;white-space:nowrap; }
+.practice-order.none .practice-order-count { color:var(--muted); }
+
+/* 開始バー。下のタブの上に留まり、どこまでスクロールしてもすぐ始められる。 */
+.practice-startbar { position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:10;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:18px;padding:12px 14px 12px 18px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface) 92%,transparent);box-shadow:0 14px 34px -18px #000a;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px); }
+.practice-startbar.ready { border-color:color-mix(in srgb,var(--mode-color) 55%,var(--line)); }
+.practice-startbar-copy { flex:1;min-width:0;margin:0;font-size:13px; }
+.practice-startbar-copy b { margin-right:2px;font-size:22px;color:var(--mode-color);font-variant-numeric:tabular-nums; }
+.practice-startbar-copy small { display:block;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.practice-startbar .btn.primary { min-width:150px; }
+.practice-startbar .error { flex-basis:100%;margin:0; }
 
 /* ページに入ったら、分野カードが順に立ち上がる */
 .scene-enter .practice-field { animation:card-rise .5s var(--ease-out) backwards;animation-delay:calc(120ms + var(--i,0) * 28ms); }
@@ -55,10 +89,18 @@
   .practice-field { min-height:58px;padding:10px;gap:9px; }
   .practice-field-copy strong { font-size:13px; }
   .practice-step-head { gap:10px; }
-  .practice-bulk .btn { flex:1; }
+  .practice-bulk .btn { flex:1 1 40%;min-width:0;padding:8px 10px; }
+  .practice-orders { gap:8px; }
+  .practice-order { flex-wrap:wrap;align-content:center;gap:4px 8px;min-height:84px;padding:10px; }
+  .practice-order-copy { flex-basis:calc(100% - 28px); }
+  .practice-order-count { margin-left:26px; }
+  .practice-startbar { bottom:calc(86px + env(safe-area-inset-bottom));padding:10px 12px 10px 14px; }
+  .practice-startbar { gap:8px 10px; }
+  .practice-startbar-copy b { font-size:19px; }
+  .practice-startbar .btn.primary { min-width:0;min-height:44px;padding:8px 16px; }
 }
 @media (max-width:360px) { .practice-fields { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion: reduce) {
-  .practice-field, .practice-check { transition:none; }
+  .practice-field, .practice-check, .practice-order { transition:none; }
   .practice-field.pop .practice-check, .practice-field.pop.on .practice-check .icon, .scene-enter .practice-field { animation:none; }
 }

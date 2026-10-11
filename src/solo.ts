@@ -1,4 +1,5 @@
 import { distributionName, type StudyDistribution } from './study-distribution';
+import { sessionOrderName } from './study-order';
 import { choiceOrder } from './choices';
 import { call, serverNow, type ReviewItem } from './api';
 import { esc, richText, icon, readStore, writeStore, notebook, recordMiss, reviewCard, uncertainButton, questionImage, type Question } from './ui';
@@ -177,7 +178,7 @@ export class SoloController {
     const missMoment:Moment|undefined=missed?{outcome:'lose',streak:0,style:since(missKey)}:undefined;
     const choicesAttr=moment?` celebrating" style="${moment.style}`:missMoment?` celebrating" style="${missMoment.style}`:picked!==null?` locked-in" aria-busy="true" style="${since(`${s.id}:${s.q_index}:pick`)}`:'';
     const side=(who:'me'|'ai',score:number,label:string,avatar:string):string=>`<div class="${moment&&s.winner===who?'scored':''}">${avatar}<span>${label}</span><b>${score}</b>${moment&&s.winner===who?plusOne():''}${s.phase!=='finished'&&score===4?reach():''}</div>`;
-    return `<div class="session-label"><span class="tag">${icon(ai?'bot':'book')}${ai?'AI対戦 · '+difficultyName[s.difficulty]:(this.course?'対戦直後の復習':s.study_order==='unattempted'?'一人で学習 · 未着手優先':s.study_order==='random'?'一人で学習 · ランダム':'一人で学習')}</span><span>${ai?'5問先取':s.study_distribution?distributionName[s.study_distribution]:'自分のペースで'}</span>${!ai?`<button class="btn study-pause-button" data-act="study-pause" ${this.busy?'disabled':''}>${icon('bookmark')}中断して保存</button>`:renderSoundToggle()}</div>
+    return `<div class="session-label"><span class="tag">${icon(ai?'bot':'book')}${ai?'AI対戦 · '+difficultyName[s.difficulty]:(this.course?'対戦直後の復習':(n=>n?`一人で学習 · ${n}`:'一人で学習')(sessionOrderName(s.id,s.study_order)))}</span><span>${ai?'5問先取':s.study_distribution?distributionName[s.study_distribution]:'自分のペースで'}</span>${!ai?`<button class="btn study-pause-button" data-act="study-pause" ${this.busy?'disabled':''}>${icon('bookmark')}中断して保存</button>`:renderSoundToggle()}</div>
       ${ai?`<div class="duel${moment?' celebrating':''}" ${moment?`style="${moment.style}"`:''}>${side('me',s.my_score,esc(this.name()||'あなた'),`<span class="avatar">${icon('user')}</span>`)}<span class="versus">VS</span>${side('ai',s.ai_score,'GENOME AI',`<span class="avatar ai">${icon('bot')}</span>`)}</div>`:`<div class="study-score">${icon('check')}ここまで ${s.my_score} 問正解 <span>解答済み ${s.q_index+(s.phase==='reveal'?1:0)} / ${s.q_total}問 · 後回し ${s.deferred_count??0}問</span></div>`}
       <div class="qhead"><span>第${s.q_index+1}問 <small>/ ${s.q_total}問</small></span><span class="tag">${esc(q.field)}</span>${ai && s.phase==='question'?'<span class="clock"><span data-solo-count></span>秒</span>':''}</div>
       <div class="timer"><i ${ai && s.phase==='question'?'data-solo-bar':`style="width:${100*(s.q_index+1)/s.q_total}%"`}></i></div>

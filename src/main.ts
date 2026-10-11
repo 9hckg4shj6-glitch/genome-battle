@@ -31,7 +31,8 @@ import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } 
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-guide";
 import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
-import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
+import { chosenFields, clearFields, freshFields, renderPractice, renderPracticeEntry, selectAllFields, selectFields, toggleField, weakFields } from "./practice";
+import { clientOrder, isStudyOrder, pickStudyIds, rememberOrder, type StudyOrder } from "./study-order";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 import { markTitleSeen, renderStudyEntry, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab } from "./hub";
 import { applyQuestionStats, renderRateInline } from "./stats";
@@ -100,8 +101,7 @@ type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
 let studyCount = 10;
 let distribution=studyDistribution(readStore('gb.study-distribution'));
-type StudyOrder = 'unattempted'|'random';
-let studyOrder:StudyOrder=readStore('gb.study-order')==='random'?'random':'unattempted';
+let studyOrder:StudyOrder=(v=>isStudyOrder(v)?v:'unattempted')(readStore('gb.study-order'));
 let savedStudies:SavedStudy[]=[];let savedStudiesLoading=false;let savedStudiesError=false;let savedStudyNotice='';let savedStudiesAgain=false;
 let savedStudiesExpanded=false;
 async function refreshSavedStudies():Promise<void> {
@@ -604,7 +604,7 @@ function render(): void {
   else if (view === "battle") body = renderBattleHub();
   else if (view === "records") body = renderRecords(renderMastery(questions,mastery,masteryError),renderPerformance(performance,performanceError));
   else if (view === "settings") body = renderSettings(playerName);
-  else if (view === "practice") body = renderPractice({questions,playerName,busy,error,count:studyCount,distribution,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError,mastery});
+  else if (view === "practice") body = renderPractice({questions,busy,error,count:studyCount,distribution,order:studyOrder,attempted:studyAttempted,progressLoaded:studyProgressLoaded,progressError:studyProgressError,mastery});
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
   else if (view === "catalog") body = renderCatalog(questions,mastery,busy,error);
@@ -715,11 +715,17 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   // Fisher–Yates。特定の問題に偏らないようシャッフルする。過去問一覧で選んだ問題は、指定がなければ問題番号の順に出す。
   if (shuffle) for (let i=available.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]];}
   const orderedStudy=mode==="study"&&!retryIds;
-  const ids=orderedStudy?available:available.slice(0,retryIds ? 100 : mode === "ai" ? 15 : studyCount); // サーバ側の上限は100問
+  // 苦手優先・仕上げは学習レベルの記録が必要。読み込めていなければ未着手優先で出す（画面の選択も同じ扱い）。
+  if (clientOrder(order) && !mastery) order="unattempted";
+  const picked=orderedStudy&&clientOrder(order);
+  const ids=picked?pickStudyIds([...questions.values()].filter(q=>fields.has(q.field)),studyCount,order as "weak"|"polish",distribution,mastery)
+    :orderedStudy?available:available.slice(0,retryIds ? 100 : mode === "ai" ? 15 : studyCount); // サーバ側の上限は100問
   if (!ids.length) {error=retryIds||mode==="ai"?"この分野の問題はありません":"学習する分野を1つ以上選んでください";render();return;}
   busy=true; error=""; render();
   try {
-    await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course,orderedStudy?order:"given",orderedStudy?Math.min(studyCount,available.length):undefined,orderedStudy&&fields.size>1?distribution:undefined);
+    // 端末で選んだ問題は「ランダム」としてそのまま全問渡す（出題順は分野を混ぜてサーバーがシャッフル）。
+    await solo.start(mode,ids,mode === "study" ? 20 : answerSeconds,difficulty,course,picked?"random":orderedStudy?order as "unattempted"|"random":"given",orderedStudy?(picked?ids.length:Math.min(studyCount,available.length)):undefined,orderedStudy&&fields.size>1?distribution:undefined);
+    if (picked && solo.state) rememberOrder(solo.state.id,order);
     savedStudyNotice='';
     if (channel) void supabase.removeChannel(channel);
     channel=null;realtimeState("off");match=null;mySeat=null;writeStore("gb.match",null,sessionStorage);
@@ -995,9 +1001,14 @@ app.addEventListener("input", (e) => {
   if (input.id === "invite-key") roomInviteDraft = input.value;
   if (input.id === "catalog-search") {setCatalogQuery(input.value);updateCatalogResults(questions,mastery,busy,error);}
   if (input.id === "seconds") answerSeconds = Number(input.value);
-  if (input.id === "study-count") {studyCount = Number(input.value); (document.getElementById("study-count-value") as HTMLInputElement).value = input.value;}
-  if (input.id === "study-count-value" && Number.isInteger(Number(input.value)) && Number(input.value) >= 1 && Number(input.value) <= Number(input.max)) {studyCount = Number(input.value); (document.getElementById("study-count") as HTMLInputElement).value = input.value;}
+  if (input.id === "study-count") {studyCount = Number(input.value); (document.getElementById("study-count-value") as HTMLInputElement).value = input.value; showStudyCount();}
+  if (input.id === "study-count-value" && Number.isInteger(Number(input.value)) && Number(input.value) >= 1 && Number(input.value) <= Number(input.max)) {studyCount = Number(input.value); (document.getElementById("study-count") as HTMLInputElement).value = input.value; showStudyCount();}
 });
+// 問題数のつまみを動かすあいだは再描画せず、下の開始バーの数字だけ合わせる。
+function showStudyCount(): void {
+  const b=document.querySelector<HTMLElement>(".practice-startbar-copy b");
+  if (b) b.textContent=String(studyCount);
+}
 app.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
   if (input.id === "room-private") roomPrivateDraft = input.checked;
@@ -1006,6 +1017,7 @@ app.addEventListener("change", (e) => {
   if (input.name === "match-size") {matchCapacity=matchSize(input.value);writeStore("gb.match-capacity",String(matchCapacity));render();document.querySelector<HTMLInputElement>(`input[name="match-size"][value="${matchCapacity}"]`)?.focus();}
   if (input.id === "room-field") {roomFieldDraft=input.value;render();}
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
+  if (input.name === "study-order" && isStudyOrder(input.value)) {studyOrder=input.value;writeStore('gb.study-order',studyOrder);render();document.querySelector<HTMLInputElement>(`input[name="study-order"][value="${studyOrder}"]`)?.focus();}
   if (input.name === "practice-field") {toggleField(questions,input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-field"][value="${CSS.escape(input.value)}"]`)?.focus();}
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
   if (input.name === "catalog-status") {setCatalogStatus(input.value);updateCatalogResults(questions,mastery,busy,error);}
@@ -1085,8 +1097,6 @@ app.addEventListener("click", (e) => {
   if(resumeId){void resumeStudy(resumeId);return;}
   const catalogPractice=target.closest<HTMLElement>('[data-catalog-practice]')?.dataset.catalogPractice;
   if(catalogPractice&&questions.has(catalogPractice)){void startSolo('study',[catalogPractice],false,studyOrder,false);return;}
-  const orderChoice=target.closest<HTMLElement>('[data-study-order]')?.dataset.studyOrder;
-  if(orderChoice==='unattempted'||orderChoice==='random'){studyOrder=orderChoice;writeStore('gb.study-order',studyOrder);void startSolo('study',undefined,false,studyOrder);return;}
   const publicRoomId=target.closest<HTMLElement>("[data-public-room]")?.dataset.publicRoom;
   if (publicRoomId) return void enter("join_public_room",publicRoomId);
   if (act === "friends") {friends.open();return;}
@@ -1152,6 +1162,9 @@ app.addEventListener("click", (e) => {
   else if (act === "practice-back") {view="setup";selectedMode="study";error="";navigate(()=>{render();window.scrollTo(0,0);},"back",document.querySelector(".practice-title"),()=>document.querySelector(".practice-entry"));}
   else if (act === "practice-all") {selectAllFields();render();}
   else if (act === "practice-none") {clearFields();render();}
+  else if (act === "practice-weak-fields") {selectFields(questions,weakFields(questions,mastery));render();}
+  else if (act === "practice-fresh-fields") {selectFields(questions,freshFields(questions,studyAttempted,studyProgressLoaded));render();}
+  else if (act === "practice-start") void startSolo("study",undefined,false,studyOrder);
   else if (act === "catalog-clear") {clearCatalogFilters();render();document.getElementById("catalog-search")?.focus();}
   else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);}, "back");}
   else if (act === "catalog-pick-shown") {pickShown(questions,mastery);updateCatalogResults(questions,mastery,busy,error);}
