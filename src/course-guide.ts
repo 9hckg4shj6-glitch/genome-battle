@@ -76,6 +76,24 @@ const flow = (nodes: string[]): string => `<ol class="course-flow">${nodes.map(n
 const tips = (items: string[]): string => `<ul class="course-tips">${items.map(s => `<li>${s}</li>`).join("")}</ul>`;
 const section = (eyebrow: string, title: string, body: string): string => `<section class="course-section"><p class="eyebrow">${eyebrow}</p><h3>${title}</h3>${body}</section>`;
 
+// 解説リーダーの画面。進み具合・答えを隠す切り替え・問題と解説・前後の移動。
+function readerFigure(): string {
+  const choices = ["花粉", "ウイルス", "培養細胞"].map((c, i) => `${box(30, 150 + i * 26, 260, 21, i === 2 ? "fig-card fig-card-on" : "fig-card", 6)}${t(44, 164.5 + i * 26, `${i + 1}  ${c}`, i === 2 ? "fig-small-strong" : "fig-small")}`).join("");
+  return svg("解説リーダーの画面。答えを隠す切り替え、問題と正解・解説、あとで解く、前後の移動ボタン", 330, `
+    ${t(18, 28, "過去問を1問ずつ読む", "fig-title")}${t(18, 50, "2 / 100問", "fig-strong")}<path class="fig-track" d="M92 46h206"/><path class="fig-track-on" d="M92 46h40"/>
+    ${box(18, 60, 284, 30, "fig-card", 9)}${t(30, 79, "答えを隠して読む", "fig-small-strong")}${box(258, 67, 32, 16, "fig-btn", 8)}<circle class="fig-knob-accent" cx="266" cy="75" r="5"/>${hl(13, 55, 294, 40)}${badge(300, 58, 1)}
+    ${box(18, 100, 284, 168, "fig-card", 12)}${t(30, 120, "2025年度 第2問 · 遺伝子組換え", "fig-small")}${t(30, 138, "対象とならない生物はどれか", "fig-strong")}${choices}
+    ${lines(30, 228, [240, 200], 7)}${hl(24, 145, 272, 78)}${badge(300, 148, 2)}
+    ${btn(30, 243, 150, 18, "あとで解く（保存）")}${hl(25, 239, 160, 26, 13)}${badge(186, 241, 3)}
+    ${box(12, 278, 296, 42, "fig-bar-card", 12)}${btn(22, 285, 70, 28, "前へ")}${btn(100, 285, 196, 28, "次の問題へ", true)}${hl(94, 281, 208, 36, 18)}${badge(300, 284, 4)}`);
+}
+export const renderReaderFigure = (): string => figure(readerFigure(), [
+  "<b>答えを隠して読む</b>をオンにすると、正解と解説を伏せたまま問題を読めます。自分で答えを考えてから確かめる暗記カードの使い方です（オフなら最初から解説まで表示）",
+  "隠しているときは<b>選択肢を押す</b>か「正解と解説を見る」で表示。選んだ答えの正誤も出ますが、読むための画面なので記録には残りません",
+  "<b>あとで解く</b>で、その問題を復習ノートの「保存した問題」に入れます。「この問題を演習する」ですぐ解くこともできます",
+  "<b>次の問題へ</b>・<b>前へ</b>で移動（左右のスワイプ、パソコンでは ← → キーでも）。次の問題の解説は先に読み込むので待たずに読めます",
+]);
+
 interface Guide { eyebrow: string; title: string; lead: string; body: string; start: string; }
 // 過去問一覧の図と番号つき説明。全体の使い方ガイドでも使う。
 export const renderCatalogFigure = (): string => figure(catalogFigure(), [
@@ -83,8 +101,8 @@ export const renderCatalogFigure = (): string => figure(catalogFigure(), [
   "<b>年度</b>（2024・2025）と<b>分野</b>で絞り込む",
   "<b>学習状態</b>（未着手・誤答・取り組み中・習得）で絞り込む",
   "<b>問題を押す</b>と、正解と解説が開きます。開いた問題の下の「この問題を演習する」で1問だけ解くこともできます",
-  "<b>右端の四角</b>を押すと、演習する問題に選ばれます（もう一度押すと外れます）",
-  "画面下のバーの<b>選んだN問を演習する</b>で開始。「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
+  "上の切り替えを<b>選んで演習</b>にすると、右端に四角が出ます。押すと演習する問題に選ばれます（もう一度押すと外れます）",
+  "1問以上選ぶと画面下にバーが出ます。<b>選んだN問を演習する</b>で開始。一覧の上の「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
 ]);
 
 const GUIDES: Record<Course, Guide> = {
@@ -137,10 +155,13 @@ const GUIDES: Record<Course, Guide> = {
   },
   catalog: {
     eyebrow: "COURSE GUIDE", title: "過去問・問題と解説の使い方",
-    lead: "アプリに収録している全問題を、探して・読んで・選んで演習できる一覧です。気になる問題だけを集めて解くのにも使えます。",
-    body: section("HOW TO USE", "探して、選んで、演習する", renderCatalogFigure())
-      + section("FLOW", "使い方の流れ", flow(["条件で絞り込む", "問題を開いて解説を確認", "右端の四角で選ぶ", "まとめて演習"]))
+    lead: "アプリに収録している全問題を、探して・読んで・選んで演習できる一覧です。上の切り替えで、解説を読んで学ぶ「読んで学ぶ」と、問題を集めて解く「選んで演習」を選べます。",
+    body: section("READ", "読んで学ぶ：1問ずつ読み進める", `<p class="course-note">${icon("book")}<span>最初は「読んで学ぶ」になっています。絞り込んだ問題を「<b>1問ずつ読む</b>」で、解説を順番に読み進められます。解説を開いた問題には「<b>読んだ</b>」が付き、年度ごとの読んだ数と「<b>続きから読む</b>」（しおり）が一覧の上に出ます。学習状態の「<b>解説未読</b>」で、まだ読んでいない問題だけに絞れます。</span></p>` + renderReaderFigure())
+      + section("FLOW", "読んで学ぶ流れ", flow(["年度・分野で絞り込む", "「1問ずつ読む」", "正解と解説を読む", "「続きから読む」で再開"]))
+      + section("HOW TO USE", "探して、選んで、演習する", renderCatalogFigure())
       + section("TIPS", "うまく使うコツ", tips([
+        "「読んだ」の記録はこの端末に保存され、正答率・学習レベル・未着手の判定には入りません。読むだけで気軽に進められます",
+        "試験前は年度を選んで「答えを隠して読む」をオンにすると、1年度分を本番のように確かめられます",
         "選んだ問題は、ページや絞り込みを変えても残ります。いろいろな条件から少しずつ集められます",
         "出題は問題番号の順です。バーの「<b>ランダムな順で出題</b>」をオンにすると順番を混ぜます",
         "1回の演習は<b>100問まで</b>選べます",

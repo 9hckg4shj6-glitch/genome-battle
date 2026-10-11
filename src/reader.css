@@ -1,0 +1,78 @@
+/* 過去問一覧の「読んで学ぶ／選んで演習」切り替え・読んだ記録と、解説リーダー。 */
+.catalog-mode { margin:0 0 16px;padding:0;border:0;min-width:0; }
+.catalog-mode legend { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+.catalog-mode-options { display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;border:1px solid var(--line);border-radius:18px;background:var(--surface-2); }
+.catalog-mode-option { position:relative;display:flex;align-items:center;gap:10px;min-height:58px;padding:9px 12px;border:1px solid transparent;border-radius:14px;color:var(--muted);cursor:pointer;transition:background-color .2s,color .2s,border-color .2s,box-shadow .3s; }
+.catalog-mode-option input { position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none; }
+.catalog-mode-option strong { display:block;font-size:14px;line-height:1.4; }
+.catalog-mode-option small { display:block;font-size:11px;line-height:1.4;color:var(--muted); }
+.catalog-mode-icon { flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--line); }
+.catalog-mode-icon .icon { width:18px;height:18px; }
+.catalog-mode-option.on { background:var(--surface);border-color:color-mix(in srgb,var(--accent) 55%,var(--line));color:var(--text);box-shadow:0 8px 18px -14px color-mix(in srgb,var(--accent) 80%,transparent); }
+.catalog-mode-option.on .catalog-mode-icon { background:var(--accent);border-color:var(--accent);color:var(--accent-text); }
+.catalog-mode-option:has(input:focus-visible) { outline:2px solid var(--accent);outline-offset:2px; }
+
+/* 読んだ解説の進み具合としおり */
+.reading-panel { display:grid;gap:12px;margin:0 0 16px;padding:18px 20px; }
+.reading-panel-head h2 { display:flex;align-items:center;gap:8px;margin:0;font-size:15px; }
+.reading-panel-head h2 .icon { width:18px;height:18px;color:var(--accent); }
+.reading-panel-head p { margin:4px 0 0;font-size:11px;line-height:1.7;color:var(--muted); }
+.reading-progress { display:grid;gap:8px;margin:0;padding:0;list-style:none; }
+.reading-progress li { display:grid;grid-template-columns:5.5em minmax(0,1fr) auto;align-items:center;gap:10px;font-size:12px; }
+.reading-progress b { font-size:13px;font-variant-numeric:tabular-nums; }
+.reading-progress b small { font-size:11px;font-weight:500;color:var(--muted); }
+.reading-bar, .reader-bar { display:block;height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden; }
+.reading-bar i, .reader-bar i { display:block;height:100%;border-radius:inherit;background:var(--accent);transition:width .4s var(--ease-out,ease); }
+.btn.reading-resume { justify-content:flex-start;gap:10px;width:100%;text-align:left; }
+.reading-resume > span { flex:1;min-width:0; }
+.reading-resume small { display:block;font-size:11px;font-weight:500;opacity:.85;overflow-wrap:anywhere; }
+.catalog-state.st-read { --tone:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent); }
+
+/* 一覧の上の行：読むモードは「1問ずつ読む」、選ぶモードは「この条件の問題を選ぶ」 */
+.catalog-lead-row { display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin:0 0 12px;padding:12px 14px;border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:14px; }
+.catalog-lead-row p { flex:1;min-width:12em;margin:0;font-size:13px; }
+.catalog-lead-row p b { font-size:17px;margin-right:2px;font-variant-numeric:tabular-nums; }
+.catalog-lead-row small { display:block;font-size:11px;color:var(--muted); }
+.catalog-lead-row .btn { min-height:42px; }
+.catalog-pick-tools p { font-size:12px;color:var(--muted); }
+.catalog-list.reading .catalog-item summary { padding-right:18px; }
+.catalog-practice-one { flex-wrap:wrap;gap:8px; }
+
+/* 解説リーダー */
+.reader-head { display:grid;gap:12px;margin:0 0 16px; }
+.reader-head .eyebrow { margin:0; }
+.reader-progress { display:flex;align-items:center;gap:12px; }
+.reader-progress p { margin:0;white-space:nowrap;font-variant-numeric:tabular-nums; }
+.reader-progress p b { font-size:22px; }
+.reader-progress p small { font-size:12px;color:var(--muted); }
+.reader-progress .reader-bar { flex:1; }
+.reader-card { display:block;padding:22px; }
+.reader-meta { display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:0 0 12px; }
+.reader-no { font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);font-variant-numeric:tabular-nums; }
+.reader-q { margin:0;font-size:var(--reading-question,16px);font-weight:600;line-height:1.9;outline:none; }
+.reader-guess { margin-bottom:12px; }
+.btn.reader-reveal { width:100%;min-height:50px;border:1.5px dashed color-mix(in srgb,var(--accent) 60%,var(--line)); }
+.reader-verdict { display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin:0 0 14px;padding:10px 14px;border-radius:10px;font-weight:700; }
+.reader-verdict small { font-size:11px;font-weight:500;color:var(--muted); }
+.reader-verdict.ok { color:var(--ok);background:var(--ok-bg); }
+.reader-verdict.ng { color:var(--ng);background:var(--ng-bg); }
+.reader-actions { display:flex;flex-wrap:wrap;gap:8px;margin-top:16px; }
+.reader-actions .btn { flex:1 1 auto;min-height:44px;font-size:13px; }
+.reader-nav { position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:10;display:grid;grid-template-columns:auto 1fr;gap:10px;margin-top:16px;padding:10px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:var(--shadow); }
+.reader-nav .btn { min-height:52px; }
+.reader-nav .btn.primary { justify-content:space-between;text-align:left; }
+.reader-nav .btn.primary small { display:block;font-size:11px;font-weight:500;opacity:.85; }
+.reader-nav .btn:disabled { opacity:.45; }
+@media (max-width:540px) {
+  .catalog-mode-option { gap:8px;padding:8px; }
+  .catalog-mode-icon { width:30px;height:30px; }
+  .catalog-mode-option strong { font-size:13px; }
+  .catalog-mode-option small { font-size:10px; }
+  .reading-panel { padding:16px; }
+  .catalog-lead-row .btn { width:100%; }
+  .catalog-list.reading .catalog-item summary { padding-right:14px; }
+  .reader-card { padding:16px; }
+}
+/* 使い方ガイドの「読んで学ぶ／選んで演習」の小見出し */
+.guide-section > h3 { display:flex;align-items:center;gap:8px;margin:22px 0 6px;font-size:15px; }
+.guide-section > h3 .icon { width:18px;height:18px;color:var(--accent); }

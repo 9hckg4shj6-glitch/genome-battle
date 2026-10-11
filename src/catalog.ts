@@ -1,14 +1,13 @@
-import { call } from './api';
 import { esc, icon, notebook, questionImage, richText, type Question } from './ui';
 import { renderCommunityRate, renderDifficultyChip } from './stats';
 import { stateOf, type Mastery, type QuestionState } from './mastery';
 import { renderCourseGuideButton } from './course-guide';
-import { renderYearPicker, validYear } from './years';
+import { renderYearPicker, validYear, yearName } from './years';
+import { answerOf, loadAnswer } from './answers';
+import { bookmark, catalogMode, isRead, markRead, readMap } from './reading';
 
 // 過去問・問題と解説。問題文は手元の questions.json、正答と解説は開いた問題だけサーバから取得する。
-interface Answer { answer: number; explanation: string; }
-const answers = new Map<string, Answer>();
-const loading = new Set<string>();
+// 「読んで学ぶ」（既定）では読むことに集中できるよう、演習に選ぶ四角と演習バーを出さない。
 const failed = new Set<string>();
 const opened = new Set<string>();
 let catalogField = '';
@@ -24,15 +23,15 @@ let pickShuffle = false;
 // 1回の演習で選べる上限。
 export const PICK_LIMIT = 100;
 
-// 学習状態での絞り込み。習得は定着も含む。誤答は復習ノートの「誤答・わからなかった問題」。
-export type CatalogStatus = 'all' | 'new' | 'missed' | 'learning' | 'mastered';
+// 学習状態での絞り込み。習得は定着も含む。誤答は復習ノートの「誤答・わからなかった問題」。未読は解説をまだ開いていない問題。
+export type CatalogStatus = 'all' | 'unread' | 'new' | 'missed' | 'learning' | 'mastered';
 const STATUSES: { id: CatalogStatus; label: string }[] = [
-  { id: 'all', label: 'すべて' }, { id: 'new', label: '未着手' }, { id: 'missed', label: '誤答' },
+  { id: 'all', label: 'すべて' }, { id: 'unread', label: '解説未読' }, { id: 'new', label: '未着手' }, { id: 'missed', label: '誤答' },
   { id: 'learning', label: '取り組み中' }, { id: 'mastered', label: '習得' },
 ];
 const STATE_LABELS: Record<QuestionState, string> = { new: '未着手', learning: '取り組み中', mastered: '習得', settled: '定着' };
 // 問題番号は年度ごとの 1〜100。
-export interface CatalogEntry { q: Question; no: number; state: QuestionState; missed: boolean; }
+export interface CatalogEntry { q: Question; no: number; state: QuestionState; missed: boolean; read: boolean; }
 
 // 全角半角・大文字小文字・カタカナとひらがなの違いを無視して比べる。
 const fold = (s: string): string => s.toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
@@ -45,9 +44,9 @@ export function matchesTerms(e: CatalogEntry, terms: string[]): boolean {
   return terms.every(t => text.includes(t) || /^\d+$/.test(t) && (Number(t) === e.no || Number(t) === e.q.year));
 }
 export const matchesStatus = (e: CatalogEntry, status: CatalogStatus): boolean =>
-  status === 'all' || (status === 'missed' ? e.missed : status === 'mastered' ? e.state === 'mastered' || e.state === 'settled' : e.state === status);
-export function catalogEntries(questions: Map<string, Question>, m: Mastery | null, nb = notebook()): CatalogEntry[] {
-  return [...questions.values()].map(q => ({ q, no: q.no, state: stateOf(m, q.id, nb.uncertain), missed: !!nb.missed[q.id] }));
+  status === 'all' || (status === 'unread' ? !e.read : status === 'missed' ? e.missed : status === 'mastered' ? e.state === 'mastered' || e.state === 'settled' : e.state === status);
+export function catalogEntries(questions: Map<string, Question>, m: Mastery | null, nb = notebook(), read = readMap()): CatalogEntry[] {
+  return [...questions.values()].map(q => ({ q, no: q.no, state: stateOf(m, q.id, nb.uncertain), missed: !!nb.missed[q.id], read: isRead(q.id, read) }));
 }
 
 // 一致した語を <mark> で囲む。表記ゆれ（全角半角など）で位置がずれる場合は強調しない。
@@ -67,14 +66,41 @@ function highlight(text: string, terms: string[]): string {
 }
 
 const body = (q: Question): string => {
-  const a = answers.get(q.id);
+  const a = answerOf(q.id);
   const terms = searchTerms(catalogQuery);
   const choices = `<ol class="review-choices">${q.choices.map((c, n) => `<li class="${a?.answer === n ? 'correct' : ''}"><span class="num">${n + 1}</span>${highlight(c, terms)}${a?.answer === n ? '<b class="catalog-answer-mark">正解</b>' : ''}</li>`).join('')}</ol>`;
   const detail = a ? `<div class="expl">${richText(a.explanation)}</div>${renderCommunityRate(q.id)}`
     : failed.has(q.id) ? `<p class="error" role="alert">解答・解説を取得できませんでした。</p><button class="btn" data-catalog-retry="${esc(q.id)}">再取得する</button>`
     : `<p class="catalog-loading" role="status"><span class="spinner mini"></span>解答・解説を読み込み中…</p>`;
-  return `${questionImage(q, true)}${choices}${detail}<div class="catalog-practice-one"><button class="btn primary" data-catalog-practice="${esc(q.id)}">${icon('book')}この問題を演習する${icon('arrow')}</button></div>`;
+  return `${questionImage(q, true)}${choices}${detail}<div class="catalog-practice-one"><button class="btn" data-reader-from="${esc(q.id)}">${icon('play')}ここから1問ずつ読む</button><button class="btn primary" data-catalog-practice="${esc(q.id)}">${icon('book')}この問題を演習する${icon('arrow')}</button></div>`;
 };
+
+// 一覧の上部の切り替え。読む人には四角と演習バーを出さない。
+const MODES = [
+  { id: 'read', label: '読んで学ぶ', sub: '問題と解説を読む', icon: 'book' },
+  { id: 'pick', label: '選んで演習', sub: '問題を選んで解く', icon: 'check' },
+] as const;
+const modeSwitch = (): string => `<fieldset class="catalog-mode"><legend>一覧の使い方</legend><div class="catalog-mode-options">${MODES.map(o => {
+  const on = catalogMode() === o.id;
+  return `<label class="catalog-mode-option${on ? ' on' : ''}"><input type="radio" name="catalog-mode" value="${o.id}" ${on ? 'checked' : ''}/><span class="catalog-mode-icon" aria-hidden="true">${icon(o.icon)}</span><span><strong>${o.label}</strong><small>${o.sub}</small></span></label>`;
+}).join('')}</div></fieldset>`;
+
+// 読んだ解説の進み具合（年度ごと）と、しおりからの再開。
+function readingPanel(questions: Map<string, Question>): string {
+  const read = readMap();
+  const list = [...questions.values()];
+  const years = [...new Set(list.map(q => q.year))].sort((a, b) => b - a);
+  const rows = years.map(y => {
+    const qs = list.filter(q => q.year === y), n = qs.filter(q => read[q.id]).length;
+    return `<li><span>${yearName(y)}</span><span class="reading-bar" role="progressbar" aria-label="${yearName(y)}の解説を読んだ割合" aria-valuemin="0" aria-valuemax="${qs.length}" aria-valuenow="${n}"><i style="width:${100 * n / qs.length}%"></i></span><b>${n}<small>/${qs.length}</small></b></li>`;
+  }).join('');
+  const b = bookmark(id => questions.has(id));
+  const at = b ? questions.get(b.id)! : null;
+  const resume = b && at ? `<button class="btn primary reading-resume" data-act="reader-resume">${icon('play')}<span>続きから読む<small>${esc(b.label)} · ${at.year}年度 第${at.no}問（${b.ids.indexOf(b.id) + 1}/${b.ids.length}）</small></span>${icon('arrow')}</button>` : '';
+  return `<section class="panel reading-panel" aria-labelledby="reading-panel-heading"><div class="reading-panel-head"><h2 id="reading-panel-heading">${icon('book')}解説を読んだ問題</h2><p>解説を開くと「読んだ」が付きます。この端末に保存され、正答率や学習レベルには入りません。</p></div><ul class="reading-progress">${rows}</ul>${resume}</section>`;
+}
+
+export const readBadge = '<span class="catalog-state st-read">読んだ</span>';
 
 export function renderCatalog(questions: Map<string, Question>, m: Mastery | null, busy = false, error = ''): string {
   const list = [...questions.values()];
@@ -82,7 +108,9 @@ export function renderCatalog(questions: Map<string, Question>, m: Mastery | nul
   catalogYear = validYear(questions, catalogYear);
   // 分野の件数は選んだ年度の中で数える。
   const inYear = list.filter(q => !catalogYear || q.year === catalogYear);
-  return `${renderCourseGuideButton('catalog')}<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・年度・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、右端の四角を押すと演習する問題に選べます。</p></header>
+  const reading = catalogMode() === 'read';
+  return `${renderCourseGuideButton('catalog')}<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・年度・分野・学習状態で絞り込んで閲覧できます。${reading ? '問題を押すと正解と解説を表示します。「1問ずつ読む」で、解説を順番に読み進められます。' : '右端の四角を押して選んだ問題を、そのまま演習できます。'}</p></header>
+    ${modeSwitch()}${reading ? readingPanel(questions) : ''}
     <div class="panel catalog-tools">
       <label class="field catalog-search"><span>キーワードで探す</span><span class="catalog-search-box">${icon('zoom')}<input id="catalog-search" type="search" value="${esc(catalogQuery)}" placeholder="例：PCR、塩基配列、12" enterkeyhint="search" autocomplete="off" aria-describedby="catalog-search-hint"/></span><small id="catalog-search-hint">問題文・選択肢・分野名から探します。スペースで区切ると、すべての語を含む問題に絞ります。数字は問題番号・年度でも探せます。</small></label>
       ${renderYearPicker({ name: 'catalog-year', label: '年度で絞り込む', questions, year: catalogYear, compact: true })}
@@ -99,7 +127,7 @@ function choiceHits(q: Question, terms: string[]): string {
 }
 
 // 検索語・学習状態に応じて変わる部分。入力のたびにここだけを差し替え、検索欄のフォーカスや変換中の文字を保つ。
-function filteredEntries(questions: Map<string, Question>, m: Mastery | null): { base: CatalogEntry[]; shown: CatalogEntry[] } {
+export function filteredEntries(questions: Map<string, Question>, m: Mastery | null): { base: CatalogEntry[]; shown: CatalogEntry[] } {
   const terms = searchTerms(catalogQuery);
   const base = catalogEntries(questions, m).filter(e => (!catalogYear || e.q.year === catalogYear) && (!catalogField || e.q.field === catalogField) && matchesTerms(e, terms));
   return { base, shown: base.filter(e => matchesStatus(e, catalogStatus)) };
@@ -113,35 +141,47 @@ function renderFiltered(questions: Map<string, Question>, m: Mastery | null, bus
   const start = catalogPage * PAGE_SIZE;
   const chips = `<fieldset class="catalog-status-filter"><legend>学習状態で絞り込む</legend><div class="catalog-status-options">${STATUSES.map(s => {
     const n = base.filter(e => matchesStatus(e, s.id)).length;
-    const off = !m && s.id !== 'all' && s.id !== 'missed';
+    const off = !m && s.id !== 'all' && s.id !== 'missed' && s.id !== 'unread';
     return `<label class="catalog-status-option${s.id === catalogStatus ? ' on' : ''}${off ? ' off' : ''}"><input type="radio" name="catalog-status" value="${s.id}"${s.id === catalogStatus ? ' checked' : ''}${off ? ' disabled' : ''}/><span>${s.label}</span><b>${off ? '–' : n}</b></label>`;
-  }).join('')}</div><small>${m ? '習得＝直近2回連続で正解（定着も含む）· 誤答＝復習ノートの誤答・わからなかった問題' : '学習記録を読み込むと、未着手・取り組み中・習得でも絞り込めます。'}</small></fieldset>`;
+  }).join('')}</div><small>${m ? '解説未読＝まだ解説を開いていない問題 · 習得＝直近2回連続で正解（定着も含む）· 誤答＝復習ノートの誤答・わからなかった問題' : '学習記録を読み込むと、未着手・取り組み中・習得でも絞り込めます。'}</small></fieldset>`;
   const full = picked.size >= PICK_LIMIT;
-  const items = shown.slice(start, start + PAGE_SIZE).map(({ q, no, state, missed }) => {
-    const badges = `${state !== 'new' ? `<span class="catalog-state st-${state}">${STATE_LABELS[state]}</span>` : ''}${missed ? '<span class="catalog-state st-missed">誤答</span>' : ''}`;
-    const on = picked.has(q.id);
-    const pick = `<label class="catalog-pick" title="${on ? '演習から外す' : '演習に選ぶ'}"><input type="checkbox" data-catalog-pick="${esc(q.id)}" aria-label="${q.year}年度 第${no}問を演習に選ぶ" ${on ? 'checked' : ''} ${busy || full && !on ? 'disabled' : ''}/><span class="catalog-pick-box" aria-hidden="true">${icon('check')}</span></label>`;
+  const choosing = catalogMode() === 'pick';
+  const items = shown.slice(start, start + PAGE_SIZE).map(({ q, no, state, missed, read }) => {
+    const badges = `${read ? readBadge : ''}${state !== 'new' ? `<span class="catalog-state st-${state}">${STATE_LABELS[state]}</span>` : ''}${missed ? '<span class="catalog-state st-missed">誤答</span>' : ''}`;
+    const on = choosing && picked.has(q.id);
+    const pick = !choosing ? '' : `<label class="catalog-pick" title="${on ? '演習から外す' : '演習に選ぶ'}"><input type="checkbox" data-catalog-pick="${esc(q.id)}" aria-label="${q.year}年度 第${no}問を演習に選ぶ" ${on ? 'checked' : ''} ${busy || full && !on ? 'disabled' : ''}/><span class="catalog-pick-box" aria-hidden="true">${icon('check')}</span></label>`;
     return `<div class="catalog-item${on ? ' picked' : ''}">${pick}<details class="catalog-detail" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no"><small>${q.year}</small>${no}</span><span class="catalog-summary"><span class="catalog-meta"><span class="catalog-field">${highlight(q.field, terms)}</span>${renderDifficultyChip(q.id)}${badges}</span><span class="catalog-q">${highlight(q.question, terms)}</span>${choiceHits(q, terms)}</span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details></div>`;
   }).join('');
   const filtered = !!terms.length || !!catalogYear || !!catalogField || catalogStatus !== 'all';
   const status = `<p id="catalog-page-status" class="catalog-page-status" tabindex="-1" aria-live="polite">${shown.length ? `<b>${catalogPage + 1}</b> / ${pages}ページ<span>${shown.length}問中 ${start + 1}–${Math.min(start + PAGE_SIZE, shown.length)}問目</span>` : '<span class="catalog-none-count">該当 0問</span>'}</p>`;
   const empty = `<div class="rooms-empty catalog-empty"><span>${icon('zoom')}</span><p>条件に合う問題がありません。</p><small>別のキーワードを試すか、年度・分野・学習状態の絞り込みを外してください。解説の本文は検索の対象外です。</small><button class="btn" data-act="catalog-clear">条件をすべてクリア</button></div>`;
-  return `${chips}${status}${shown.length ? `<div class="catalog-list">${items}</div>${pager(pages)}` : empty}${shown.length && filtered ? '<button class="btn ghost catalog-clear" data-act="catalog-clear">絞り込みをすべてクリア</button>' : ''}${pickBar(shown, busy, error)}`;
+  // 読むモードは「この条件を1問ずつ読む」、選ぶモードは「この条件の問題を選ぶ」を一覧の上に置く。
+  const unread = shown.filter(e => !e.read).length;
+  const lead = !shown.length ? '' : choosing ? pickTools(shown, busy)
+    : `<div class="catalog-lead-row reader-start-row"><p><b>${shown.length}</b>問を順番に読む<small>${unread ? `解説未読 ${unread}問 · 未読の問題から始めます` : 'すべて読みました · 最初の問題から始めます'}</small></p><button class="btn primary" data-act="reader-start">${icon('play')}1問ずつ読む${icon('arrow')}</button></div>`;
+  return `${chips}${status}${lead}${shown.length ? `<div class="catalog-list${choosing ? '' : ' reading'}">${items}</div>${pager(pages)}` : empty}${shown.length && filtered ? '<button class="btn ghost catalog-clear" data-act="catalog-clear">絞り込みをすべてクリア</button>' : ''}${choosing ? pickBar(busy, error) : error ? `<p class="error" role="alert">${esc(error)}</p>` : ''}`;
 }
 
-// 選んだ問題を演習するバー。一覧を見ている間は画面下に留まる。
-function pickBar(shown: CatalogEntry[], busy: boolean, error: string): string {
+// 選ぶモードで一覧の上に置く操作。まとめて選ぶボタンはここに置き、画面下のバーは選んだあとだけ出す。
+function pickTools(shown: CatalogEntry[], busy: boolean): string {
   const n = picked.size;
   const addable = shown.filter(e => !picked.has(e.q.id)).length;
   const room = PICK_LIMIT - n;
-  const note = n >= PICK_LIMIT ? `1回の演習は${PICK_LIMIT}問までです。` : n ? '右端の四角を押して追加・解除できます。' : '問題の右端の四角を押して、演習する問題を選びましょう。';
-  return `<section class="catalog-pickbar${n ? ' active' : ''}" aria-label="選んだ問題の演習">
+  const note = n >= PICK_LIMIT ? `1回の演習は${PICK_LIMIT}問までです。` : '問題の右端の四角を押して、演習する問題を選びましょう。';
+  return `<div class="catalog-lead-row catalog-pick-tools"><p>${note}</p><button class="btn" data-act="catalog-pick-shown" ${busy || !addable || room <= 0 ? 'disabled' : ''}>${addable > room && room > 0 ? `この条件から${room}問を選ぶ` : `この条件の${addable}問を選ぶ`}</button></div>`;
+}
+
+// 選んだ問題を演習するバー。1問以上選んだときだけ画面下に留まる。
+function pickBar(busy: boolean, error: string): string {
+  const n = picked.size;
+  if (!n) return error ? `<p class="error" role="alert">${esc(error)}</p>` : '';
+  const note = n >= PICK_LIMIT ? `1回の演習は${PICK_LIMIT}問までです。` : '右端の四角を押して追加・解除できます。';
+  return `<section class="catalog-pickbar active" aria-label="選んだ問題の演習">
     <div class="catalog-pickbar-head"><p role="status"><b>${n}</b>問を選択中<small>${note}</small></p>
       <label class="catalog-shuffle"><input type="checkbox" id="catalog-shuffle" ${pickShuffle ? 'checked' : ''} ${busy ? 'disabled' : ''}/><span>ランダムな順で出題</span></label></div>
     <div class="catalog-pickbar-actions">
-      <button class="btn ghost" data-act="catalog-pick-shown" ${busy || !addable || room <= 0 ? 'disabled' : ''}>${addable > room && room > 0 ? `この条件から${room}問を選ぶ` : `この条件の${addable}問を選ぶ`}</button>
-      <button class="btn ghost" data-act="catalog-pick-clear" ${busy || !n ? 'disabled' : ''}>選択を解除</button>
-      <button class="btn primary" data-act="catalog-practice" ${busy || !n ? 'disabled' : ''}>${busy ? '<span class="spinner mini"></span>準備中…' : `${icon('book')}選んだ${n}問を演習する${icon('arrow')}`}</button></div>
+      <button class="btn ghost" data-act="catalog-pick-clear" ${busy ? 'disabled' : ''}>選択を解除</button>
+      <button class="btn primary" data-act="catalog-practice" ${busy ? 'disabled' : ''}>${busy ? '<span class="spinner mini"></span>準備中…' : `${icon('book')}選んだ${n}問を演習する${icon('arrow')}`}</button></div>
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ''}</section>`;
 }
 
@@ -182,6 +222,7 @@ export function clearCatalogFilters(): void { catalogQuery = ''; catalogYear = 0
 export function setCatalogPage(page: number): void { catalogPage = page; }
 
 // 開閉時に呼ぶ。開いた問題の本文だけを差し替え、ほかの問題の開閉やスクロール位置は保つ。
+// 解説を表示できたら「読んだ」を記録し、見出しにも印を付ける（一覧全体は描き直さない）。
 export async function toggleCatalogItem(q: Question, open: boolean): Promise<void> {
   if (!open) { opened.delete(q.id); return; }
   opened.add(q.id);
@@ -189,12 +230,15 @@ export async function toggleCatalogItem(q: Question, open: boolean): Promise<voi
     const el = document.querySelector<HTMLElement>(`[data-catalog-body="${CSS.escape(q.id)}"]`);
     if (el) el.innerHTML = body(q);
   };
-  if (answers.has(q.id) || loading.has(q.id)) return update();
-  loading.add(q.id); failed.delete(q.id); update();
-  try {
-    const a = await call<Answer | null>('get_question_answer', { p_id: q.id });
-    if (!a) throw new Error('QUESTION_NOT_FOUND');
-    answers.set(q.id, { answer: a.answer, explanation: a.explanation });
-  } catch { failed.add(q.id); }
-  finally { loading.delete(q.id); update(); }
+  const shown = (): void => {
+    update();
+    if (!markRead(q.id)) return;
+    const meta = document.querySelector<HTMLElement>(`[data-catalog-id="${CSS.escape(q.id)}"] .catalog-meta`);
+    if (meta && !meta.querySelector('.st-read')) meta.insertAdjacentHTML('beforeend', readBadge);
+  };
+  if (answerOf(q.id)) return shown();
+  failed.delete(q.id); update();
+  try { await loadAnswer(q.id); }
+  catch { failed.add(q.id); return update(); }
+  if (opened.has(q.id)) shown();
 }

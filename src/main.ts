@@ -14,6 +14,7 @@ import "./hub.css";
 import "./celebrate.css";
 import "./stats.css";
 import "./years.css";
+import "./reader.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -31,7 +32,9 @@ import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-guide";
-import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogYear, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
+import { closeReader, openReader, readerOpen, renderReader, renderReaderCard, retryReader, revealReader, saveReaderQuestion, stepReader, syncReader } from "./reader";
+import { bookmark, readMap, setCatalogMode, setHideAnswers } from "./reading";
+import { clearCatalogFilters, clearPicks, filteredEntries, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogYear, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, countPresets, freshFields, minutesFor, practiceQuestions, renderPractice, renderPracticeEntry, selectAllFields, selectFields, setPracticeYear, toggleField, weakFields } from "./practice";
 import { nextStep, renderNextStep } from "./study-next";
 import { clientOrder, isStudyOrder, pickStudyIds, rememberOrder, type StudyOrder } from "./study-order";
@@ -93,7 +96,7 @@ let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
 // 階層：title（スタート）→ home → study（setup の study）/ battle → 各モードの setup。records・settings はホームから開く。
-type View = "title" | "home" | "battle" | "records" | "settings" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "guide" | "install";
+type View = "title" | "home" | "battle" | "records" | "settings" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "reader" | "guide" | "install";
 let view: View = roomCodeDraft ? "setup" : "home";
 // 使い方ガイド・ホーム画面に追加の手順は、開いた画面へ戻る（スタート画面・ホーム・メニュー・ガイド）。
 let guideFrom: View = "home";
@@ -586,7 +589,7 @@ function updateClock(): void {
 const inPlay = (): boolean => solo.active || view === "match" || view === "review";
 function currentTab(): Tab | null {
   if (view === "home") return "home";
-  if (view === "practice" || view === "catalog" || view === "setup" && selectedMode === "study") return "study";
+  if (view === "practice" || view === "catalog" || view === "reader" || view === "setup" && selectedMode === "study") return "study";
   if (view === "battle" || view === "setup") return "battle";
   if (view === "notebook") return "notebook";
   return view === "records" ? "records" : null;
@@ -599,6 +602,7 @@ function render(): void {
     afterRender();mountModel();
     return;
   }
+  if (view === "reader" && !readerOpen()) view = "catalog";
   const lobby = view === "home" && !solo.active;
   const playing = inPlay();
   app.className = `${lobby ? "lobby" : "arena"}${playing ? "" : " has-tabs"}`;
@@ -612,6 +616,7 @@ function render(): void {
   else if (view === "review") body = renderReview();
   else if (view === "notebook") body = renderNotebook();
   else if (view === "catalog") body = renderCatalog(questions,mastery,busy,error);
+  else if (view === "reader") {syncReader(updateReaderCard);body = renderReader(questions);}
   else if (view === "guide") body = renderGuide();
   else if (view === "install") body = renderInstall();
   else if (!match || view === "home") body = renderHome();
@@ -620,7 +625,7 @@ function render(): void {
   else body = renderResult(match);
   const scene = lobby ? "home" : solo.active ? "solo" : view === "setup" ? `setup:${selectedMode}` : view;
   // 文字サイズは問題文を読む画面だけに出す。ほかの画面では通信の異常だけを知らせ、設定はメニューにまとめる。
-  const reading = playing || view === "notebook" || view === "catalog";
+  const reading = playing || view === "notebook" || view === "catalog" || view === "reader";
   const toolbar = reading
     ? `<div class="reading-toolbar">${renderReadingControls()}<div class="toolbar-status"><span id="online-count">${renderOnlineCount()}</span><div id="connection-status" class="connection-strip">${renderConnection()}</div></div></div>`
     : view === "settings" ? "" : `<div id="connection-status" class="connection-strip quiet">${renderConnection()}</div>`;
@@ -649,6 +654,7 @@ const RETURNS: Partial<Record<View, {act:string;label:string}>> = {
 function parentView(): {act:string;label:string}|null {
   if (view === "home" || view === "title") return null;
   if (view === "practice" || view === "catalog") return {act:view === "practice" ? "practice-back" : "catalog-back",label:"「学ぶ」"};
+  if (view === "reader") return {act:"reader-back",label:"過去問一覧"};
   if (view === "setup" && selectedMode !== "study") return {act:"back-battle",label:"「対戦する」"};
   if (view === "guide") return RETURNS[guideFrom] ?? RETURNS.home!;
   if (view === "install") return RETURNS[installFrom] ?? RETURNS.home!;
@@ -691,7 +697,7 @@ function renderSetup(): string {
   const ai = selectedMode === "ai";
   const title = `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
   // 一人で学習は入口だけを並べ、演習の設定は問題演習コーナのページで行う。
-  if (selectedMode === "study") return `${title}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div>${renderPracticeEntry(questions)}${renderNotebookEntry()}${renderStudyEntry({no:"03",en:"QUESTION LIST",title:"過去問・問題と解説",text:"キーワード・分野・学習状態（未着手・誤答・習得など）で検索。正解と解説を確認し、選んだ問題をそのまま演習できます。",icon:"zoom",attr:'data-act="catalog"',cls:"entry-catalog",meta:`<span class="entry-chip">全${questions.size}問</span><span class="entry-chip">正解・解説つき</span>`})}${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
+  if (selectedMode === "study") return `${title}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div>${renderPracticeEntry(questions)}${renderNotebookEntry()}${renderStudyEntry({no:"03",en:"QUESTION LIST",title:"過去問・問題と解説",text:"問題と解説を読んで学べます。1問ずつ読み進める解説リーダー・読んだ記録・しおりつき。選んだ問題をそのまま演習することもできます。",icon:"zoom",attr:'data-act="catalog"',cls:"entry-catalog",meta:catalogEntryMeta()})}${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
   const fields = [...new Set([...questions.values()].map(q => q.field))];
   const roomTotal=[...questions.values()].filter(q=>!roomFieldDraft||q.field===roomFieldDraft).length;
   return `${title}<section class="panel setup-panel"><label class="field"><span>プレイヤー名</span><input id="name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(playerName)}" ${busy ? "disabled" : ""}/></label>
@@ -1029,6 +1035,8 @@ app.addEventListener("change", (e) => {
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
   if (input.name === "study-order" && isStudyOrder(input.value)) {studyOrder=input.value;writeStore('gb.study-order',studyOrder);render();document.querySelector<HTMLInputElement>(`input[name="study-order"][value="${studyOrder}"]`)?.focus();}
   if (input.name === "practice-field") {toggleField(questions,input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-field"][value="${CSS.escape(input.value)}"]`)?.focus();}
+  if (input.name === "catalog-mode") {setCatalogMode(input.value);render();document.querySelector<HTMLInputElement>(`input[name="catalog-mode"][value="${CSS.escape(input.value)}"]`)?.focus();}
+  if (input.id === "reader-hide") {setHideAnswers(input.checked);render();document.getElementById("reader-hide")?.focus();}
   if (input.name === "catalog-year") {setCatalogYear(input.value);render();document.querySelector<HTMLInputElement>(`input[name="catalog-year"][value="${CSS.escape(input.value)}"]`)?.focus();}
   if (input.name === "practice-year") {setPracticeYear(input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-year"][value="${CSS.escape(input.value)}"]`)?.focus();}
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
@@ -1039,6 +1047,51 @@ app.addEventListener("change", (e) => {
   if (input.id === "study-count-value") input.value = String(Math.min(studyCount, Number(input.max)));
   if (input.id === "difficulty") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty);}
   if (input.name === "ai-offer-level") {difficulty = input.value as Difficulty; writeStore("gb.difficulty", difficulty); render(); document.querySelector<HTMLInputElement>(`input[name="ai-offer-level"][value="${difficulty}"]`)?.focus();}
+});
+// 「学ぶ」の過去問カードに、全問題数・読んだ解説の数・しおりを出す。
+function catalogEntryMeta(): string {
+  const read=readMap(),n=[...questions.keys()].filter(id=>read[id]).length;
+  const b=bookmark(id=>questions.has(id)),at=b?questions.get(b.id):undefined;
+  return `<span class="entry-chip">全${questions.size}問</span><span class="entry-chip">${icon("book")}解説を読んだ ${n}/${questions.size}</span>${at?`<span class="entry-chip">しおり：${at.year}年度 第${at.no}問</span>`:""}`;
+}
+// 解説リーダー。過去問一覧のいまの絞り込み結果を、そのままの順で1問ずつ読む。
+function startReader(startId?: string): void {
+  const shown=filteredEntries(questions,mastery).shown.map(e=>e.q.id);
+  const ids=startId&&!shown.includes(startId)?[startId]:shown;
+  if (openReader(questions,ids,readerLabel(),startId)) goTo("reader");
+}
+// しおり・見出しに使う、絞り込みの短い説明（年度と分野）。
+function readerLabel(): string {
+  const year=document.querySelector<HTMLInputElement>('input[name="catalog-year"]:checked')?.value;
+  const field=document.querySelector<HTMLSelectElement>("#catalog-field")?.value;
+  return [year&&year!=="0"?`${year}年度`:"すべての年度",field||"すべての分野"].join(" · ");
+}
+function moveReader(delta: number): void {
+  if (!stepReader(delta)) return;
+  render();window.scrollTo({top:0,behavior:"instant"});
+  document.querySelector<HTMLElement>(".reader-q")?.focus({preventScroll:true});
+}
+function updateReaderCard(): void {
+  const el=document.getElementById("reader-card");
+  if (view!=="reader"||!el) return;
+  syncReader(updateReaderCard);
+  el.innerHTML=renderReaderCard(questions);
+}
+// 本文を左右にスワイプして前後の問題へ。縦のスクロールや図の拡大操作とは区別する。
+let swipe: {x:number;y:number}|null=null;
+app.addEventListener("touchstart",(e)=>{
+  const t=e.touches[0];
+  swipe=view==="reader"&&e.touches.length===1&&(e.target as HTMLElement).closest("[data-reader-card]")&&!(e.target as HTMLElement).closest(".image-open")?{x:t.clientX,y:t.clientY}:null;
+},{passive:true});
+app.addEventListener("touchend",(e)=>{
+  if (!swipe||view!=="reader") return;
+  const t=e.changedTouches[0],dx=t.clientX-swipe.x,dy=t.clientY-swipe.y;swipe=null;
+  if (Math.abs(dx)>70&&Math.abs(dy)<Math.abs(dx)*0.5) moveReader(dx<0?1:-1);
+},{passive:true});
+window.addEventListener("keydown",(e)=>{
+  if (view!=="reader"||solo.active||e.altKey||e.ctrlKey||e.metaKey) return;
+  if ((e.target as HTMLElement).closest("input,select,textarea")) return;
+  if (e.key==="ArrowRight") moveReader(1); else if (e.key==="ArrowLeft") moveReader(-1);
 });
 // 一覧・設定などの画面へ移る（対戦・学習の後片付けが要らない移動）。
 function goTo(next: View): void {
@@ -1091,6 +1144,10 @@ app.addEventListener("click", (e) => {
   if (tab === "missed" || tab === "saved" || tab === "uncertain") {notebookTab = tab; return render();}
   const removeId = target.closest<HTMLElement>("[data-note-remove]")?.dataset.noteRemove;
   if (removeId) {removeMissed(removeId); return render();}
+  const readerChoice=target.closest<HTMLElement>("[data-reader-choice]")?.dataset.readerChoice;
+  if (readerChoice!==undefined) {revealReader(Number(readerChoice));render();return;}
+  const readerFrom=target.closest<HTMLElement>("[data-reader-from]")?.dataset.readerFrom;
+  if (readerFrom) return void startReader(readerFrom);
   const catalogRetry=questions.get(target.closest<HTMLElement>("[data-catalog-retry]")?.dataset.catalogRetry??"");
   if (catalogRetry) return void toggleCatalogItem(catalogRetry,true);
   const catalogPage=target.closest<HTMLElement>("[data-catalog-page]")?.dataset.catalogPage;
@@ -1188,6 +1245,13 @@ app.addEventListener("click", (e) => {
   else if (act === "practice-weak-fields") {selectFields(questions,weakFields(practiceQuestions(questions),mastery));render();}
   else if (act === "practice-fresh-fields") {selectFields(questions,freshFields(practiceQuestions(questions),studyAttempted,studyProgressLoaded));render();}
   else if (act === "practice-start") void startSolo("study",undefined,false,studyOrder);
+  else if (act === "reader-start") startReader();
+  else if (act === "reader-resume") {const b=bookmark(id=>questions.has(id));if(b&&openReader(questions,b.ids,b.label,b.id))goTo("reader");}
+  else if (act === "reader-prev" || act === "reader-next") moveReader(act === "reader-next" ? 1 : -1);
+  else if (act === "reader-reveal") {revealReader();render();}
+  else if (act === "reader-retry") {retryReader();render();}
+  else if (act === "reader-save") {saveReaderQuestion();updateReaderCard();}
+  else if (act === "reader-back" || act === "reader-finish") {closeReader();view="catalog";error="";navigate(()=>{render();window.scrollTo(0,0);},"back");}
   else if (act === "catalog-clear") {clearCatalogFilters();render();document.getElementById("catalog-search")?.focus();}
   else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);}, "back");}
   else if (act === "catalog-pick-shown") {pickShown(questions,mastery);updateCatalogResults(questions,mastery,busy,error);}

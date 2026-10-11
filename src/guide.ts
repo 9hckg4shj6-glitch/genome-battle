@@ -1,6 +1,6 @@
 import { icon, readStore, writeStore } from "./ui";
 import { inLineApp } from "./install";
-import { renderCatalogFigure } from "./course-guide";
+import { renderCatalogFigure, renderReaderFigure } from "./course-guide";
 
 // 初めて開いた人向けの使い方ガイド。各説明から、その画面へ直接移動できる。
 const SEEN_KEY = "gb.guide-seen";
@@ -12,7 +12,7 @@ const sections = [
   { id: "install", label: "おすすめ：ホーム画面に追加", recommended: true },
   { id: "choose", label: "モードの選び方" },
   { id: "study", label: "学ぶ（一人で学習）" },
-  { id: "catalog", label: "過去問から選んで演習", isNew: true },
+  { id: "catalog", label: "過去問を読む・選んで演習", isNew: true },
   { id: "battle", label: "対戦モード" },
   { id: "rules", label: "対戦のルール" },
   { id: "review", label: "復習と記録" },
@@ -78,6 +78,7 @@ export function renderGuide(): string {
   <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
   <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
     <ul>
+      <li><b class="guide-new">NEW</b><span><b>過去問を読んで学ぶ</b>：「過去問・問題と解説」が、解説を読むための「<b>読んで学ぶ</b>」と、問題を集めて解く「<b>選んで演習</b>」に分かれました。1問ずつ読み進める<b>解説リーダー</b>（答えを隠して読む・しおり）、<b>読んだ</b>の記録と「解説未読」の絞り込みが使えます。演習のバーは問題を選んだときだけ出ます。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>2024年度の過去問100問を追加</b>：2025年度と合わせて200問になりました。問題演習コーナの「<b>出題する年度</b>」と、過去問・問題と解説の「<b>年度で絞り込む</b>」のボタンで、年度ごとに分けて演習・閲覧できます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>過去問から選んで演習</b>：「過去問・問題と解説」で、問題の右端の四角を押して選んだ問題だけを、そのまま演習できるようになりました。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>各コーナーの「使い方はこちら」</b>：問題演習コーナ・復習ノート・過去問・問題と解説の各ページの一番上から、そのコーナーだけの使い方を図解で開けます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
@@ -156,10 +157,16 @@ export function renderGuide(): string {
     <div class="guide-actions">${openPractice("問題演習コーナを開く", true)}</div>
   </section>
 
-  <section id="guide-catalog" class="panel guide-section mode-study"><p class="eyebrow">QUESTION LIST · NEW</p><h2 tabindex="-1">過去問から選んで演習する</h2>
-    <p class="guide-intro">「学ぶ」の<b>過去問・問題と解説</b>では、アプリに収録している全問題を5問ずつのページで読めます。キーワード・年度（2024・2025）・分野・学習状態で絞り込み、問題を押すと正解と解説が開きます。さらに、<b>気になる問題だけを選んで、そのまま演習</b>できます。</p>
+  <section id="guide-catalog" class="panel guide-section mode-study"><p class="eyebrow">QUESTION LIST · NEW</p><h2 tabindex="-1">過去問を読んで学ぶ・選んで演習する</h2>
+    <p class="guide-intro">「学ぶ」の<b>過去問・問題と解説</b>では、アプリに収録している全問題を5問ずつのページで読めます。キーワード・年度（2024・2025）・分野・学習状態で絞り込み、問題を押すと正解と解説が開きます。一番上の切り替えで、使い方を選びます。</p>
+    <h3>${icon("book")}読んで学ぶ（最初はこちら）</h3>
+    <p class="guide-intro">解説を読むことに集中できる表示です。演習用の四角やバーは出ません。「<b>1問ずつ読む</b>」を押すと、絞り込んだ問題を順番に読み進める<b>解説リーダー</b>が開きます。解説を開いた問題には「<b>読んだ</b>」が付き、年度ごとの読んだ数と「<b>続きから読む</b>」が一覧の上に出ます。</p>
+    ${renderReaderFigure()}
+    <h3>${icon("check")}選んで演習</h3>
+    <p class="guide-intro">右端の四角で<b>気になる問題だけを選んで、そのまま演習</b>できます。演習のバーは1問以上選んだときだけ画面下に出ます。</p>
     ${renderCatalogFigure()}
     ${tips([
+      "「読んだ」の記録はこの端末に保存され、正答率・学習レベルには入りません。学習状態の「<b>解説未読</b>」で、まだ読んでいない問題だけに絞れます",
       "選んだ問題は、ページや絞り込みを切り替えても残ります。いろいろな条件から少しずつ集められます",
       "出題は問題番号の順です。バーの「<b>ランダムな順で出題</b>」をオンにすると順番を混ぜます",
       "1回の演習で選べるのは<b>100問まで</b>です",
@@ -209,11 +216,12 @@ export function renderGuide(): string {
 
   <section id="guide-faq" class="panel guide-section"><p class="eyebrow">FAQ</p><h2 tabindex="-1">よくある質問</h2>
     <div class="guide-faq">
+      <details><summary>解かずに、過去問の解説をじっくり読みたい</summary><p>「学ぶ」の「過去問・問題と解説」を開くと、最初は「読んで学ぶ」になっています。年度や分野で絞り込み、「1問ずつ読む」を押すと解説を順番に読めます。途中でやめても、次に開いたときの「続きから読む」で同じ問題から再開できます。</p></details>
       <details><summary>1年度分の過去問だけを解きたい</summary><p>問題演習コーナの「出題する年度」で2025年度か2024年度を押してください。分野・問題数・出題方法はその年度の問題だけで数えます。選んだ年度はこの端末に保存されます。過去問・問題と解説の「年度で絞り込む」でも、年度ごとに問題を読めます。</p></details>
       <details><summary>苦手な分野だけを解きたい</summary><p>問題演習コーナの「学習する分野」で、解きたい分野だけにチェックを入れてください。いくつでも組み合わせられ、選んだ分野はこの端末に保存されるので、次回も同じ選択から始められます。</p></details>
       <details><summary>「出題配分」が選べません</summary><p>出題配分は、2つ以上の分野を選んだときに選べます。1つの分野だけのときは、その分野の問題だけを出題します。</p></details>
       <details><summary>間違えた問題だけを解き直したい</summary><p>画面下の「復習」タブを開き、「誤答・わからない」タブで「この○問を演習する」を押してください。学習や対戦の直後なら、振り返り画面の復習コースからも解き直せます。「過去問・問題と解説」で学習状態を「誤答」に絞り込み、まとめて選んで演習することもできます。</p></details>
-      <details><summary>特定の問題だけを選んで解きたい</summary><p>「学ぶ」の「過去問・問題と解説」を開き、解きたい問題の右端の四角を押して選びます。画面下のバーの「選んだ○問を演習する」で、その問題だけの演習が始まります。1問だけなら、問題を開いて「この問題を演習する」を押してもかまいません。</p><button class="btn" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></details>
+      <details><summary>特定の問題だけを選んで解きたい</summary><p>「学ぶ」の「過去問・問題と解説」を開き、上の切り替えを「選んで演習」にして、解きたい問題の右端の四角を押して選びます。画面下のバーの「選んだ○問を演習する」で、その問題だけの演習が始まります。1問だけなら、問題を開いて「この問題を演習する」を押してもかまいません。</p><button class="btn" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></details>
       <details><summary>各コーナーの使い方を図で見たい</summary><p>問題演習コーナ・復習ノート・過去問・問題と解説のページの一番上にある「使い方はこちら」を押してください。そのコーナーの画面を図にして、どこを押せばよいかを番号つきで説明しています。</p></details>
       <details><summary>対戦が始まりません</summary><p>全員が「準備完了」を押すと始まります。マッチング対戦は、選んだ人数がそろうまで待ちます。対戦室は、部屋を作った人が「開始」を押します。</p></details>
       <details><summary>記録や復習ノートが消えました</summary><p>記録はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。</p></details>
