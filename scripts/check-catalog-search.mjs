@@ -66,7 +66,9 @@ assert.match(c.renderCatalog(qs,m),/3問中 1–3問目/);
 // 年度での絞り込み。番号には年度を添える。
 c.setCatalogYear('2024');
 html=c.renderCatalog(qs,m);
-assert.match(html,/<option value="2024" selected>2024年度（1問）<\/option>/);
+assert.match(html,/<label class="year-option on"><input type="radio" name="catalog-year" value="2024" checked/);
+assert.match(html,/<option value="">すべての分野（1問）<\/option>/);
+assert.match(html,/<option value="シーケンス" >シーケンス（1問）<\/option>/);
 assert.match(html,/1問中 1–1問目/);
 assert.match(html,/<span class="catalog-no"><small>2024<\/small>1<\/span>/);
 assert.match(html,/絞り込みをすべてクリア/);

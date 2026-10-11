@@ -78,6 +78,7 @@ export function renderGuide(): string {
   <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
   <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
     <ul>
+      <li><b class="guide-new">NEW</b><span><b>2024年度の過去問100問を追加</b>：2025年度と合わせて200問になりました。問題演習コーナの「<b>出題する年度</b>」と、過去問・問題と解説の「<b>年度で絞り込む</b>」のボタンで、年度ごとに分けて演習・閲覧できます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>過去問から選んで演習</b>：「過去問・問題と解説」で、問題の右端の四角を押して選んだ問題だけを、そのまま演習できるようになりました。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>各コーナーの「使い方はこちら」</b>：問題演習コーナ・復習ノート・過去問・問題と解説の各ページの一番上から、そのコーナーだけの使い方を図解で開けます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
     </ul>
@@ -125,6 +126,7 @@ export function renderGuide(): string {
   <section id="guide-study" class="panel guide-section guide-study mode-study"><p class="eyebrow">SOLO STUDY</p><h2 tabindex="-1">学ぶ：問題演習コーナ</h2>
     <p class="guide-intro">時間制限なしで、解説を読みながら自分のペースで進めるモードです。ホームで「学ぶ」を選び、<b>問題演習コーナ</b>を押すと演習の設定ページに移ります。</p>
     ${steps([
+      "<b>出題する年度</b>を「すべての年度・2025年度・2024年度」のボタンから選ぶ。各ボタンに問題数と、その年度の未着手・習得の数が出ます",
       "<b>学習する分野</b>を選ぶ。いくつでも組み合わせられます（「すべて選択」「選択を解除」「苦手な分野」「未着手の分野」も使えます）",
       "<b>問題数</b>（「5問・10問・20問・全部」のボタンでもすぐ選べます）と<b>出題配分</b>を選ぶ",
       "<b>出題方法</b>（未着手優先・苦手優先・仕上げ・ランダム）を選び、画面の下の「<b>はじめる</b>」を押して開始",
@@ -145,7 +147,7 @@ export function renderGuide(): string {
     </dl>
     <h3 class="guide-subhead">「学ぶ」の3つのコーナー</h3>
     <dl class="guide-defs">
-      <div><dt>${icon("book")}問題演習コーナ</dt><dd>分野・問題数・出題配分を選んで演習します（このセクションの手順）。</dd></div>
+      <div><dt>${icon("book")}問題演習コーナ</dt><dd>年度・分野・問題数・出題配分を選んで演習します（このセクションの手順）。</dd></div>
       <div><dt>${icon("bookmark")}復習ノート</dt><dd>間違えた・わからなかった・迷った・保存した問題を見直し、まとめて解き直します。</dd></div>
       <div><dt>${icon("zoom")}過去問・問題と解説</dt><dd>全問題を探して読み、選んだ問題だけを演習できます（<button class="guide-inline-link" data-guide-jump="guide-catalog">詳しくは次のセクション</button>）。</dd></div>
     </dl>
@@ -207,6 +209,7 @@ export function renderGuide(): string {
 
   <section id="guide-faq" class="panel guide-section"><p class="eyebrow">FAQ</p><h2 tabindex="-1">よくある質問</h2>
     <div class="guide-faq">
+      <details><summary>1年度分の過去問だけを解きたい</summary><p>問題演習コーナの「出題する年度」で2025年度か2024年度を押してください。分野・問題数・出題方法はその年度の問題だけで数えます。選んだ年度はこの端末に保存されます。過去問・問題と解説の「年度で絞り込む」でも、年度ごとに問題を読めます。</p></details>
       <details><summary>苦手な分野だけを解きたい</summary><p>問題演習コーナの「学習する分野」で、解きたい分野だけにチェックを入れてください。いくつでも組み合わせられ、選んだ分野はこの端末に保存されるので、次回も同じ選択から始められます。</p></details>
       <details><summary>「出題配分」が選べません</summary><p>出題配分は、2つ以上の分野を選んだときに選べます。1つの分野だけのときは、その分野の問題だけを出題します。</p></details>
       <details><summary>間違えた問題だけを解き直したい</summary><p>画面下の「復習」タブを開き、「誤答・わからない」タブで「この○問を演習する」を押してください。学習や対戦の直後なら、振り返り画面の復習コースからも解き直せます。「過去問・問題と解説」で学習状態を「誤答」に絞り込み、まとめて選んで演習することもできます。</p></details>

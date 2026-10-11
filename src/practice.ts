@@ -1,9 +1,10 @@
 import { renderDistribution, type StudyDistribution } from './study-distribution';
-import { fieldMastery, renderStars, stack, type Mastery } from './mastery';
+import { fieldMastery, renderStars, stack, stateOf, type Mastery } from './mastery';
 import { esc, icon, notebook, readStore, writeStore, type Question } from './ui';
 import { isPolish, isWeak, STUDY_ORDERS, studyOrderName, type StudyOrder } from './study-order';
 import { renderCourseGuideButton } from './course-guide';
 import { renderStudyEntry } from './hub';
+import { renderYearPicker, validYear, yearName, yearQuestions } from './years';
 
 // 問題演習コーナ（一人で学習の演習設定ページ）。分野は複数選べ、選択はこの端末に保存する。
 // null は「すべての分野」。後から分野が増えても、すべて選んだ状態を保つ。
@@ -17,6 +18,12 @@ let picked: Set<string> | null = (() => {
 let popped = '';
 
 const save = (): void => writeStore('gb.study-fields', picked ? JSON.stringify([...picked]) : null);
+// 出題する年度。0 はすべての年度。この端末に保存する。
+let year = Number(readStore('gb.study-year')) || 0;
+export const practiceYear = (questions: Map<string, Question>): number => validYear(questions, year);
+export function setPracticeYear(value: string): void { year = Number(value) || 0; writeStore('gb.study-year', year ? String(year) : null); }
+// 選んだ年度の問題。分野・問題数・出題方法の件数と、出題する候補はすべてここから数える。
+export const practiceQuestions = (questions: Map<string, Question>): Map<string, Question> => yearQuestions(questions, practiceYear(questions));
 export const fieldsOf = (questions: Map<string, Question>): string[] => [...new Set([...questions.values()].map(q => q.field))];
 export const chosenFields = (questions: Map<string, Question>): string[] => fieldsOf(questions).filter(f => !picked || picked.has(f));
 
@@ -52,8 +59,8 @@ export interface PracticeView {
 // 一人で学習の画面に置く入口。押すと見出しとアイコンが次のページの見出しへ移る。
 export function renderPracticeEntry(questions: Map<string, Question>): string {
   const all = fieldsOf(questions).length, chosen = chosenFields(questions).length;
-  const current = chosen === all ? 'すべての分野' : chosen ? `${chosen}分野を選択中` : '分野が未選択';
-  return renderStudyEntry({ no: '01', en: 'PRACTICE', title: '問題演習コーナ', text: '分野を組み合わせて、問題数・出題方法を選んで演習します。', icon: 'book', attr: 'data-act="practice"', cls: 'practice-entry entry-practice', morph: true,
+  const current = `${yearName(practiceYear(questions))} · ${chosen === all ? 'すべての分野' : chosen ? `${chosen}分野を選択中` : '分野が未選択'}`;
+  return renderStudyEntry({ no: '01', en: 'PRACTICE', title: '問題演習コーナ', text: '年度と分野を組み合わせて、問題数・出題方法を選んで演習します。', icon: 'book', attr: 'data-act="practice"', cls: 'practice-entry entry-practice', morph: true,
     meta: `<span class="entry-chip practice-entry-current">${icon('check')}${current}</span>` });
 }
 
@@ -72,7 +79,9 @@ const ORDER_TEXT: Record<StudyOrder, string> = {
 };
 
 export function renderPractice(v: PracticeView): string {
-  const list = [...v.questions.values()];
+  const yr = practiceYear(v.questions);
+  const qs0 = practiceQuestions(v.questions);
+  const list = [...qs0.values()];
   const fields = fieldsOf(v.questions);
   const chosen = new Set(chosenFields(v.questions));
   const pool = list.filter(q => chosen.has(q.field));
@@ -82,7 +91,10 @@ export function renderPractice(v: PracticeView): string {
   const fresh = (qs: Question[]): number => qs.filter(q => !v.attempted.has(q.id)).length;
   const weak = (qs: Question[]): number => qs.filter(q => isWeak(q.id, v.mastery, n)).length;
   const pop = popped; popped = '';
-  const mastered = new Map(v.mastery ? fieldMastery(v.questions, v.mastery).map(f => [f.field, f]) : []);
+  // 年度ボタンに添える進み具合。記録が取れていればその年度の未着手・習得の数。
+  const yearNote = (qs: Question[]): string => [v.progressLoaded ? `未着手 ${fresh(qs)}` : '',
+    v.mastery ? `習得 ${qs.filter(q => ['mastered', 'settled'].includes(stateOf(v.mastery, q.id, n.uncertain))).length}` : ''].filter(Boolean).join(' · ');
+  const mastered = new Map(v.mastery ? fieldMastery(qs0, v.mastery).map(f => [f.field, f]) : []);
   const cards = fields.map((f, i) => {
     const qs = list.filter(q => q.field === f), on = chosen.has(f), m = mastered.get(f);
     // 過去問全体の1割以上を占める分野は「頻出」。問題数の差がひと目で分かるようにする。
@@ -91,12 +103,12 @@ export function renderPractice(v: PracticeView): string {
     const weakCount = v.mastery ? weak(qs) : 0;
     return `<label class="practice-field ${on ? 'on' : ''} ${pop === f ? 'pop' : ''}" style="--i:${i}"><input type="checkbox" name="practice-field" value="${esc(f)}" ${on ? 'checked' : ''} ${v.busy ? 'disabled' : ''}/><span class="practice-check" aria-hidden="true">${icon('check')}</span><span class="practice-field-copy"><strong>${esc(f)}${major ? '<em class="practice-major">頻出</em>' : ''}</strong>${m ? `${stack(m.counts, m.total, 'mastery-bar mini practice-bar')}` : ''}<small>${notes}</small>${m ? `<span class="practice-mastery">${renderStars(m.stars)}<span>習得 ${m.counts.mastered + m.counts.settled}/${m.total}</span>${weakCount ? `<span class="practice-weak">苦手 ${weakCount}</span>` : ''}</span>` : ''}</span></label>`;
   }).join('');
-  const weakList = weakFields(v.questions, v.mastery), freshList = freshFields(v.questions, v.attempted, v.progressLoaded);
+  const weakList = weakFields(qs0, v.mastery), freshList = freshFields(qs0, v.attempted, v.progressLoaded);
   const same = (xs: string[]): boolean => xs.length === chosen.size && xs.every(f => chosen.has(f));
   const smart = (act: string, label: string, xs: string[]): string =>
     `<button class="btn practice-smart" data-act="${act}" ${v.busy || !xs.length || same(xs) ? 'disabled' : ''}>${label}<b>${xs.length}</b></button>`;
   const summary = !chosen.size ? '分野を1つ以上選んでください。'
-    : `<b>${chosen.size === fields.length ? 'すべての分野' : `${chosen.size}分野`}</b>・計<b>${total}</b>問から出題します。`;
+    : `<b>${yearName(yr)}</b>・<b>${chosen.size === fields.length ? 'すべての分野' : `${chosen.size}分野`}</b>・計<b>${total}</b>問から出題します。`;
   // 出題方法ごとの対象数。記録がまだ取れていないものは選べない／確認中と表示する。
   const target: Record<StudyOrder, number | null> = {
     unattempted: v.progressLoaded ? fresh(pool) : null,
@@ -120,17 +132,19 @@ export function renderPractice(v: PracticeView): string {
   }[order] + (even && order !== 'random' ? '選んだ配分を保ち、各分野の中で優先します。' : '')
     + (!v.mastery ? '苦手優先・仕上げは学習レベルの記録を読み込むと選べます。' : target[order] === 0 ? `いまの分野に${studyOrderName[order]}の対象はありません。ほかの問題から出題します。` : '');
   const disabled = v.busy || !total ? 'disabled' : '';
-  const barNote = chosen.size ? [chosen.size === fields.length ? 'すべての分野' : `${chosen.size}分野`, studyOrderName[order], chosen.size > 1 ? (v.distribution === 'even' ? '分野均等' : '過去問配分') : ''].filter(Boolean).join(' · ') : '分野を選んでください';
-  return `${renderCourseGuideButton('practice')}<header class="setup-title practice-title mode-study"><span class="mode-icon" data-morph="icon">${icon('book')}</span><div><p class="eyebrow">PRACTICE</p><h1 data-morph="title">問題演習コーナ</h1><p class="lead">分野を組み合わせて、自分だけの演習セットを作ろう。</p></div></header>
-    <section class="panel practice-step" aria-labelledby="practice-fields-heading"><div class="practice-step-head"><span class="practice-step-no">1</span><div><h2 id="practice-fields-heading">学習する分野</h2><p>複数選べます。選んだ分野の問題を混ぜて出題します。</p></div></div>
+  const barNote = chosen.size ? [yr ? yearName(yr) : '', chosen.size === fields.length ? 'すべての分野' : `${chosen.size}分野`, studyOrderName[order], chosen.size > 1 ? (v.distribution === 'even' ? '分野均等' : '過去問配分') : ''].filter(Boolean).join(' · ') : '分野を選んでください';
+  return `${renderCourseGuideButton('practice')}<header class="setup-title practice-title mode-study"><span class="mode-icon" data-morph="icon">${icon('book')}</span><div><p class="eyebrow">PRACTICE</p><h1 data-morph="title">問題演習コーナ</h1><p class="lead">年度と分野を組み合わせて、自分だけの演習セットを作ろう。</p></div></header>
+    <section class="panel practice-step" aria-labelledby="practice-year-heading"><div class="practice-step-head"><span class="practice-step-no">1</span><div><h2 id="practice-year-heading">出題する年度</h2><p>年度ごとの過去問だけ、またはすべての年度を混ぜて演習できます。</p></div></div>
+      ${renderYearPicker({ name: 'practice-year', label: '出題する年度', questions: v.questions, year: yr, busy: v.busy, note: yearNote })}</section>
+    <section class="panel practice-step" aria-labelledby="practice-fields-heading"><div class="practice-step-head"><span class="practice-step-no">2</span><div><h2 id="practice-fields-heading">学習する分野</h2><p>複数選べます。選んだ分野の問題を混ぜて出題します。</p></div></div>
       <div class="practice-bulk"><button class="btn" data-act="practice-all" ${v.busy || chosen.size === fields.length ? 'disabled' : ''}>すべて選択</button><button class="btn" data-act="practice-none" ${v.busy || !chosen.size ? 'disabled' : ''}>選択を解除</button>${smart('practice-weak-fields', '苦手な分野', weakList)}${smart('practice-fresh-fields', '未着手の分野', freshList)}</div>
       <div class="practice-fields" role="group" aria-labelledby="practice-fields-heading">${cards}</div>
       ${v.mastery ? `<p class="practice-legend" aria-hidden="true"><span><i class="st-settled"></i>定着</span><span><i class="st-mastered"></i>習得</span><span><i class="st-learning"></i>取り組み中</span><span><i class="st-new"></i>未着手</span></p>` : ''}
       <p class="practice-summary ${chosen.size ? '' : 'empty'}" role="status">${summary}</p></section>
-    <section class="panel practice-step" aria-labelledby="practice-count-heading"><div class="practice-step-head"><span class="practice-step-no">2</span><div><h2 id="practice-count-heading">問題数と出題配分</h2><p>時間制限なし。解答後の解説を読んで、自分のペースで進められます。</p></div></div>
+    <section class="panel practice-step" aria-labelledby="practice-count-heading"><div class="practice-step-head"><span class="practice-step-no">3</span><div><h2 id="practice-count-heading">問題数と出題配分</h2><p>時間制限なし。解答後の解説を読んで、自分のペースで進められます。</p></div></div>
       <div class="field count-field"><span class="practice-count-head"><span>問題数（${total ? `1〜${total}問` : '分野を選ぶと設定できます'}）</span>${total ? `<b class="practice-time">目安 ${minutesFor(count)}</b>` : ''}</span><div class="practice-presets" role="group" aria-label="問題数をすばやく選ぶ">${countPresets(count, total, v.busy)}</div><div class="count-row"><input id="study-count" type="range" aria-label="問題数" min="1" max="${Math.max(1, total)}" step="1" value="${count}" ${disabled}/><input id="study-count-value" type="number" inputmode="numeric" aria-label="問題数（数字で入力）" min="1" max="${Math.max(1, total)}" step="1" value="${total ? count : ''}" ${disabled}/><span>問</span></div></div>
       <div id="distribution-settings">${renderDistribution(v.distribution, chosen.size < 2)}</div></section>
-    <section class="panel practice-step" aria-labelledby="practice-order-heading"><div class="practice-step-head"><span class="practice-step-no">3</span><div><h2 id="practice-order-heading">出題方法</h2><p>どの問題から優先して出すかを選びます。対象は選んだ分野の問題数です。</p></div></div>
+    <section class="panel practice-step" aria-labelledby="practice-order-heading"><div class="practice-step-head"><span class="practice-step-no">4</span><div><h2 id="practice-order-heading">出題方法</h2><p>どの問題から優先して出すかを選びます。対象は選んだ分野の問題数です。</p></div></div>
       <fieldset class="practice-orders" aria-labelledby="practice-order-heading" aria-describedby="practice-order-help">${options}</fieldset>
       <p id="practice-order-help" class="study-order-help">${orderHelp}</p></section>
     <section class="practice-startbar ${total ? 'ready' : ''}" aria-label="演習の開始">

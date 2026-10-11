@@ -15,18 +15,20 @@ const btn = (x: number, y: number, w: number, h: number, label: string, primary 
 const svg = (label: string, h: number, body: string): string => `<svg class="course-fig" viewBox="0 0 320 ${h}" role="img" aria-label="${label}">${box(1, 1, 318, h - 2, "fig-screen-card", 16)}${body}</svg>`;
 
 function practiceSetupFigure(): string {
+  const years = ["すべて", "2025年度", "2024年度"].map((y, i) => `${box(18 + i * 96, 50, 90, 24, i === 2 ? "fig-card fig-card-on" : "fig-card", 7)}${t(63 + i * 96, 66, y, i === 2 ? "fig-small-strong" : "fig-small", "middle")}`).join("");
   const fields = ["遺伝子組換え", "転写・翻訳", "DNAの構造", "PCR・解析"];
   const cards = fields.map((f, i) => {
-    const x = 18 + (i % 2) * 144, y = 52 + Math.floor(i / 2) * 36, on = i !== 3;
+    const x = 18 + (i % 2) * 144, y = 100 + Math.floor(i / 2) * 36, on = i !== 3;
     return `${box(x, y, 136, 30, on ? "fig-card fig-card-on" : "fig-card")}${check(x + 9, y + 8.5, on)}${t(x + 30, y + 19, f)}`;
   }).join("");
-  const orders = ["未着手優先", "苦手優先", "仕上げ", "ランダム"].map((o, i) => `${box(18 + i * 71, 248, 66, 22, i === 1 ? "fig-card fig-card-on" : "fig-card", 7)}${t(51 + i * 71, 263, o, i === 1 ? "fig-small-strong" : "fig-small", "middle")}`).join("");
-  return svg("問題演習コーナの設定画面。分野を選び、問題数と出題配分、出題方法を決め、画面下のバーから始める", 340, `
-    ${t(18, 28, "問題演習コーナ", "fig-title")}${t(18, 44, "1 学習する分野", "fig-label")}${cards}${hl(13, 47, 294, 76)}${badge(300, 50, 1)}
-    ${t(18, 146, "2 問題数と出題配分", "fig-label")}<path class="fig-track" d="M24 164h200"/><path class="fig-track-on" d="M24 164h86"/><circle class="fig-knob-accent" cx="110" cy="164" r="7"/>${box(238, 153, 52, 22, "fig-btn", 6)}${t(264, 168, "20問", "fig-strong", "middle")}
-    ${box(18, 184, 136, 28, "fig-card fig-card-on")}${t(86, 202, "過去問の配分", "fig-strong", "middle")}${box(162, 184, 140, 28)}${t(232, 202, "分野を均等に", "", "middle")}${hl(13, 151, 294, 66)}${badge(300, 154, 2)}
-    ${t(18, 240, "3 出題方法", "fig-label")}${orders}${hl(13, 243, 294, 32)}${badge(300, 246, 3)}
-    ${box(12, 284, 296, 44, "fig-bar-card", 12)}${t(24, 304, "10問", "fig-strong")}${t(24, 318, "3分野 · 苦手優先", "fig-small")}${btn(196, 292, 100, 28, "はじめる", true)}${hl(190, 288, 112, 36, 18)}${badge(186, 290, 4)}`);
+  const orders = ["未着手優先", "苦手優先", "仕上げ", "ランダム"].map((o, i) => `${box(18 + i * 71, 296, 66, 22, i === 1 ? "fig-card fig-card-on" : "fig-card", 7)}${t(51 + i * 71, 311, o, i === 1 ? "fig-small-strong" : "fig-small", "middle")}`).join("");
+  return svg("問題演習コーナの設定画面。年度と分野を選び、問題数と出題配分、出題方法を決め、画面下のバーから始める", 388, `
+    ${t(18, 28, "問題演習コーナ", "fig-title")}${t(18, 44, "1 出題する年度", "fig-label")}${years}${hl(13, 45, 294, 34)}${badge(300, 48, 1)}
+    ${t(18, 94, "2 学習する分野", "fig-label")}${cards}${hl(13, 95, 294, 76)}${badge(300, 98, 2)}
+    ${t(18, 194, "3 問題数と出題配分", "fig-label")}<path class="fig-track" d="M24 212h200"/><path class="fig-track-on" d="M24 212h86"/><circle class="fig-knob-accent" cx="110" cy="212" r="7"/>${box(238, 201, 52, 22, "fig-btn", 6)}${t(264, 216, "20問", "fig-strong", "middle")}
+    ${box(18, 232, 136, 28, "fig-card fig-card-on")}${t(86, 250, "過去問の配分", "fig-strong", "middle")}${box(162, 232, 140, 28)}${t(232, 250, "分野を均等に", "", "middle")}${hl(13, 199, 294, 66)}${badge(300, 202, 3)}
+    ${t(18, 288, "4 出題方法", "fig-label")}${orders}${hl(13, 291, 294, 32)}${badge(300, 294, 4)}
+    ${box(12, 332, 296, 44, "fig-bar-card", 12)}${t(24, 352, "10問", "fig-strong")}${t(24, 366, "2024年度 · 3分野 · 苦手優先", "fig-small")}${btn(196, 340, 100, 28, "はじめる", true)}${hl(190, 336, 112, 36, 18)}${badge(186, 338, 5)}`);
 }
 
 function practiceSessionFigure(): string {
@@ -88,8 +90,9 @@ export const renderCatalogFigure = (): string => figure(catalogFigure(), [
 const GUIDES: Record<Course, Guide> = {
   practice: {
     eyebrow: "COURSE GUIDE", title: "問題演習コーナの使い方",
-    lead: "分野を組み合わせて、自分だけの演習セットを作るコーナーです。時間制限はなく、1問ごとに正解と解説を読みながら進められます。",
+    lead: "年度と分野を組み合わせて、自分だけの演習セットを作るコーナーです。時間制限はなく、1問ごとに正解と解説を読みながら進められます。",
     body: section("STEP 1", "設定して始める", figure(practiceSetupFigure(), [
+      "<b>出題する年度</b>を選ぶ。「すべての年度」か、2025年度・2024年度の1年度分だけかをボタンで切り替えます",
       "<b>学習する分野</b>を選ぶ。いくつでも組み合わせられます（「すべて選択」「選択を解除」もあります）",
       "<b>問題数</b>を「5問・10問・20問・全部」のボタン、スライダー、数字のどれかで決める（1問およそ1分の目安時間が出ます）。2分野以上なら<b>出題配分</b>（過去問の配分／分野を均等に）も選ぶ",
       "<b>出題方法</b>を選ぶ。<b>未着手優先</b>・<b>苦手優先</b>（取り組み中・間違えた問題）・<b>仕上げ</b>（あと1回の正解で定着する問題）・<b>ランダム</b>の4つ。右に対象の問題数が出ます",
@@ -105,6 +108,7 @@ const GUIDES: Record<Course, Guide> = {
         + `<p class="course-note">${icon("bookmark")}<span>間違えた問題・回答を見た問題は<b>復習ノート</b>に自動で入ります。正解でも自信がなければ、解説の下の「<b>正解したけど迷った</b>」で記録できます。</span></p>`)
       + section("TIPS", "うまく使うコツ", tips([
         "はじめは「すべての分野」×「過去問の配分」で、試験に近い形から始めるのがおすすめです",
+        "1年度分を通して解きたいときは、年度を選んで「全部（100問）」にすると本番と同じ問題がそろいます",
         "苦手な分野だけを選んで、少ない問題数で繰り返すと定着しやすくなります",
         "各分野の★と「習得」の数で、どこまで身についたかが分かります（直近2回連続で正解すると習得）",
       ])),

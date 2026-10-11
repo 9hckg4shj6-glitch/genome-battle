@@ -13,6 +13,7 @@ import "./install.css";
 import "./hub.css";
 import "./celebrate.css";
 import "./stats.css";
+import "./years.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -31,7 +32,7 @@ import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } 
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-guide";
 import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogYear, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
-import { chosenFields, clearFields, countPresets, freshFields, minutesFor, renderPractice, renderPracticeEntry, selectAllFields, selectFields, toggleField, weakFields } from "./practice";
+import { chosenFields, clearFields, countPresets, freshFields, minutesFor, practiceQuestions, renderPractice, renderPracticeEntry, selectAllFields, selectFields, setPracticeYear, toggleField, weakFields } from "./practice";
 import { nextStep, renderNextStep } from "./study-next";
 import { clientOrder, isStudyOrder, pickStudyIds, rememberOrder, type StudyOrder } from "./study-order";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
@@ -714,14 +715,16 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   writeStore("gb.name",playerName);
   if (mode === "ai") writeStore("gb.seconds",String(answerSeconds));
   const fields = new Set(chosenFields(questions));
-  const available = [...questions.values()].filter(q => retryIds ? retryIds.includes(q.id) : mode === "ai" || fields.has(q.field)).map(q=>q.id);
+  // 問題演習コーナからの演習は、選んだ年度の問題だけから出す（復習・AI対戦はすべての年度）。
+  const pool = mode === "study" && !retryIds ? practiceQuestions(questions) : questions;
+  const available = [...pool.values()].filter(q => retryIds ? retryIds.includes(q.id) : mode === "ai" || fields.has(q.field)).map(q=>q.id);
   // Fisher–Yates。特定の問題に偏らないようシャッフルする。過去問一覧で選んだ問題は、指定がなければ問題番号の順に出す。
   if (shuffle) for (let i=available.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]];}
   const orderedStudy=mode==="study"&&!retryIds;
   // 苦手優先・仕上げは学習レベルの記録が必要。読み込めていなければ未着手優先で出す（画面の選択も同じ扱い）。
   if (clientOrder(order) && !mastery) order="unattempted";
   const picked=orderedStudy&&clientOrder(order);
-  const ids=picked?pickStudyIds([...questions.values()].filter(q=>fields.has(q.field)),studyCount,order as "weak"|"polish",distribution,mastery)
+  const ids=picked?pickStudyIds([...pool.values()].filter(q=>fields.has(q.field)),studyCount,order as "weak"|"polish",distribution,mastery)
     :orderedStudy||retryIds?available:available.slice(0,mode === "ai" ? 15 : studyCount);
   if (!ids.length) {error=retryIds||mode==="ai"?"この分野の問題はありません":"学習する分野を1つ以上選んでください";render();return;}
   busy=true; error=""; render();
@@ -1026,7 +1029,8 @@ app.addEventListener("change", (e) => {
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
   if (input.name === "study-order" && isStudyOrder(input.value)) {studyOrder=input.value;writeStore('gb.study-order',studyOrder);render();document.querySelector<HTMLInputElement>(`input[name="study-order"][value="${studyOrder}"]`)?.focus();}
   if (input.name === "practice-field") {toggleField(questions,input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-field"][value="${CSS.escape(input.value)}"]`)?.focus();}
-  if (input.id === "catalog-year") {setCatalogYear(input.value);render();document.getElementById("catalog-year")?.focus();}
+  if (input.name === "catalog-year") {setCatalogYear(input.value);render();document.querySelector<HTMLInputElement>(`input[name="catalog-year"][value="${CSS.escape(input.value)}"]`)?.focus();}
+  if (input.name === "practice-year") {setPracticeYear(input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-year"][value="${CSS.escape(input.value)}"]`)?.focus();}
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
   if (input.name === "catalog-status") {setCatalogStatus(input.value);updateCatalogResults(questions,mastery,busy,error);}
   if (input.dataset.catalogPick) {togglePick(input.dataset.catalogPick,input.checked);updateCatalogResults(questions,mastery,busy,error);}
@@ -1181,8 +1185,8 @@ app.addEventListener("click", (e) => {
   else if (act === "practice-back") {view="setup";selectedMode="study";error="";navigate(()=>{render();window.scrollTo(0,0);},"back",document.querySelector(".practice-title"),()=>document.querySelector(".practice-entry"));}
   else if (act === "practice-all") {selectAllFields();render();}
   else if (act === "practice-none") {clearFields();render();}
-  else if (act === "practice-weak-fields") {selectFields(questions,weakFields(questions,mastery));render();}
-  else if (act === "practice-fresh-fields") {selectFields(questions,freshFields(questions,studyAttempted,studyProgressLoaded));render();}
+  else if (act === "practice-weak-fields") {selectFields(questions,weakFields(practiceQuestions(questions),mastery));render();}
+  else if (act === "practice-fresh-fields") {selectFields(questions,freshFields(practiceQuestions(questions),studyAttempted,studyProgressLoaded));render();}
   else if (act === "practice-start") void startSolo("study",undefined,false,studyOrder);
   else if (act === "catalog-clear") {clearCatalogFilters();render();document.getElementById("catalog-search")?.focus();}
   else if (act === "catalog-back") {view = "setup"; selectedMode = "study"; error = ""; navigate(() => {render(); window.scrollTo(0, 0);}, "back");}

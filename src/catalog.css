@@ -7,10 +7,11 @@
 .catalog-entry small { font-size:12px;line-height:1.7;color:var(--muted); }
 .catalog-entry > .icon { flex:none;width:20px;height:20px;color:var(--muted); }
 .catalog-entry .mode-icon { flex:none; }
-.catalog-tools { grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:end;padding:20px 22px; }
+.catalog-tools { grid-template-columns:1fr;align-items:end;padding:20px 22px; }
 .catalog-tools .field { margin:0; }
 /* キーワード検索と学習状態の絞り込み。 */
 .catalog-search { grid-column:1 / -1;display:grid;gap:6px; }
+.catalog-tools .year-picker { grid-column:1 / -1; }
 .catalog-search small { font-size:11px;line-height:1.6;color:var(--muted); }
 .catalog-search-box { position:relative;display:block; }
 .catalog-search-box .icon { position:absolute;left:13px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--muted);pointer-events:none; }
