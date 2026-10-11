@@ -2,6 +2,7 @@ import { call } from './api';
 import { esc, icon, notebook, questionImage, richText, type Question } from './ui';
 import { renderCommunityRate, renderDifficultyChip } from './stats';
 import { stateOf, type Mastery, type QuestionState } from './mastery';
+import { renderCourseGuideButton } from './course-guide';
 
 // 過去問・問題と解説。問題文は手元の questions.json、正答と解説は開いた問題だけサーバから取得する。
 interface Answer { answer: number; explanation: string; }
@@ -75,7 +76,7 @@ const body = (q: Question): string => {
 export function renderCatalog(questions: Map<string, Question>, m: Mastery | null, busy = false, error = ''): string {
   const list = [...questions.values()];
   const fields = [...new Set(list.map(q => q.field))];
-  return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、右端の四角を押すと演習する問題に選べます。</p></header>
+  return `${renderCourseGuideButton('catalog')}<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、右端の四角を押すと演習する問題に選べます。</p></header>
     <div class="panel catalog-tools">
       <label class="field catalog-search"><span>キーワードで探す</span><span class="catalog-search-box">${icon('zoom')}<input id="catalog-search" type="search" value="${esc(catalogQuery)}" placeholder="例：PCR、塩基配列、12" enterkeyhint="search" autocomplete="off" aria-describedby="catalog-search-hint"/></span><small id="catalog-search-hint">問題文・選択肢・分野名から探します。スペースで区切ると、すべての語を含む問題に絞ります。数字は問題番号でも探せます。</small></label>
       <label class="field"><span>分野で絞り込む</span><select id="catalog-field" aria-label="分野で絞り込む"><option value="">すべての分野（${list.length}問）</option>${fields.map(f => `<option value="${esc(f)}" ${f === catalogField ? 'selected' : ''}>${esc(f)}（${list.filter(q => q.field === f).length}問）</option>`).join('')}</select></label></div>

@@ -5,6 +5,7 @@ import "./social.css";
 import "./readability.css";
 import "./sessions.css";
 import "./catalog.css";
+import "./course-guide.css";
 import "./guide.css";
 import "./practice.css";
 import "./motion.css";
@@ -28,6 +29,7 @@ import { esc, richText, readStore, writeStore, icon, notebook, recordMiss, toggl
 import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
+import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-guide";
 import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, renderPractice, renderPracticeEntry, selectAllFields, toggleField } from "./practice";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
@@ -966,7 +968,7 @@ function renderNotebook(): string {
       return reviewCard(q, r, label, !!n.saved[r.id], remove);
     })
     .join("");
-  return `<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題と「わからないので回答を見る」で確認した問題は自動で追加されます。正解後の「正解したけど迷った」と、振り返り画面の「保存」も使えます。</p></header>
+  return `${renderCourseGuideButton("notebook")}<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題と「わからないので回答を見る」で確認した問題は自動で追加されます。正解後の「正解したけど迷った」と、振り返り画面の「保存」も使えます。</p></header>
     <div class="notebook-tabs">${tab("missed", "誤答・わからない")}${tab("uncertain", "迷った問題")}${tab("saved", "保存した問題")}</div>
     ${notes.length
       ? `<div class="panel"><button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${notes.length}問を演習する${icon("arrow")}</button></div>${items}`
@@ -1071,6 +1073,8 @@ app.addEventListener("click", (e) => {
     status?.scrollIntoView({block:"start"});status?.focus({preventScroll:true});
     return;
   }
+  const course=target.closest<HTMLElement>("[data-course-guide]")?.dataset.courseGuide;
+  if (isCourse(course)) {openCourseGuide(course);return;}
   if (act === "sound") {toggleSound();render();return;}
   if (busy || solo.busy) return;
   const resumeId=target.closest<HTMLElement>('[data-resume-study]')?.dataset.resumeStudy;

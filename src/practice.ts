@@ -1,6 +1,7 @@
 import { renderDistribution, type StudyDistribution } from './study-distribution';
 import { fieldMastery, renderStars, type Mastery } from './mastery';
 import { esc, icon, readStore, writeStore, type Question } from './ui';
+import { renderCourseGuideButton } from './course-guide';
 
 // 問題演習コーナ（一人で学習の演習設定ページ）。分野は複数選べ、選択はこの端末に保存する。
 // null は「すべての分野」。後から分野が増えても、すべて選んだ状態を保つ。
@@ -60,7 +61,7 @@ export function renderPractice(v: PracticeView): string {
   const orderHelp = v.progressError ? '未着手の件数を取得できませんでした。出題時に確認します。'
     : v.progressLoaded ? `選んだ分野の未着手：${fresh(pool)} / ${total}問。` : '未着手の件数を確認中…';
   const disabled = v.busy || !total ? 'disabled' : '';
-  return `<header class="setup-title practice-title mode-study"><span class="mode-icon" data-morph="icon">${icon('book')}</span><div><p class="eyebrow">PRACTICE</p><h1 data-morph="title">問題演習コーナ</h1><p class="lead">分野を組み合わせて、自分だけの演習セットを作ろう。</p></div></header>
+  return `${renderCourseGuideButton('practice')}<header class="setup-title practice-title mode-study"><span class="mode-icon" data-morph="icon">${icon('book')}</span><div><p class="eyebrow">PRACTICE</p><h1 data-morph="title">問題演習コーナ</h1><p class="lead">分野を組み合わせて、自分だけの演習セットを作ろう。</p></div></header>
     <section class="panel practice-step" aria-labelledby="practice-fields-heading"><div class="practice-step-head"><span class="practice-step-no">1</span><div><h2 id="practice-fields-heading">学習する分野</h2><p>複数選べます。選んだ分野の問題を混ぜて出題します。</p></div></div>
       <div class="practice-bulk"><button class="btn" data-act="practice-all" ${v.busy || chosen.size === fields.length ? 'disabled' : ''}>すべて選択</button><button class="btn" data-act="practice-none" ${v.busy || !chosen.size ? 'disabled' : ''}>選択を解除</button></div>
       <div class="practice-fields" role="group" aria-labelledby="practice-fields-heading">${cards}</div>

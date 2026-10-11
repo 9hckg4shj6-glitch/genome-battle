@@ -1,0 +1,90 @@
+/* 「学ぶ」各コーナーの使い方（コースガイド）。ページ最上部のボタンと、図解つきのダイアログ。 */
+.course-guide-open { --mode-color:#9fd8d4;width:100%;display:flex;align-items:center;gap:14px;margin:0 0 18px;padding:12px 16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:16px;background:color-mix(in srgb,var(--accent) 7%,var(--surface));color:var(--text);font:inherit;text-align:left;cursor:pointer;transition:border-color .15s,background-color .15s; }
+.course-guide-open:hover { border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface)); }
+.course-guide-open:focus-visible { outline:2px solid var(--accent);outline-offset:2px; }
+.course-guide-open > span:nth-child(2) { flex:1;display:grid;gap:2px;min-width:0; }
+.course-guide-open strong { font-size:15px; }
+.course-guide-open small { font-size:12px;line-height:1.6;color:var(--muted); }
+.course-guide-open > .icon { flex:none;width:18px;height:18px;color:var(--muted); }
+.course-guide-icon { flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--accent);color:var(--accent-text); }
+.course-guide-icon .icon { width:22px;height:22px; }
+
+.course-guide-dialog { color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:20px;width:min(680px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:0;overflow:hidden;box-shadow:0 20px 80px #0006; }
+.course-guide-dialog[open] { display:flex;flex-direction:column; }
+.course-guide-dialog::backdrop { background:#0009;backdrop-filter:blur(4px); }
+.course-guide-head { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 24px 14px;border-bottom:1px solid var(--line); }
+.course-guide-head .eyebrow { margin:0 0 2px; }
+.course-guide-head h2 { margin:0;font-size:20px; }
+.course-guide-head .btn { flex:none;min-height:40px;padding:8px 14px;font-size:13px; }
+.course-guide-body { overflow:auto;padding:18px 24px 24px;display:grid;gap:22px;overscroll-behavior:contain; }
+.course-lead { margin:0;font-size:14px;line-height:1.85; }
+.course-section { display:grid;gap:10px; }
+.course-section .eyebrow { margin:0; }
+.course-section h3 { margin:-6px 0 0;font-size:17px; }
+.course-guide-start { justify-self:center;min-width:220px; }
+
+/* 図と番号つきの説明。広い画面では横に並べる。 */
+.course-figure { margin:0;display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:18px;align-items:start; }
+.course-figure figcaption { min-width:0; }
+.course-fig { display:block;width:100%;height:auto;overflow:visible; }
+.course-fig text { fill:var(--text);font-size:10px; }
+.course-fig .fig-title { font-size:14px;font-weight:800; }
+.course-fig .fig-label { font-size:10px;font-weight:700;fill:var(--muted); }
+.course-fig .fig-strong { font-weight:700; }
+.course-fig .fig-small { font-size:8.5px;fill:var(--muted); }
+.course-fig .fig-small-strong { font-size:8.5px;font-weight:700; }
+.course-fig .fig-muted { fill:var(--muted); }
+.course-fig .fig-on-text { fill:var(--accent-text); }
+.course-fig .fig-badge text { fill:var(--accent-text);font-size:11px;font-weight:800; }
+.fig-screen-card { fill:var(--bg);stroke:var(--line);stroke-width:1; }
+.fig-card-on { fill:color-mix(in srgb,var(--accent) 14%,var(--surface));stroke:var(--accent); }
+.fig-on, .fig-primary { fill:var(--accent); }
+.fig-tick { fill:none;stroke:var(--accent-text);stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
+.fig-track { stroke:var(--line);stroke-width:5;stroke-linecap:round; }
+.fig-track-on { stroke:var(--accent);stroke-width:5;stroke-linecap:round; }
+.fig-knob-accent { fill:var(--surface);stroke:var(--accent);stroke-width:3; }
+.fig-tag { fill:color-mix(in srgb,var(--accent) 16%,transparent); }
+.fig-chevron { fill:none;stroke:var(--muted);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round; }
+.fig-ng { fill:var(--ng); }
+.fig-ng-soft { fill:color-mix(in srgb,var(--ng) 14%,var(--surface));stroke:var(--ng);stroke-width:.8; }
+.fig-ok-soft { fill:color-mix(in srgb,var(--ok) 16%,var(--surface));stroke:var(--ok);stroke-width:.8; }
+.fig-bar-card { fill:var(--surface);stroke:var(--accent);stroke-width:1;filter:drop-shadow(0 4px 10px #0003); }
+.course-legend { margin:0;padding:0;list-style:none;display:grid;gap:10px; }
+.course-legend li { display:grid;grid-template-columns:24px 1fr;gap:10px;font-size:13px;line-height:1.75; }
+.course-legend li > b { display:grid;place-items:center;width:22px;height:22px;margin-top:2px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:12px; }
+.course-legend span b { color:var(--text); }
+.course-legend span { color:var(--muted); }
+
+/* 流れ図：ノードを矢印でつなぐ。狭い画面では縦に並ぶ。 */
+.course-flow { margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;align-items:stretch;gap:8px 26px; }
+.course-flow li { position:relative;flex:1 1 120px;display:grid;place-items:center;min-height:52px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent) 7%,var(--surface));font-size:13px;font-weight:600;line-height:1.5;text-align:center; }
+.course-flow li:not(:last-child)::after { content:"";position:absolute;right:-19px;top:50%;width:12px;height:12px;border-top:2px solid var(--accent);border-right:2px solid var(--accent);transform:translateY(-50%) rotate(45deg); }
+.course-lanes { display:grid;gap:8px; }
+.course-lanes > div { display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,150px);align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px; }
+.course-lanes span { font-size:13px;line-height:1.7;color:var(--muted); }
+.course-lanes span b { color:var(--text); }
+.course-lanes > div > .icon { width:20px;height:20px;color:var(--accent); }
+.course-lanes strong { padding:8px 10px;border-radius:10px;background:var(--accent);color:var(--accent-text);font-size:13px;text-align:center; }
+.course-note { display:flex;gap:10px;align-items:flex-start;margin:0;font-size:13px;line-height:1.8;color:var(--muted); }
+.course-note .icon { flex:none;width:18px;height:18px;margin-top:3px;color:var(--accent); }
+.course-note b { color:var(--text); }
+.course-tips { margin:0;padding:12px 14px 12px 30px;border-radius:12px;background:var(--surface-2);display:grid;gap:6px;font-size:13px;line-height:1.75;color:var(--muted); }
+.course-tips b { color:var(--text); }
+
+@media (max-width:600px) {
+  .course-figure { grid-template-columns:1fr; }
+  .course-fig { max-width:380px;margin:0 auto; }
+}
+@media (max-width:540px) {
+  .course-guide-dialog { width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:18px; }
+  .course-guide-head { padding:16px 16px 12px; }
+  .course-guide-head h2 { font-size:18px; }
+  .course-guide-body { padding:16px 16px 20px; }
+  .course-guide-open { padding:10px 12px;gap:12px; }
+  .course-flow { flex-direction:column;gap:22px; }
+  .course-flow li { flex:none; }
+  .course-flow li:not(:last-child)::after { right:auto;left:50%;top:auto;bottom:-17px;transform:translateX(-50%) rotate(135deg); }
+  .course-lanes > div { grid-template-columns:1fr;gap:6px; }
+  .course-lanes > div > .icon { transform:rotate(90deg);justify-self:center; }
+}
+@media (prefers-reduced-motion: reduce) { .course-guide-open { transition:none; } }

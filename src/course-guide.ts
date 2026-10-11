@@ -1,0 +1,162 @@
+import { icon } from "./ui";
+
+// 「学ぶ」の各コーナー（問題演習・復習ノート・過去問一覧）の使い方。ページ最上部のボタンから図解つきで開く。
+export type Course = "practice" | "notebook" | "catalog";
+export const isCourse = (v: string | undefined): v is Course => v === "practice" || v === "notebook" || v === "catalog";
+
+// ---------- 図（画面を簡略化したイラスト） ----------
+const t = (x: number, y: number, s: string, cls = "", anchor = "start"): string => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${s}</text>`;
+const box = (x: number, y: number, w: number, h: number, cls = "fig-card", r = 8): string => `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+const lines = (x: number, y: number, widths: number[], gap = 9): string => widths.map((w, i) => box(x, y + i * gap, w, 4.5, "fig-soft", 2)).join("");
+const hl = (x: number, y: number, w: number, h: number, r = 8): string => `<rect class="fig-hl" x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+const badge = (x: number, y: number, n: number): string => `<g class="fig-badge"><circle class="fig-pulse" cx="${x}" cy="${y}" r="10"/><circle cx="${x}" cy="${y}" r="10"/>${t(x, y + 4, String(n), "", "middle")}</g>`;
+const check = (x: number, y: number, on: boolean, s = 13): string => `${box(x, y, s, s, on ? "fig-on" : "fig-btn", 3.5)}${on ? `<path class="fig-tick" d="M${x + s * 0.25} ${y + s * 0.52}l${s * 0.17} ${s * 0.18} ${s * 0.33} -${s * 0.38}"/>` : ""}`;
+const btn = (x: number, y: number, w: number, h: number, label: string, primary = false): string => `${box(x, y, w, h, primary ? "fig-primary" : "fig-btn", h / 2)}${t(x + w / 2, y + h / 2 + 3.8, label, primary ? "fig-on-text fig-strong" : "fig-strong", "middle")}`;
+const svg = (label: string, h: number, body: string): string => `<svg class="course-fig" viewBox="0 0 320 ${h}" role="img" aria-label="${label}">${box(1, 1, 318, h - 2, "fig-screen-card", 16)}${body}</svg>`;
+
+function practiceSetupFigure(): string {
+  const fields = ["遺伝子組換え", "転写・翻訳", "DNAの構造", "PCR・解析"];
+  const cards = fields.map((f, i) => {
+    const x = 18 + (i % 2) * 144, y = 52 + Math.floor(i / 2) * 36, on = i !== 3;
+    return `${box(x, y, 136, 30, on ? "fig-card fig-card-on" : "fig-card")}${check(x + 9, y + 8.5, on)}${t(x + 30, y + 19, f)}`;
+  }).join("");
+  return svg("問題演習コーナの設定画面。分野を選び、問題数と出題配分を決め、出題の順番を選んで始める", 300, `
+    ${t(18, 28, "問題演習コーナ", "fig-title")}${t(18, 44, "1 学習する分野", "fig-label")}${cards}${hl(13, 47, 294, 76)}${badge(300, 50, 1)}
+    ${t(18, 146, "2 問題数と出題配分", "fig-label")}<path class="fig-track" d="M24 164h200"/><path class="fig-track-on" d="M24 164h86"/><circle class="fig-knob-accent" cx="110" cy="164" r="7"/>${box(238, 153, 52, 22, "fig-btn", 6)}${t(264, 168, "20問", "fig-strong", "middle")}
+    ${box(18, 184, 136, 28, "fig-card fig-card-on")}${t(86, 202, "過去問の配分", "fig-strong", "middle")}${box(162, 184, 140, 28)}${t(232, 202, "分野を均等に", "", "middle")}${hl(13, 151, 294, 66)}${badge(300, 154, 2)}
+    ${t(18, 240, "3 演習をはじめる", "fig-label")}${btn(18, 250, 160, 30, "未着手の問題を優先的に演習", true)}${btn(186, 250, 116, 30, "ランダム演習")}${hl(13, 245, 294, 40, 18)}${badge(300, 248, 3)}`);
+}
+
+function practiceSessionFigure(): string {
+  const choices = ["選択肢 A", "選択肢 B", "選択肢 C", "選択肢 D"].map((c, i) => `${box(18, 108 + i * 30, 284, 25, i === 1 ? "fig-card fig-card-on" : "fig-card", 7)}${box(25, 113 + i * 30, 15, 15, "fig-soft", 4)}${t(32.5, 124 + i * 30, String(i + 1), "fig-strong", "middle")}${t(48, 124.5 + i * 30, c)}`).join("");
+  return svg("演習中の画面。選択肢を押して解答。わからないときは回答を見る、後で解く、中断して保存ができる", 320, `
+    ${box(18, 14, 92, 20, "fig-tag", 10)}${t(64, 28, "一人で学習", "fig-small-strong", "middle")}${btn(206, 12, 96, 24, "中断して保存")}${hl(202, 8, 104, 32, 16)}${badge(196, 12, 4)}
+    ${t(18, 56, "第3問 / 10問", "fig-strong")}${box(18, 64, 284, 4, "fig-soft", 2)}${box(18, 64, 86, 4, "fig-accent", 2)}
+    ${lines(18, 80, [270, 220])}
+    ${choices}${hl(13, 103, 294, 124)}${badge(300, 106, 1)}
+    ${btn(18, 236, 284, 28, "わからないので回答を見る")}${hl(13, 232, 294, 36, 18)}${badge(300, 236, 2)}
+    ${btn(18, 276, 284, 28, "後で解く", true)}${hl(13, 272, 294, 36, 18)}${badge(300, 276, 3)}`);
+}
+
+function notebookFigure(): string {
+  const tabs = [["誤答・わからない", 5], ["迷った問題", 2], ["保存した問題", 3]] as const;
+  return svg("復習ノートの画面。タブで種類を選び、まとめて演習する。各問題は解説つきで見直せる", 300, `
+    ${t(18, 28, "復習ノート", "fig-title")}
+    ${tabs.map(([l, n], i) => `${box(18 + i * 96, 40, 90, 26, i === 0 ? "fig-primary" : "fig-btn", 13)}${t(63 + i * 96, 57, `${l} ${n}`, i === 0 ? "fig-on-text fig-small-strong" : "fig-small-strong", "middle")}`).join("")}${hl(13, 35, 294, 36, 18)}${badge(300, 38, 1)}
+    ${btn(18, 80, 284, 30, "この5問を演習する", true)}${hl(13, 75, 294, 40, 18)}${badge(300, 78, 2)}
+    ${box(18, 124, 284, 162, "fig-card", 12)}${t(30, 144, "転写 · 2回要復習に記録", "fig-small")}${box(240, 133, 52, 16, "fig-ng", 8)}${t(266, 144.5, "× 不正解", "fig-on-text fig-small-strong", "middle")}
+    ${lines(30, 154, [250, 190])}
+    ${[0, 1, 2].map(i => `${box(30, 176 + i * 20, 260, 16, i === 2 ? "fig-ok-soft" : i === 0 ? "fig-ng-soft" : "fig-card", 5)}`).join("")}
+    ${lines(30, 240, [250, 210])}
+    ${btn(30, 258, 108, 20, "この問題を保存")}${btn(146, 258, 96, 20, "リストから外す")}${hl(25, 253, 222, 30, 14)}${badge(250, 254, 3)}`);
+}
+
+function catalogFigure(): string {
+  const rows = [false, true, false].map((on, i) => {
+    const y = 132 + i * 40;
+    return `${box(18, y, 284, 34, on ? "fig-card fig-card-on" : "fig-card", 9)}<circle class="fig-soft" cx="34" cy="${y + 17}" r="9"/>${t(34, y + 21, String(i + 1), "fig-strong", "middle")}${box(50, y + 8, 70, 4, "fig-accent", 2)}${box(50, y + 18, 180 - i * 30, 5, "fig-ink", 2)}<path class="fig-chevron" d="M252 ${y + 14}l4 4 4-4"/>${check(272, y + 9.5, on, 15)}`;
+  }).join("");
+  return svg("過去問一覧の画面。キーワード・分野・学習状態で絞り込み、問題を押すと解説、右端の四角で演習する問題を選ぶ", 330, `
+    ${t(18, 28, "過去問・問題と解説", "fig-title")}
+    ${box(18, 40, 284, 26, "fig-btn", 8)}<circle class="fig-glyph" cx="32" cy="53" r="5"/><path class="fig-glyph" d="M36 57l4 4"/>${t(46, 57, "例：PCR、塩基配列、12", "fig-muted")}${hl(13, 35, 294, 36)}${badge(300, 38, 1)}
+    ${box(18, 76, 284, 24, "fig-btn", 8)}${t(28, 92, "すべての分野（100問）")}<path class="fig-chevron" d="M284 86l4 4 4-4"/>${hl(13, 72, 294, 32)}${badge(300, 74, 2)}
+    ${["すべて", "未着手", "誤答", "習得"].map((l, i) => `${box(18 + i * 62, 108, 56, 18, i === 0 ? "fig-primary" : "fig-btn", 9)}${t(46 + i * 62, 120.5, l, i === 0 ? "fig-on-text fig-small-strong" : "fig-small-strong", "middle")}`).join("")}${hl(13, 104, 254, 26, 13)}${badge(284, 117, 3)}
+    ${rows}${hl(46, 136, 196, 26, 6)}${badge(242, 136, 4)}${hl(266, 168, 27, 28, 6)}${badge(302, 168, 5)}
+    ${box(12, 260, 296, 58, "fig-bar-card", 12)}${t(24, 280, "2問を選択中", "fig-strong")}${check(210, 270, false, 11)}${t(225, 280, "ランダムな順", "fig-small")}${btn(24, 288, 272, 22, "選んだ2問を演習する", true)}${hl(18, 284, 284, 30, 15)}${badge(300, 286, 6)}`);
+}
+
+// ---------- 部品 ----------
+const legend = (items: string[]): string => `<ol class="course-legend">${items.map((s, i) => `<li><b>${i + 1}</b><span>${s}</span></li>`).join("")}</ol>`;
+const figure = (fig: string, items: string[]): string => `<figure class="course-figure">${fig}<figcaption>${legend(items)}</figcaption></figure>`;
+const flow = (nodes: string[]): string => `<ol class="course-flow">${nodes.map(n => `<li>${n}</li>`).join("")}</ol>`;
+const tips = (items: string[]): string => `<ul class="course-tips">${items.map(s => `<li>${s}</li>`).join("")}</ul>`;
+const section = (eyebrow: string, title: string, body: string): string => `<section class="course-section"><p class="eyebrow">${eyebrow}</p><h3>${title}</h3>${body}</section>`;
+
+interface Guide { eyebrow: string; title: string; lead: string; body: string; start: string; }
+const GUIDES: Record<Course, Guide> = {
+  practice: {
+    eyebrow: "COURSE GUIDE", title: "問題演習コーナの使い方",
+    lead: "分野を組み合わせて、自分だけの演習セットを作るコーナーです。時間制限はなく、1問ごとに正解と解説を読みながら進められます。",
+    body: section("STEP 1", "設定して始める", figure(practiceSetupFigure(), [
+      "<b>学習する分野</b>を選ぶ。いくつでも組み合わせられます（「すべて選択」「選択を解除」もあります）",
+      "<b>問題数</b>をスライダーか数字で決め、2分野以上なら<b>出題配分</b>（過去問の配分／分野を均等に）を選ぶ",
+      "<b>未着手の問題を優先的に演習</b>（まだ解いていない問題から出す）か<b>ランダム演習</b>を押して開始",
+    ]))
+      + section("STEP 2", "解いて、解説を読む", figure(practiceSessionFigure(), [
+        "選択肢を押して解答。すぐに正解と解説が出ます",
+        "<b>わからないので回答を見る</b>：当てずっぽうにせず答えと解説を確認。正解数には入らず、復習ノートに記録されます",
+        "<b>後で解く</b>：この問題を最後に回します。残りを解いたあとに戻ってきます",
+        "<b>中断して保存</b>：途中でやめても、「学ぶ」の<b>保存した学習の続き</b>から再開できます",
+      ]))
+      + section("FLOW", "1問の流れ", flow(["解答する", "正解・解説を読む", "「次の問題へ」", "最後に全問を振り返る"])
+        + `<p class="course-note">${icon("bookmark")}<span>間違えた問題・回答を見た問題は<b>復習ノート</b>に自動で入ります。正解でも自信がなければ、解説の下の「<b>正解したけど迷った</b>」で記録できます。</span></p>`)
+      + section("TIPS", "うまく使うコツ", tips([
+        "はじめは「すべての分野」×「過去問の配分」で、試験に近い形から始めるのがおすすめです",
+        "苦手な分野だけを選んで、少ない問題数で繰り返すと定着しやすくなります",
+        "各分野の★と「習得」の数で、どこまで身についたかが分かります（直近2回連続で正解すると習得）",
+      ])),
+    start: "設定をはじめる",
+  },
+  notebook: {
+    eyebrow: "COURSE GUIDE", title: "復習ノートの使い方",
+    lead: "間違えた問題や迷った問題が自動で集まる、あなた専用の復習リストです。解説で見直し、まとめて解き直せます。",
+    body: section("HOW IT FILLS", "問題がたまる仕組み", `<div class="course-lanes">
+        <div><span>学習・対戦で<b>間違えた</b><br>「<b>わからないので回答を見る</b>」で確認した</span>${icon("arrow")}<strong>誤答・わからない</strong></div>
+        <div><span>正解したあとに<br>「<b>正解したけど迷った</b>」を押した</span>${icon("arrow")}<strong>迷った問題</strong></div>
+        <div><span>振り返り画面で<br>「<b>この問題を保存</b>」を押した</span>${icon("arrow")}<strong>保存した問題</strong></div>
+      </div>`)
+      + section("HOW TO USE", "見直して、解き直す", figure(notebookFigure(), [
+        "<b>タブ</b>で、見直したい種類を選ぶ。数字はたまっている問題数です",
+        "<b>このN問を演習する</b>で、そのタブの問題だけをまとめて解き直します（時間制限なし）",
+        "各問題は正解・あなたの解答・解説つきで並びます。<b>保存</b>したり、覚えた問題を<b>リストから外し</b>たりできます",
+      ]))
+      + section("FLOW", "おすすめの復習サイクル", flow(["解説を読み直す", "まとめて演習", "正解できたら「リストから外す」", "残った問題をまた演習"]))
+      + section("TIPS", "うまく使うコツ", tips([
+        "「誤答・わからない」の問題は、解き直して正解しても自動では消えません。覚えたと思ったら「リストから外す」で整理しましょう",
+        "画面下の「復習」タブや「学ぶ」に出る<b>復習待ち</b>の数が、いまたまっている問題の目安です",
+        "記録はこのブラウザに保存されます。いつも同じブラウザ・ホーム画面のアイコンから開くと、ノートがひとつにまとまります",
+      ])),
+    start: "ノートを見る",
+  },
+  catalog: {
+    eyebrow: "COURSE GUIDE", title: "過去問・問題と解説の使い方",
+    lead: "アプリに収録している全問題を、探して・読んで・選んで演習できる一覧です。気になる問題だけを集めて解くのにも使えます。",
+    body: section("HOW TO USE", "探して、選んで、演習する", figure(catalogFigure(), [
+      "<b>キーワード</b>で探す。問題文・選択肢・分野名が対象です。スペースで区切るとすべての語を含む問題に、数字だけなら問題番号でも探せます",
+      "<b>分野</b>で絞り込む",
+      "<b>学習状態</b>（未着手・誤答・取り組み中・習得）で絞り込む",
+      "<b>問題を押す</b>と、正解と解説が開きます。開いた問題の下の「この問題を演習する」で1問だけ解くこともできます",
+      "<b>右端の四角</b>を押すと、演習する問題に選ばれます（もう一度押すと外れます）",
+      "画面下のバーの<b>選んだN問を演習する</b>で開始。「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
+    ]))
+      + section("FLOW", "使い方の流れ", flow(["条件で絞り込む", "問題を開いて解説を確認", "右端の四角で選ぶ", "まとめて演習"]))
+      + section("TIPS", "うまく使うコツ", tips([
+        "選んだ問題は、ページや絞り込みを変えても残ります。いろいろな条件から少しずつ集められます",
+        "出題は問題番号の順です。バーの「<b>ランダムな順で出題</b>」をオンにすると順番を混ぜます",
+        "1回の演習は<b>100問まで</b>選べます",
+        "「誤答」で絞り込んで「この条件の問題を選ぶ」と、苦手な問題だけの演習がすぐに作れます",
+      ])),
+    start: "一覧を見る",
+  },
+};
+
+export function renderCourseGuideButton(course: Course): string {
+  return `<button class="course-guide-open" data-course-guide="${course}"><span class="course-guide-icon">${icon("help")}</span><span><strong>使い方はこちら</strong><small>このコーナーの使い方を図解で説明します</small></span>${icon("arrow")}</button>`;
+}
+
+let dialog: HTMLDialogElement | null = null;
+export function openCourseGuide(course: Course): void {
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.className = "course-guide-dialog";
+    dialog.setAttribute("aria-labelledby", "course-guide-title");
+    // 背景（ダイアログの外側）を押しても閉じる。
+    dialog.addEventListener("click", (e) => { if (e.target === dialog || (e.target as HTMLElement).closest("[data-course-guide-close]")) dialog?.close(); });
+    document.body.append(dialog);
+  }
+  const g = GUIDES[course];
+  dialog.innerHTML = `<div class="course-guide-head"><div><p class="eyebrow">${g.eyebrow}</p><h2 id="course-guide-title">${g.title}</h2></div><button class="btn ghost" data-course-guide-close aria-label="使い方を閉じる">閉じる</button></div>
+    <div class="course-guide-body"><p class="course-lead">${g.lead}</p>${g.body}<button class="btn primary course-guide-start" data-course-guide-close>${g.start}${icon("arrow")}</button></div>`;
+  dialog.showModal();
+  dialog.querySelector(".course-guide-body")?.scrollTo(0, 0);
+}
