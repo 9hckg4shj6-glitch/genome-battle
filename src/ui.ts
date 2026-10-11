@@ -38,15 +38,6 @@ const paths: Record<string,string> = {
   play:'<path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.8l-10-6.5A1 1 0 0 0 8 5.5Z"/>',
 };
 export const icon = (name: string): string => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.dna}</svg>`;
-export function helix(): string {
-  const left: string[]=[]; const right: string[]=[]; const rungs: string[]=[];
-  for (let i=0;i<=44;i++) {
-    const y=20+i*7; const a=125+Math.sin(i*0.23)*72; const b=125-Math.sin(i*0.23)*72;
-    left.push(`${a.toFixed(1)},${y}`); right.push(`${b.toFixed(1)},${y}`);
-    if (i%2===0) rungs.push(`<line x1="${a}" y1="${y}" x2="${b}" y2="${y}" opacity="${0.2+Math.abs(Math.cos(i*0.23))*0.4}"/><circle cx="${a}" cy="${y}" r="3"/><circle cx="${b}" cy="${y}" r="3"/>`);
-  }
-  return `<svg class="helix" viewBox="0 0 250 350" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1">${rungs.join('')}</g><polyline points="${left.join(' ')}" stroke="currentColor" stroke-width="2.5"/><polyline points="${right.join(' ')}" stroke="currentColor" stroke-width="2.5"/></svg>`;
-}
 export function questionImage(q:Question,lazy=false):string {
   return q.image?`<figure class="question-figure"><button class="image-open" data-image-id="${esc(q.id)}" aria-label="図を拡大：${esc(q.imageAlt??'問題の図')}"><img src="${import.meta.env.BASE_URL}${esc(q.image)}" alt="${esc(q.imageAlt??'問題の図')}" ${lazy?'loading="lazy"':''}/><span>${icon('zoom')}図を拡大</span></button></figure>`:'';
 }
