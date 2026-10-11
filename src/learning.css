@@ -28,3 +28,36 @@
   .review-course { padding:17px; }.review-course h2 { font-size:16px; }.review-course .btn { gap:7px;padding:12px 9px;font-size:12px; }
   .course-breakdown { font-size:11px !important; }.performance-card { padding:20px 16px; }
 }
+
+/* 学習の結果画面：分野ごとの正答数・解き直し・次のおすすめ */
+.result-fields { width:100%;min-width:0;margin:0 0 14px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);text-align:left; }
+.result-fields h2 { margin:0 0 10px;font-size:14px; }
+.result-fields ul { display:grid;gap:8px;margin:0;padding:0;list-style:none; }
+.result-fields li { display:grid;grid-template-columns:minmax(0,1fr) minmax(60px,34%) auto;align-items:center;gap:10px;font-size:13px; }
+.result-field-name { overflow-wrap:anywhere;line-height:1.5; }
+.result-field-bar { height:8px;border-radius:99px;overflow:hidden;background:var(--line); }
+.result-field-bar i { display:block;height:100%;border-radius:inherit;background:var(--accent); }
+.result-fields li.perfect .result-field-bar i { background:var(--ok); }
+.result-fields b { min-width:3.2em;text-align:right;font-variant-numeric:tabular-nums; }
+.result-fields b small { font-weight:500;color:var(--muted); }
+.result-fields-note { display:grid;gap:8px;justify-items:center;margin:0 0 14px;font-size:12px;color:var(--muted); }
+.result-fields-note p { margin:0; }
+.result-retry { display:grid;gap:6px;width:100%;margin:0 0 14px; }
+.result-retry .btn { width:100%; }
+.result-retry p, .result-perfect { margin:0 0 14px;font-size:12px;color:var(--muted); }
+.result-retry p { margin:0; }
+.result-perfect { color:var(--ok);font-weight:600; }
+.next-step { display:grid;gap:8px;width:100%;min-width:0;margin:0 0 14px;padding:16px 18px;border:1px dashed color-mix(in srgb,var(--accent) 55%,var(--line));border-radius:14px;text-align:left; }
+.next-step .eyebrow { margin:0;color:var(--accent); }
+.next-step h2 { margin:0;font-size:15px; }
+.next-step-goal { margin:0;font-size:13px;line-height:1.8; }
+.next-step-goal strong { margin:0 2px; }
+.next-step-goal .mastery-stars { margin-left:4px;vertical-align:-2px; }
+.next-step-goal strong { font-size:18px;color:var(--accent);font-variant-numeric:tabular-nums; }
+.next-step-goal .mastery-stars svg { width:14px;height:14px; }
+.next-step .btn { width:100%;font-size:13px; }
+@media (max-width:540px) {
+  .result-fields, .next-step { padding:14px; }
+  .result-fields li { grid-template-columns:minmax(0,1fr) 64px auto;gap:8px;font-size:12px; }
+  .result-retry .btn, .next-step .btn { gap:7px;padding:12px 9px;font-size:12px; }
+}

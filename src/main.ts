@@ -31,7 +31,8 @@ import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } 
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-guide";
 import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
-import { chosenFields, clearFields, freshFields, renderPractice, renderPracticeEntry, selectAllFields, selectFields, toggleField, weakFields } from "./practice";
+import { chosenFields, clearFields, countPresets, freshFields, minutesFor, renderPractice, renderPracticeEntry, selectAllFields, selectFields, toggleField, weakFields } from "./practice";
+import { nextStep, renderNextStep } from "./study-next";
 import { clientOrder, isStudyOrder, pickStudyIds, rememberOrder, type StudyOrder } from "./study-order";
 import { afterRender, enterScene, installPointerLight, navigate, tapFeedback } from "./motion";
 import { markTitleSeen, renderStudyEntry, renderBattleHub, renderHomeMenu, renderHomePlayer, renderRecords, renderSettings, renderSuggestion, renderTabBar, renderTitle, titleSeen, type Tab } from "./hub";
@@ -150,7 +151,9 @@ const RESULT_STEP_MS = 450;
 let resultIntro: { id: string; at: number } | null = null;
 
 const imageViewer = new ImageViewer();
-const solo = new SoloController(deviceId, questions, render, () => playerName, (s) => {void refreshPerformance();void refreshMastery(s.mode==='study'?s.id:undefined);void refreshQuestionStats();}, (id): string => solo.state?.mode==='ai' ? renderRequeue(id) : renderSessionXp(masteryFor===id?mastery:null,masteryLoading));
+const solo = new SoloController(deviceId, questions, render, () => playerName, (s) => {void refreshPerformance();void refreshMastery(s.mode==='study'?s.id:undefined);void refreshQuestionStats();}, (id): string => solo.state?.mode==='ai' ? renderRequeue(id) : renderSessionXp(masteryFor===id?mastery:null,masteryLoading),
+  // 次のおすすめは、この学習の結果を反映した学習レベルが届いてから出す。
+  (id): string => masteryFor===id&&mastery ? renderNextStep(nextStep(questions,mastery,new Set(solo.review.map(r=>questions.get(r.id)?.field??""))),busy) : "");
 const friends=new FriendsController(deviceId,()=>playerName,(name)=>{playerName=name;writeStore("gb.name",name);render();},()=>match?{...match,my_seat:mySeat}:null,(s)=>{
   if(match?.status==="waiting" && match.id!==s.id)void call("leave_match",{p_match:match.id,p_device:deviceId}).catch(()=>{});
   battleGeneration++;solo.stop();match=null;myChoices=new Map();review=[];reviewLoaded=false;reviewLoading=false;battleReviewPromise=null;
@@ -1004,10 +1007,14 @@ app.addEventListener("input", (e) => {
   if (input.id === "study-count") {studyCount = Number(input.value); (document.getElementById("study-count-value") as HTMLInputElement).value = input.value; showStudyCount();}
   if (input.id === "study-count-value" && Number.isInteger(Number(input.value)) && Number(input.value) >= 1 && Number(input.value) <= Number(input.max)) {studyCount = Number(input.value); (document.getElementById("study-count") as HTMLInputElement).value = input.value; showStudyCount();}
 });
-// 問題数のつまみを動かすあいだは再描画せず、下の開始バーの数字だけ合わせる。
+// 問題数のつまみを動かすあいだは再描画せず、目安時間・すばやい指定・下の開始バーだけ合わせる。
 function showStudyCount(): void {
   const b=document.querySelector<HTMLElement>(".practice-startbar-copy b");
   if (b) b.textContent=String(studyCount);
+  document.querySelectorAll<HTMLElement>(".practice-time-inline").forEach(e=>e.textContent=` · ${minutesFor(studyCount)}`);
+  document.querySelectorAll<HTMLElement>(".practice-time").forEach(e=>e.textContent=`目安 ${minutesFor(studyCount)}`);
+  const presets=document.querySelector<HTMLElement>(".practice-presets"), range=document.getElementById("study-count") as HTMLInputElement|null;
+  if (presets && range) presets.innerHTML=countPresets(studyCount,Number(range.max),busy);
 }
 app.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
@@ -1093,6 +1100,17 @@ app.addEventListener("click", (e) => {
   if (isCourse(course)) {openCourseGuide(course);return;}
   if (act === "sound") {toggleSound();render();return;}
   if (busy || solo.busy) return;
+  const preset=target.closest<HTMLElement>('[data-study-count]')?.dataset.studyCount;
+  if(preset){
+    const range=document.getElementById("study-count") as HTMLInputElement|null, max=Number(range?.max??1);
+    studyCount=preset==="all"?max:Math.min(Number(preset),max);
+    if(range)range.value=String(studyCount);
+    const typed=document.getElementById("study-count-value") as HTMLInputElement|null;
+    if(typed)typed.value=String(studyCount);
+    showStudyCount();
+    document.querySelector<HTMLElement>(`[data-study-count="${preset}"]`)?.focus();
+    return;
+  }
   const resumeId=target.closest<HTMLElement>('[data-resume-study]')?.dataset.resumeStudy;
   if(resumeId){void resumeStudy(resumeId);return;}
   const catalogPractice=target.closest<HTMLElement>('[data-catalog-practice]')?.dataset.catalogPractice;
@@ -1176,6 +1194,13 @@ app.addEventListener("click", (e) => {
   else if (act === "solo-defer") {void solo.act("defer");window.scrollTo(0,0);}
   else if (act === "solo-next") {void solo.act("next");window.scrollTo(0,0);}
   else if (act === "solo-review") {void solo.act("review");window.scrollTo(0,0);}
+  else if (act === "solo-next-step") {
+    // おすすめの分野・出題方法・問題数を演習コーナの設定にも残し、そのまま始める。
+    const {field="",order="",count=""}=target.closest<HTMLElement>("[data-act]")?.dataset??{};
+    if (!questions.size||![...questions.values()].some(q=>q.field===field)||!isStudyOrder(order)) return;
+    selectFields(questions,[field]);studyOrder=order;writeStore("gb.study-order",studyOrder);studyCount=Math.max(1,Number(count)||10);
+    void startSolo("study",undefined,false,studyOrder);
+  }
   else if (act === "solo-retry") {const ids=solo.retryIds(); void startSolo("study",ids);}
   else if (act === "solo-again") {selectedMode=solo.state?.mode === "ai" ? "ai" : "study"; if (solo.state) {difficulty=solo.state.difficulty;answerSeconds=solo.state.answer_seconds;} solo.stop();view=selectedMode==="study"?"practice":"setup";if(selectedMode==="study")void refreshStudyProgress();render();window.scrollTo(0,0);}
   else if (act === "reload") location.reload();

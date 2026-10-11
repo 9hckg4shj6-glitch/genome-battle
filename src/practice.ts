@@ -57,6 +57,13 @@ export function renderPracticeEntry(questions: Map<string, Question>): string {
     meta: `<span class="entry-chip practice-entry-current">${icon('check')}${current}</span>` });
 }
 
+// 問題数のすばやい指定。解説を読む時間を含めて、1問およそ1分で目安を出す。
+const COUNT_PRESETS = [5, 10, 20] as const;
+export const minutesFor = (count: number): string => `約${count}分`;
+export const countPresets = (count: number, total: number, busy: boolean): string =>
+  [...COUNT_PRESETS.map(n => [String(n), `${n}問`, n] as const), ['all', `全部（${total}問）`, total] as const].map(([key, label, n]) =>
+    `<button type="button" class="practice-preset ${total && count === n ? 'on' : ''}" data-study-count="${key}" aria-pressed="${!!total && count === n}" ${busy || !total || n > total ? 'disabled' : ''}>${label}</button>`).join('');
+
 const ORDER_TEXT: Record<StudyOrder, string> = {
   unattempted: 'まだ解いていない問題から',
   weak: '取り組み中・間違えた問題から',
@@ -121,13 +128,13 @@ export function renderPractice(v: PracticeView): string {
       ${v.mastery ? `<p class="practice-legend" aria-hidden="true"><span><i class="st-settled"></i>定着</span><span><i class="st-mastered"></i>習得</span><span><i class="st-learning"></i>取り組み中</span><span><i class="st-new"></i>未着手</span></p>` : ''}
       <p class="practice-summary ${chosen.size ? '' : 'empty'}" role="status">${summary}</p></section>
     <section class="panel practice-step" aria-labelledby="practice-count-heading"><div class="practice-step-head"><span class="practice-step-no">2</span><div><h2 id="practice-count-heading">問題数と出題配分</h2><p>時間制限なし。解答後の解説を読んで、自分のペースで進められます。</p></div></div>
-      <div class="field count-field"><span>問題数（${total ? `1〜${total}問` : '分野を選ぶと設定できます'}）</span><div class="count-row"><input id="study-count" type="range" aria-label="問題数" min="1" max="${Math.max(1, total)}" step="1" value="${count}" ${disabled}/><input id="study-count-value" type="number" inputmode="numeric" aria-label="問題数（数字で入力）" min="1" max="${Math.max(1, total)}" step="1" value="${total ? count : ''}" ${disabled}/><span>問</span></div></div>
+      <div class="field count-field"><span class="practice-count-head"><span>問題数（${total ? `1〜${total}問` : '分野を選ぶと設定できます'}）</span>${total ? `<b class="practice-time">目安 ${minutesFor(count)}</b>` : ''}</span><div class="practice-presets" role="group" aria-label="問題数をすばやく選ぶ">${countPresets(count, total, v.busy)}</div><div class="count-row"><input id="study-count" type="range" aria-label="問題数" min="1" max="${Math.max(1, total)}" step="1" value="${count}" ${disabled}/><input id="study-count-value" type="number" inputmode="numeric" aria-label="問題数（数字で入力）" min="1" max="${Math.max(1, total)}" step="1" value="${total ? count : ''}" ${disabled}/><span>問</span></div></div>
       <div id="distribution-settings">${renderDistribution(v.distribution, chosen.size < 2)}</div></section>
     <section class="panel practice-step" aria-labelledby="practice-order-heading"><div class="practice-step-head"><span class="practice-step-no">3</span><div><h2 id="practice-order-heading">出題方法</h2><p>どの問題から優先して出すかを選びます。対象は選んだ分野の問題数です。</p></div></div>
       <fieldset class="practice-orders" aria-labelledby="practice-order-heading" aria-describedby="practice-order-help">${options}</fieldset>
       <p id="practice-order-help" class="study-order-help">${orderHelp}</p></section>
     <section class="practice-startbar ${total ? 'ready' : ''}" aria-label="演習の開始">
-      <p class="practice-startbar-copy" role="status"><b>${total ? count : 0}</b>問<small>${barNote}</small></p>
+      <p class="practice-startbar-copy" role="status"><b>${total ? count : 0}</b>問${total ? `<span class="practice-time-inline"> · ${minutesFor(count)}</span>` : ''}<small>${barNote}</small></p>
       <button class="btn primary" data-act="practice-start" ${disabled}>${v.busy ? '<span class="spinner mini"></span>準備中…' : `はじめる${icon('arrow')}`}</button>
       ${v.error ? `<p class="error" role="alert">${esc(v.error)}</p>` : ''}</section>`;
 }

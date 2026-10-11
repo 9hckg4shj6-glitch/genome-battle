@@ -54,6 +54,16 @@
 .practice-step .study-distribution { margin-top:0; }
 .practice-step .study-order-help { margin:0; }
 .practice-step .count-row input:disabled { opacity:.5; }
+/* 問題数：見出しの右に目安時間、その下にすばやい指定 */
+.practice-count-head { display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px; }
+.practice-time { font-size:12px;font-weight:600;color:var(--mode-color);font-variant-numeric:tabular-nums; }
+.practice-presets { display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px; }
+.practice-preset { min-height:38px;padding:6px 14px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;
+  transition:background-color .2s var(--ease-out),border-color .2s var(--ease-out),color .2s var(--ease-out); }
+.practice-preset:hover:not(:disabled) { border-color:var(--mode-color); }
+.practice-preset.on { border-color:var(--mode-color);background:color-mix(in srgb,var(--mode-color) 14%,var(--surface));color:var(--mode-color); }
+.practice-preset:disabled { opacity:.4;cursor:default; }
+.practice-time-inline { font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums; }
 
 /* 出題方法。2×2のカードから1つ選び、右に対象の問題数を出す。 */
 .practice-orders { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;margin:0;padding:0;border:0; }
@@ -96,11 +106,13 @@
   .practice-order-count { margin-left:26px; }
   .practice-startbar { bottom:calc(86px + env(safe-area-inset-bottom));padding:10px 12px 10px 14px; }
   .practice-startbar { gap:8px 10px; }
+  .practice-presets { gap:6px; }
+  .practice-preset { flex:1 1 auto;padding:6px 10px; }
   .practice-startbar-copy b { font-size:19px; }
   .practice-startbar .btn.primary { min-width:0;min-height:44px;padding:8px 16px; }
 }
 @media (max-width:360px) { .practice-fields { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion: reduce) {
-  .practice-field, .practice-check, .practice-order { transition:none; }
+  .practice-field, .practice-check, .practice-order, .practice-preset { transition:none; }
   .practice-field.pop .practice-check, .practice-field.pop.on .practice-check .icon, .scene-enter .practice-field { animation:none; }
 }

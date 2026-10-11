@@ -26,7 +26,7 @@ export class SoloController {
   private late:{key:string;choice:number}|null=null;
   // 押してからサーバーの判定が返るまでの選択肢。押した瞬間に「確定」の見た目にする。
   private pick:{key:string;choice:number}|null=null;
-  constructor(private device: string, private questions: Map<string,Question>, private changed:()=>void, private name:()=>string, private finished:(s:{id:string;mode:SoloMode})=>void, private resultExtra:(id:string)=>string=()=>'') {}
+  constructor(private device: string, private questions: Map<string,Question>, private changed:()=>void, private name:()=>string, private finished:(s:{id:string;mode:SoloMode})=>void, private resultExtra:(id:string)=>string=()=>'', private resultNext:(id:string)=>string=()=>'') {}
   get active(): boolean { return this.state !== null; }
   async start(mode: SoloMode, ids: string[], seconds: number, difficulty: Difficulty, course=false, order:'given'|'unattempted'|'random'='given', count?:number,distribution?:StudyDistribution): Promise<void> {
     const generation=++this.generation;
@@ -153,6 +153,21 @@ export class SoloController {
     document.querySelectorAll<HTMLElement>('[data-solo-bar]').forEach(e=>{e.style.width=`${Math.min(100,100*seconds/s.answer_seconds)}%`;e.classList.toggle('low',seconds<=5);});
   }
   retryIds():string[] {return reviewCourse(this.review).ids;}
+  // 学習の結果画面：分野ごとの正答数、間違えた・迷った問題の解き直し、次のおすすめ。
+  private renderStudyResult(id:string):string {
+    if (!this.reviewLoaded) return this.reviewLoading?'<p class="result-fields-note" role="status">分野ごとの結果を集計しています…</p>':`<div class="result-fields-note"><p role="status">分野ごとの結果を取得できませんでした。</p><button class="btn" data-act="reload-battle-review">再取得する</button></div>`;
+    const by=new Map<string,{ok:number;n:number}>(), seen=new Set<string>();
+    for (const r of this.review) {
+      if (seen.has(r.id)) continue; seen.add(r.id);
+      const f=this.questions.get(r.id)?.field??'その他', x=by.get(f)??{ok:0,n:0};
+      x.n++; if (!r.answer_viewed && r.my_choice===r.answer) x.ok++; by.set(f,x);
+    }
+    const rows=[...by].sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0],'ja')).map(([f,x])=>`<li class="${x.ok===x.n?'perfect':''}"><span class="result-field-name">${esc(f)}</span><span class="result-field-bar" aria-hidden="true"><i style="width:${100*x.ok/x.n}%"></i></span><b>${x.ok}<small>/${x.n}</small></b></li>`).join('');
+    const c=reviewCourse(this.review);
+    const breakdown=[c.wrong?`誤答 ${c.wrong}`:'',c.unanswered?`回答を見た ${c.unanswered}`:'',c.uncertain?`迷った ${c.uncertain}`:''].filter(Boolean).join(' · ');
+    const retry=c.ids.length?`<div class="result-retry"><button class="btn primary" data-act="solo-retry" ${this.busy?'disabled':''}>${icon('book')}間違えた・迷った問題をもう一度（${c.ids.length}問）${icon('arrow')}</button><p>${breakdown}</p></div>`:'<p class="result-perfect">全問正解！ 迷った問題もありません。</p>';
+    return `<section class="result-fields" aria-labelledby="result-fields-heading"><h2 id="result-fields-heading">分野ごとの結果</h2><ul>${rows}</ul></section>${retry}${this.resultNext(id)}`;
+  }
   render():string {
     const s=this.state; if (!s) return '';
     const notice=this.error?`<p class="error" role="alert">${esc(this.error)}</p>`:'';
@@ -162,7 +177,7 @@ export class SoloController {
       // AI対戦の決着は、勝てばトロフィーと紙吹雪とファンファーレで祝う。
       const party=ai?since(`${s.id}:result`):'';
       if (ai) cue(`${s.id}:result`,win?'fanfare':'finish',250);
-      return `<section class="panel center result-panel${ai?' celebrating':''}${ai&&win?' won':''}" ${ai?`style="${party}"`:''}><div class="result-icon">${icon(ai?'trophy':'check')}${ai&&win?confetti():''}</div><p class="eyebrow">${ai?'BATTLE COMPLETE':'SESSION COMPLETE'}</p><h1>${ai?(win?'あなたの勝利！':s.my_score===s.ai_score?'引き分け！':'AIの勝利'):'学習、おつかれさまでした。'}</h1><p class="lead">${ai?`${difficultyName[s.difficulty]}との対戦`:'一問ずつ、知識が積み重なっています。'}</p><div class="result-score"><strong>${s.my_score}</strong><span>${ai?`点 / AI ${s.ai_score}点`:`/ ${s.q_index+1} 問正解`}</span></div>${this.resultExtra(s.id)}${ai?renderReviewCourse(this.review,'battle-retry',this.reviewLoaded,this.reviewLoading):''}<button class="btn ${ai?'':'primary'}" data-act="solo-review" ${this.busy?'disabled':''}>${icon('book')}正解と解説を振り返る</button><button class="btn" data-act="solo-again">もう一度${ai?'対戦':'学習'}する</button><button class="btn ghost" data-act="leave">ホームへ戻る</button>${notice}</section>`;
+      return `<section class="panel center result-panel${ai?' celebrating':''}${ai&&win?' won':''}" ${ai?`style="${party}"`:''}><div class="result-icon">${icon(ai?'trophy':'check')}${ai&&win?confetti():''}</div><p class="eyebrow">${ai?'BATTLE COMPLETE':'SESSION COMPLETE'}</p><h1>${ai?(win?'あなたの勝利！':s.my_score===s.ai_score?'引き分け！':'AIの勝利'):'学習、おつかれさまでした。'}</h1><p class="lead">${ai?`${difficultyName[s.difficulty]}との対戦`:'一問ずつ、知識が積み重なっています。'}</p><div class="result-score"><strong>${s.my_score}</strong><span>${ai?`点 / AI ${s.ai_score}点`:`/ ${s.q_index+1} 問正解`}</span></div>${this.resultExtra(s.id)}${ai?renderReviewCourse(this.review,'battle-retry',this.reviewLoaded,this.reviewLoading):this.renderStudyResult(s.id)}<button class="btn ${ai||this.retryIds().length?'':'primary'}" data-act="solo-review" ${this.busy?'disabled':''}>${icon('book')}正解と解説を振り返る</button><button class="btn" data-act="solo-again">もう一度${ai?'対戦':'学習'}する</button><button class="btn ghost" data-act="leave">ホームへ戻る</button>${notice}</section>`;
     }
     const q=this.questions.get(s.q_id); if (!q) return '<p role="alert">問題を読み込めませんでした。ホームへ戻ってください。</p>';
     const reveal=s.reveal; const locked=s.phase!=='question' || s.my_choice!==null || this.busy;
