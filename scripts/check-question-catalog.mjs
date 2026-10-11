@@ -8,7 +8,7 @@ let sb;
 try {
   const env=Object.fromEntries(readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')).map(l=>l.split(/=(.*)/s).slice(0,2)));
   const questions=JSON.parse(readFileSync('public/questions.json','utf8'));
-  if(!Array.isArray(questions)||questions.length!==100||new Set(questions.map(q=>q.id)).size!==100)throw new Error('INVALID_CATALOG');
+  if(!Array.isArray(questions)||questions.length!==200||new Set(questions.map(q=>q.id)).size!==200)throw new Error('INVALID_CATALOG');
   sb=createClient(env.VITE_SUPABASE_URL,env.VITE_SUPABASE_ANON_KEY,{auth:{persistSession:false}});
   // 独立した参照を10問ずつ確認。応答値と通信エラーの内容はログに出さない。
   for(let offset=0;offset<questions.length;offset+=10){
@@ -28,6 +28,6 @@ try {
 } finally {
   if(sb)await sb.removeAllChannels();
 }
-console.log(`${checked===100&&passed===100?'PASS':'FAIL'} 全100問: ${passed}/100（確認 ${checked}件）`);
+console.log(`${checked===200&&passed===200?'PASS':'FAIL'} 全200問: ${passed}/200（確認 ${checked}件）`);
 console.log(`${missingPassed?'PASS':'FAIL'} 存在しないID: ${missingPassed?1:0}/1`);
-if(checked!==100||passed!==100||!missingPassed)process.exitCode=1;
+if(checked!==200||passed!==200||!missingPassed)process.exitCode=1;

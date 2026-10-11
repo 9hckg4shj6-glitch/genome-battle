@@ -1,4 +1,4 @@
-// 問題演習アプリのゲノム編から2025年度の100問を取り込む（一方向・何度でも再実行可）。
+// 問題演習アプリのゲノム編から2025年度・2024年度の各100問を取り込む（一方向・何度でも再実行可）。
 //   node scripts/import-questions.mjs [問題演習アプリのパス]
 // 出力:
 //   public/questions.json        … 問題文・選択肢・図だけ（正解と解説は含めない＝覗いても答えが分からない）
@@ -13,14 +13,20 @@ import vm from "node:vm";
 const src = process.argv[2] ?? join(homedir(), "アルゴリズム学習/問題演習アプリ");
 const sandbox = { window: {} };
 vm.runInNewContext(readFileSync(join(src, "public/subjects/genome/questions.js"), "utf8"), sandbox);
-const all = sandbox.window.QUIZ_DATA.filter((q) => q.id.startsWith("genome-2025-"));
-if (all.length !== 100) throw new Error(`2025年度は100問のはずが ${all.length} 問`);
+// 新しい年度から順に並べる。一覧の並びと問題番号（年度ごとの1〜100）はこの順。
+const YEARS = [2025, 2024];
+const all = YEARS.flatMap((year) => {
+  const qs = sandbox.window.QUIZ_DATA.filter((q) => q.id.startsWith(`genome-${year}-`));
+  if (qs.length !== 100) throw new Error(`${year}年度は100問のはずが ${qs.length} 問`);
+  return qs;
+});
 
 const publicQuestions = all.map((q) => {
   if (q.choices.length !== 5 || q.answer < 0 || q.answer > 4) throw new Error(`${q.id}: 5択でない`);
   const image = q.image ? `images/${basename(q.image)}` : undefined;
   if (q.image) copyFileSync(join(src, "public", q.image), join("public", image));
-  return { id: q.id, field: q.field, question: q.question, choices: q.choices, image, imageAlt: q.imageAlt };
+  const [, year, no] = q.id.match(/^genome-(\d{4})-(\d{3})$/);
+  return { id: q.id, year: Number(year), no: Number(no), field: q.field, question: q.question, choices: q.choices, image, imageAlt: q.imageAlt };
 });
 writeFileSync("public/questions.json", JSON.stringify(publicQuestions));
 

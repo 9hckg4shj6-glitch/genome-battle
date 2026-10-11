@@ -11,6 +11,7 @@ const loading = new Set<string>();
 const failed = new Set<string>();
 const opened = new Set<string>();
 let catalogField = '';
+let catalogYear = 0; // 0 はすべての年度
 // 一度に並べる問題数。100問なら20ページになる。
 const PAGE_SIZE = 5;
 let catalogPage = 0;
@@ -19,7 +20,7 @@ let catalogStatus: CatalogStatus = 'all';
 // 演習に選んだ問題。絞り込みやページを替えても保ち、問題番号の順に出題する。
 const picked = new Set<string>();
 let pickShuffle = false;
-// 1回の演習で出題できる上限（サーバ側の上限）。
+// 1回の演習で選べる上限。
 export const PICK_LIMIT = 100;
 
 // 学習状態での絞り込み。習得は定着も含む。誤答は復習ノートの「誤答・わからなかった問題」。
@@ -29,22 +30,23 @@ const STATUSES: { id: CatalogStatus; label: string }[] = [
   { id: 'learning', label: '取り組み中' }, { id: 'mastered', label: '習得' },
 ];
 const STATE_LABELS: Record<QuestionState, string> = { new: '未着手', learning: '取り組み中', mastered: '習得', settled: '定着' };
+// 問題番号は年度ごとの 1〜100。
 export interface CatalogEntry { q: Question; no: number; state: QuestionState; missed: boolean; }
 
 // 全角半角・大文字小文字・カタカナとひらがなの違いを無視して比べる。
 const fold = (s: string): string => s.toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 const norm = (s: string): string => fold(s.normalize('NFKC'));
 export const searchTerms = (query: string): string[] => norm(query).split(/\s+/).filter(Boolean);
-// 問題文・選択肢・分野名のどれかに全語が含まれる問題。数字だけの語は問題番号とも一致する。
+// 問題文・選択肢・分野名のどれかに全語が含まれる問題。数字だけの語は問題番号・年度とも一致する。
 export function matchesTerms(e: CatalogEntry, terms: string[]): boolean {
   if (!terms.length) return true;
   const text = norm([e.q.question, ...e.q.choices, e.q.field].join('\n'));
-  return terms.every(t => text.includes(t) || /^\d+$/.test(t) && Number(t) === e.no);
+  return terms.every(t => text.includes(t) || /^\d+$/.test(t) && (Number(t) === e.no || Number(t) === e.q.year));
 }
 export const matchesStatus = (e: CatalogEntry, status: CatalogStatus): boolean =>
   status === 'all' || (status === 'missed' ? e.missed : status === 'mastered' ? e.state === 'mastered' || e.state === 'settled' : e.state === status);
 export function catalogEntries(questions: Map<string, Question>, m: Mastery | null, nb = notebook()): CatalogEntry[] {
-  return [...questions.values()].map((q, i) => ({ q, no: i + 1, state: stateOf(m, q.id, nb.uncertain), missed: !!nb.missed[q.id] }));
+  return [...questions.values()].map(q => ({ q, no: q.no, state: stateOf(m, q.id, nb.uncertain), missed: !!nb.missed[q.id] }));
 }
 
 // 一致した語を <mark> で囲む。表記ゆれ（全角半角など）で位置がずれる場合は強調しない。
@@ -76,9 +78,11 @@ const body = (q: Question): string => {
 export function renderCatalog(questions: Map<string, Question>, m: Mastery | null, busy = false, error = ''): string {
   const list = [...questions.values()];
   const fields = [...new Set(list.map(q => q.field))];
-  return `${renderCourseGuideButton('catalog')}<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、右端の四角を押すと演習する問題に選べます。</p></header>
+  const years = [...new Set(list.map(q => q.year))];
+  return `${renderCourseGuideButton('catalog')}<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・年度・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、右端の四角を押すと演習する問題に選べます。</p></header>
     <div class="panel catalog-tools">
-      <label class="field catalog-search"><span>キーワードで探す</span><span class="catalog-search-box">${icon('zoom')}<input id="catalog-search" type="search" value="${esc(catalogQuery)}" placeholder="例：PCR、塩基配列、12" enterkeyhint="search" autocomplete="off" aria-describedby="catalog-search-hint"/></span><small id="catalog-search-hint">問題文・選択肢・分野名から探します。スペースで区切ると、すべての語を含む問題に絞ります。数字は問題番号でも探せます。</small></label>
+      <label class="field catalog-search"><span>キーワードで探す</span><span class="catalog-search-box">${icon('zoom')}<input id="catalog-search" type="search" value="${esc(catalogQuery)}" placeholder="例：PCR、塩基配列、12" enterkeyhint="search" autocomplete="off" aria-describedby="catalog-search-hint"/></span><small id="catalog-search-hint">問題文・選択肢・分野名から探します。スペースで区切ると、すべての語を含む問題に絞ります。数字は問題番号・年度でも探せます。</small></label>
+      <label class="field"><span>年度で絞り込む</span><select id="catalog-year" aria-label="年度で絞り込む"><option value="">すべての年度（${list.length}問）</option>${years.map(y => `<option value="${y}" ${y === catalogYear ? 'selected' : ''}>${y}年度（${list.filter(q => q.year === y).length}問）</option>`).join('')}</select></label>
       <label class="field"><span>分野で絞り込む</span><select id="catalog-field" aria-label="分野で絞り込む"><option value="">すべての分野（${list.length}問）</option>${fields.map(f => `<option value="${esc(f)}" ${f === catalogField ? 'selected' : ''}>${esc(f)}（${list.filter(q => q.field === f).length}問）</option>`).join('')}</select></label></div>
     <div id="catalog-filtered">${renderFiltered(questions, m, busy, error)}</div>`;
 }
@@ -94,7 +98,7 @@ function choiceHits(q: Question, terms: string[]): string {
 // 検索語・学習状態に応じて変わる部分。入力のたびにここだけを差し替え、検索欄のフォーカスや変換中の文字を保つ。
 function filteredEntries(questions: Map<string, Question>, m: Mastery | null): { base: CatalogEntry[]; shown: CatalogEntry[] } {
   const terms = searchTerms(catalogQuery);
-  const base = catalogEntries(questions, m).filter(e => (!catalogField || e.q.field === catalogField) && matchesTerms(e, terms));
+  const base = catalogEntries(questions, m).filter(e => (!catalogYear || e.q.year === catalogYear) && (!catalogField || e.q.field === catalogField) && matchesTerms(e, terms));
   return { base, shown: base.filter(e => matchesStatus(e, catalogStatus)) };
 }
 
@@ -113,12 +117,12 @@ function renderFiltered(questions: Map<string, Question>, m: Mastery | null, bus
   const items = shown.slice(start, start + PAGE_SIZE).map(({ q, no, state, missed }) => {
     const badges = `${state !== 'new' ? `<span class="catalog-state st-${state}">${STATE_LABELS[state]}</span>` : ''}${missed ? '<span class="catalog-state st-missed">誤答</span>' : ''}`;
     const on = picked.has(q.id);
-    const pick = `<label class="catalog-pick" title="${on ? '演習から外す' : '演習に選ぶ'}"><input type="checkbox" data-catalog-pick="${esc(q.id)}" aria-label="第${no}問を演習に選ぶ" ${on ? 'checked' : ''} ${busy || full && !on ? 'disabled' : ''}/><span class="catalog-pick-box" aria-hidden="true">${icon('check')}</span></label>`;
-    return `<div class="catalog-item${on ? ' picked' : ''}">${pick}<details class="catalog-detail" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no">${no}</span><span class="catalog-summary"><span class="catalog-meta"><span class="catalog-field">${highlight(q.field, terms)}</span>${renderDifficultyChip(q.id)}${badges}</span><span class="catalog-q">${highlight(q.question, terms)}</span>${choiceHits(q, terms)}</span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details></div>`;
+    const pick = `<label class="catalog-pick" title="${on ? '演習から外す' : '演習に選ぶ'}"><input type="checkbox" data-catalog-pick="${esc(q.id)}" aria-label="${q.year}年度 第${no}問を演習に選ぶ" ${on ? 'checked' : ''} ${busy || full && !on ? 'disabled' : ''}/><span class="catalog-pick-box" aria-hidden="true">${icon('check')}</span></label>`;
+    return `<div class="catalog-item${on ? ' picked' : ''}">${pick}<details class="catalog-detail" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no"><small>${q.year}</small>${no}</span><span class="catalog-summary"><span class="catalog-meta"><span class="catalog-field">${highlight(q.field, terms)}</span>${renderDifficultyChip(q.id)}${badges}</span><span class="catalog-q">${highlight(q.question, terms)}</span>${choiceHits(q, terms)}</span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details></div>`;
   }).join('');
-  const filtered = !!terms.length || !!catalogField || catalogStatus !== 'all';
+  const filtered = !!terms.length || !!catalogYear || !!catalogField || catalogStatus !== 'all';
   const status = `<p id="catalog-page-status" class="catalog-page-status" tabindex="-1" aria-live="polite">${shown.length ? `<b>${catalogPage + 1}</b> / ${pages}ページ<span>${shown.length}問中 ${start + 1}–${Math.min(start + PAGE_SIZE, shown.length)}問目</span>` : '<span class="catalog-none-count">該当 0問</span>'}</p>`;
-  const empty = `<div class="rooms-empty catalog-empty"><span>${icon('zoom')}</span><p>条件に合う問題がありません。</p><small>別のキーワードを試すか、分野・学習状態の絞り込みを外してください。解説の本文は検索の対象外です。</small><button class="btn" data-act="catalog-clear">条件をすべてクリア</button></div>`;
+  const empty = `<div class="rooms-empty catalog-empty"><span>${icon('zoom')}</span><p>条件に合う問題がありません。</p><small>別のキーワードを試すか、年度・分野・学習状態の絞り込みを外してください。解説の本文は検索の対象外です。</small><button class="btn" data-act="catalog-clear">条件をすべてクリア</button></div>`;
   return `${chips}${status}${shown.length ? `<div class="catalog-list">${items}</div>${pager(pages)}` : empty}${shown.length && filtered ? '<button class="btn ghost catalog-clear" data-act="catalog-clear">絞り込みをすべてクリア</button>' : ''}${pickBar(shown, busy, error)}`;
 }
 
@@ -168,9 +172,10 @@ const pager = (pages: number): string => pages < 2 ? '' : `<nav class="catalog-p
   </nav>`;
 
 export function setCatalogField(field: string): void { catalogField = field; catalogPage = 0; }
+export function setCatalogYear(year: string): void { catalogYear = Number(year) || 0; catalogPage = 0; }
 export function setCatalogQuery(query: string): void { if (query !== catalogQuery) { catalogQuery = query; catalogPage = 0; } }
 export function setCatalogStatus(status: string): void { catalogStatus = STATUSES.some(s => s.id === status) ? status as CatalogStatus : 'all'; catalogPage = 0; }
-export function clearCatalogFilters(): void { catalogQuery = ''; catalogField = ''; catalogStatus = 'all'; catalogPage = 0; }
+export function clearCatalogFilters(): void { catalogQuery = ''; catalogYear = 0; catalogField = ''; catalogStatus = 'all'; catalogPage = 0; }
 export function setCatalogPage(page: number): void { catalogPage = page; }
 
 // 開閉時に呼ぶ。開いた問題の本文だけを差し替え、ほかの問題の開閉やスクロール位置は保つ。

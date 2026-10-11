@@ -2,7 +2,7 @@ import type { ReviewItem } from './api';
 import { validChoiceOrder } from './choices';
 import { renderCommunityRate } from './stats';
 export interface Question {
-  id: string; field: string; question: string; choices: string[]; image?: string; imageAlt?: string;
+  id: string; year: number; no: number; field: string; question: string; choices: string[]; image?: string; imageAlt?: string;
 }
 export const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 export const richText = (s: string): string => s.split(/\n{2,}/).map(p => `<p>${esc(p).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</p>`).join('');

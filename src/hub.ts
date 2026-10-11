@@ -34,7 +34,7 @@ export function renderTitle(name: string, error = ""): string {
   const guide = renderGuideEntry("title-guide");
   return `<section class="title-screen">
     <div class="title-model" aria-hidden="true"><canvas class="genome-model"></canvas></div>
-    <div class="title-copy"><p class="eyebrow accent-eyebrow"><span></span>ゲノム解析学 2025 · 過去問100問</p>
+    <div class="title-copy"><p class="eyebrow accent-eyebrow"><span></span>ゲノム解析学 2024・2025 · 過去問200問</p>
       <h1 class="title-logo"><span class="title-logo-icon">${icon("dna")}</span>GENOME<br><span>BATTLE</span></h1><p class="title-ja">ゲノム対戦</p>
       <p class="title-catch">遊んでいるうちに、<br><em>試験対策</em>が終わっている。</p></div>
     ${line}<div class="title-action">${first ? guide + form : form + guide}</div>

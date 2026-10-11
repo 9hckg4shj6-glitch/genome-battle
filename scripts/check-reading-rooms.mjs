@@ -10,7 +10,7 @@ const bank=JSON.parse(readFileSync('public/questions.json'));const host=randomUU
 async function room(field=null,priv=false){const m=await rpc('create_room',{p_device:host,p_name:'field-host',p_capacity:2,p_seconds:120,p_private:priv,p_field:field});rooms.push(m.id);return m;}
 async function advance(m){await sql("update public.matches set phase_ends_at=now()-interval '1 second' where id=$1::uuid",[m.id]);return rpc('tick',{p_match:m.id,p_device:host});}
 try {
- const metadata=await sql('select id,field from questions');assert.equal(metadata.length,100);for(const r of metadata)assert.equal(r.field,bank.find(q=>q.id===r.id)?.field);
+ const metadata=await sql('select id,field from questions');assert.equal(metadata.length,200);for(const r of metadata)assert.equal(r.field,bank.find(q=>q.id===r.id)?.field);
  for(const field of new Set(bank.map(q=>q.field))){const m=await room(field);const [row]=await sql('select q_ids from matches where id=$1::uuid',[m.id]);const expected=bank.filter(q=>q.field===field);assert.equal(m.room_field,field);assert.equal(m.q_total,Math.min(15,expected.length));assert.equal(new Set(row.q_ids).size,row.q_ids.length);assert.ok(row.q_ids.every(id=>expected.some(q=>q.id===id)));}
  const all=await room();assert.equal(all.room_field,null);assert.equal(all.q_total,15);
  await assert.rejects(()=>room('missing-field'),/BAD_ROOM_FIELD/);

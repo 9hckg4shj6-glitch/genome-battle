@@ -30,7 +30,7 @@ import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
 import { isCourse, openCourseGuide, renderCourseGuideButton } from "./course-guide";
-import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
+import { clearCatalogFilters, clearPicks, pickedIds, pickShown, pickShuffled, renderCatalog, setCatalogField, setCatalogPage, setCatalogYear, setCatalogQuery, setCatalogStatus, setPickShuffle, toggleCatalogItem, togglePick, updateCatalogResults } from "./catalog";
 import { chosenFields, clearFields, countPresets, freshFields, minutesFor, renderPractice, renderPracticeEntry, selectAllFields, selectFields, toggleField, weakFields } from "./practice";
 import { nextStep, renderNextStep } from "./study-next";
 import { clientOrder, isStudyOrder, pickStudyIds, rememberOrder, type StudyOrder } from "./study-order";
@@ -722,7 +722,7 @@ async function startSolo(mode: SoloMode = selectedMode === "ai" ? "ai" : "study"
   if (clientOrder(order) && !mastery) order="unattempted";
   const picked=orderedStudy&&clientOrder(order);
   const ids=picked?pickStudyIds([...questions.values()].filter(q=>fields.has(q.field)),studyCount,order as "weak"|"polish",distribution,mastery)
-    :orderedStudy?available:available.slice(0,retryIds ? 100 : mode === "ai" ? 15 : studyCount); // サーバ側の上限は100問
+    :orderedStudy||retryIds?available:available.slice(0,mode === "ai" ? 15 : studyCount);
   if (!ids.length) {error=retryIds||mode==="ai"?"この分野の問題はありません":"学習する分野を1つ以上選んでください";render();return;}
   busy=true; error=""; render();
   try {
@@ -1026,6 +1026,7 @@ app.addEventListener("change", (e) => {
   if (input.name === "study-distribution") {distribution=studyDistribution(input.value);writeStore('gb.study-distribution',distribution);render();document.querySelector<HTMLInputElement>(`input[name="study-distribution"][value="${distribution}"]`)?.focus();}
   if (input.name === "study-order" && isStudyOrder(input.value)) {studyOrder=input.value;writeStore('gb.study-order',studyOrder);render();document.querySelector<HTMLInputElement>(`input[name="study-order"][value="${studyOrder}"]`)?.focus();}
   if (input.name === "practice-field") {toggleField(questions,input.value);render();document.querySelector<HTMLInputElement>(`input[name="practice-field"][value="${CSS.escape(input.value)}"]`)?.focus();}
+  if (input.id === "catalog-year") {setCatalogYear(input.value);render();document.getElementById("catalog-year")?.focus();}
   if (input.id === "catalog-field") {setCatalogField(input.value);render();document.getElementById("catalog-field")?.focus();}
   if (input.name === "catalog-status") {setCatalogStatus(input.value);updateCatalogResults(questions,mastery,busy,error);}
   if (input.dataset.catalogPick) {togglePick(input.dataset.catalogPick,input.checked);updateCatalogResults(questions,mastery,busy,error);}

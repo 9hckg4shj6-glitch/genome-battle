@@ -23,14 +23,14 @@ async function start(count,distribution='even',order='random',pool=ids,mode='stu
 }
 const counts=s=>Object.fromEntries(fields.map(f=>[f,s.ids.filter(id=>byId.get(id).field===f).length]));
 try{
- for(const n of [1,10,13,26,39,60,99,100]){
+ for(const n of [1,10,13,26,39,60,99,100,199,ids.length]){
   const s=await start(n);const tally=counts(s);assert.equal(s.study_distribution,'even');
   // 配分が少ない分野は保有問題が尽きている。残った分野同士の差は1問以内。
   const nonexhausted=fields.filter(f=>tally[f]<capacities[f]);
   for(const f of nonexhausted)for(const g of fields)assert.ok(tally[g]<=tally[f]+1,`${n}: unequal ${f}/${g}`);
   if(n===10)assert.equal(Object.values(tally).filter(v=>v===1).length,10);
   if(n===26)assert.ok(Object.values(tally).every(v=>v===2));
-  if(n===100)assert.deepEqual(tally,capacities);
+  if(n===ids.length)assert.deepEqual(tally,capacities);
  }
  // 未着手を各分野1問だけ残し、均等配分の各枠で未着手を優先する。
  const untouched=fields.map(f=>bank.find(q=>q.field===f).id);
@@ -53,7 +53,7 @@ try{
  const [stored]=await sql('select original_ids from solo_sessions where id=$1::uuid',[s.id]);assert.deepEqual(stored.original_ids,equal.ids);
  const saved=await rpc('list_saved_studies',{p_device:device});const card=saved.find(v=>v.id===s.id);assert.equal(card.study_distribution,'even');assert.ok(!('q_ids' in card)&&!('reveal' in card)&&!('answer' in card));
  for(const args of [{p_distribution:'bad'},{p_distribution:'even',p_order:'given'},{p_distribution:'even',p_mode:'ai',p_order:'given'},{p_ids:[ids[0],ids[0]],p_count:2}])await assert.rejects(()=>rpc('start_solo',{p_device:device,p_mode:'study',p_ids:ids,p_order:'random',p_count:2,...args}),/BAD_SOLO_SETTINGS/);
- console.log('PASS distribution: 1/10/13/26/39/60/99/100 questions, balanced quotas, shortage redistribution, no repeats, field/subset limits, per-field unattempted priority');
+ console.log('PASS distribution: 1/10/13/26/39/60/99/100/199/all questions, balanced quotas, shortage redistribution, no repeats, field/subset limits, per-field unattempted priority');
  console.log('PASS compatibility: legacy/exam priority, given review/AI, invalid settings, saved distribution/order/deferred choice, answer privacy');
 }finally{await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[sessions,[],[device]]).catch(()=>{});
  if(sessions.length)await sql('delete from solo_sessions where id=any($1::uuid[])',[sessions]);

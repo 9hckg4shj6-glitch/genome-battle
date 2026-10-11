@@ -10,16 +10,16 @@ const bundle=await build({stdin:{contents:"export * from './catalog';",resolveDi
 const c=await import(`data:application/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 
 const qs=new Map([
-  ['a',{id:'a',field:'ゲノム編集',question:'CRISPR-Cas9 が認識する配列は？',choices:['PAM','TATAボックス']}],
-  ['b',{id:'b',field:'シーケンス',question:'次世代シーケンサーの特徴は？',choices:['長いリード','並列に読む']}],
-  ['c',{id:'c',field:'シーケンス',question:'ＰＣＲ の原理は？',choices:['DNAポリメラーゼ','RNA']}],
+  ['a',{id:'a',year:2025,no:1,field:'ゲノム編集',question:'CRISPR-Cas9 が認識する配列は？',choices:['PAM','TATAボックス']}],
+  ['b',{id:'b',year:2025,no:2,field:'シーケンス',question:'次世代シーケンサーの特徴は？',choices:['長いリード','並列に読む']}],
+  ['c',{id:'c',year:2024,no:1,field:'シーケンス',question:'ＰＣＲ の原理は？',choices:['DNAポリメラーゼ','RNA']}],
 ]);
 const m={xp:0,xp_today:0,states:{a:'settled',b:'learning'}};
 const entries=c.catalogEntries(qs,m,{missed:{b:{}},saved:{},uncertain:{}});
 const find=(q,status='all')=>entries.filter(e=>c.matchesTerms(e,c.searchTerms(q))&&c.matchesStatus(e,status)).map(e=>e.q.id);
 
-// 番号・状態・誤答の付与。
-assert.deepEqual(entries.map(e=>[e.no,e.state,e.missed]),[[1,'settled',false],[2,'learning',true],[3,'new',false]]);
+// 番号（年度ごと）・状態・誤答の付与。
+assert.deepEqual(entries.map(e=>[e.no,e.state,e.missed]),[[1,'settled',false],[2,'learning',true],[1,'new',false]]);
 // 問題文・選択肢・分野名、大文字小文字・全角半角・カタカナひらがなを問わない。
 assert.deepEqual(find(''),['a','b','c']);
 assert.deepEqual(find('crispr'),['a']);
@@ -30,9 +30,12 @@ assert.deepEqual(find('しーけんす'),['b','c']);
 // スペース区切りはすべての語を含む問題（全角スペースも可）。
 assert.deepEqual(find('シーケンス　リード'),['b']);
 assert.deepEqual(find('シーケンス 存在しない語'),[]);
-// 数字だけの語は問題番号とも一致する。
+// 数字だけの語は問題番号・年度とも一致する。
 assert.deepEqual(find('2'),['b']);
 assert.deepEqual(find('9'),['a']);
+assert.deepEqual(find('1'),['a','c']);
+assert.deepEqual(find('2024'),['c']);
+assert.deepEqual(find('2025 1'),['a']);
 // 学習状態：習得は定着を含む。誤答は復習ノートの誤答。
 assert.deepEqual(find('','new'),['c']);
 assert.deepEqual(find('','learning'),['b']);
@@ -59,6 +62,17 @@ html=c.renderCatalog(qs,m);
 assert.ok(!html.includes('<script>'));
 assert.match(html,/条件に合う問題がありません/);
 c.clearCatalogFilters();c.setCatalogStatus('bogus');
+assert.match(c.renderCatalog(qs,m),/3問中 1–3問目/);
+// 年度での絞り込み。番号には年度を添える。
+c.setCatalogYear('2024');
+html=c.renderCatalog(qs,m);
+assert.match(html,/<option value="2024" selected>2024年度（1問）<\/option>/);
+assert.match(html,/1問中 1–1問目/);
+assert.match(html,/<span class="catalog-no"><small>2024<\/small>1<\/span>/);
+assert.match(html,/絞り込みをすべてクリア/);
+c.setCatalogYear('bogus');
+assert.match(c.renderCatalog(qs,m),/3問中 1–3問目/);
+c.setCatalogYear('2025');c.clearCatalogFilters();
 assert.match(c.renderCatalog(qs,m),/3問中 1–3問目/);
 // 学習記録が未取得なら、記録に依存する状態ボタンは押せない。
 assert.match(c.renderCatalog(qs,null),/value="new" disabled/);

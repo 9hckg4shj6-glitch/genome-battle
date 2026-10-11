@@ -58,10 +58,10 @@ function catalogFigure(): string {
     const y = 132 + i * 40;
     return `${box(18, y, 284, 34, on ? "fig-card fig-card-on" : "fig-card", 9)}<circle class="fig-soft" cx="34" cy="${y + 17}" r="9"/>${t(34, y + 21, String(i + 1), "fig-strong", "middle")}${box(50, y + 8, 70, 4, "fig-accent", 2)}${box(50, y + 18, 180 - i * 30, 5, "fig-ink", 2)}<path class="fig-chevron" d="M252 ${y + 14}l4 4 4-4"/>${check(272, y + 9.5, on, 15)}`;
   }).join("");
-  return svg("過去問一覧の画面。キーワード・分野・学習状態で絞り込み、問題を押すと解説、右端の四角で演習する問題を選ぶ", 330, `
+  return svg("過去問一覧の画面。キーワード・年度・分野・学習状態で絞り込み、問題を押すと解説、右端の四角で演習する問題を選ぶ", 330, `
     ${t(18, 28, "過去問・問題と解説", "fig-title")}
     ${box(18, 40, 284, 26, "fig-btn", 8)}<circle class="fig-glyph" cx="32" cy="53" r="5"/><path class="fig-glyph" d="M36 57l4 4"/>${t(46, 57, "例：PCR、塩基配列、12", "fig-muted")}${hl(13, 35, 294, 36)}${badge(300, 38, 1)}
-    ${box(18, 76, 284, 24, "fig-btn", 8)}${t(28, 92, "すべての分野（100問）")}<path class="fig-chevron" d="M284 86l4 4 4-4"/>${hl(13, 72, 294, 32)}${badge(300, 74, 2)}
+    ${box(18, 76, 284, 24, "fig-btn", 8)}${t(28, 92, "2024年度 · すべての分野")}<path class="fig-chevron" d="M284 86l4 4 4-4"/>${hl(13, 72, 294, 32)}${badge(300, 74, 2)}
     ${["すべて", "未着手", "誤答", "習得"].map((l, i) => `${box(18 + i * 62, 108, 56, 18, i === 0 ? "fig-primary" : "fig-btn", 9)}${t(46 + i * 62, 120.5, l, i === 0 ? "fig-on-text fig-small-strong" : "fig-small-strong", "middle")}`).join("")}${hl(13, 104, 254, 26, 13)}${badge(284, 117, 3)}
     ${rows}${hl(46, 136, 196, 26, 6)}${badge(242, 136, 4)}${hl(266, 168, 27, 28, 6)}${badge(302, 168, 5)}
     ${box(12, 260, 296, 58, "fig-bar-card", 12)}${t(24, 280, "2問を選択中", "fig-strong")}${check(210, 270, false, 11)}${t(225, 280, "ランダムな順", "fig-small")}${btn(24, 288, 272, 22, "選んだ2問を演習する", true)}${hl(18, 284, 284, 30, 15)}${badge(300, 286, 6)}`);
@@ -77,8 +77,8 @@ const section = (eyebrow: string, title: string, body: string): string => `<sect
 interface Guide { eyebrow: string; title: string; lead: string; body: string; start: string; }
 // 過去問一覧の図と番号つき説明。全体の使い方ガイドでも使う。
 export const renderCatalogFigure = (): string => figure(catalogFigure(), [
-  "<b>キーワード</b>で探す。問題文・選択肢・分野名が対象です。スペースで区切るとすべての語を含む問題に、数字だけなら問題番号でも探せます",
-  "<b>分野</b>で絞り込む",
+  "<b>キーワード</b>で探す。問題文・選択肢・分野名が対象です。スペースで区切るとすべての語を含む問題に、数字だけなら問題番号・年度でも探せます",
+  "<b>年度</b>（2024・2025）と<b>分野</b>で絞り込む",
   "<b>学習状態</b>（未着手・誤答・取り組み中・習得）で絞り込む",
   "<b>問題を押す</b>と、正解と解説が開きます。開いた問題の下の「この問題を演習する」で1問だけ解くこともできます",
   "<b>右端の四角</b>を押すと、演習する問題に選ばれます（もう一度押すと外れます）",
@@ -141,6 +141,7 @@ const GUIDES: Record<Course, Guide> = {
         "出題は問題番号の順です。バーの「<b>ランダムな順で出題</b>」をオンにすると順番を混ぜます",
         "1回の演習は<b>100問まで</b>選べます",
         "「誤答」で絞り込んで「この条件の問題を選ぶ」と、苦手な問題だけの演習がすぐに作れます",
+        "<b>年度</b>で絞り込んで「この条件の100問を選ぶ」と、その年度の過去問を1回分まるごと解けます",
       ])),
     start: "一覧を見る",
   },
