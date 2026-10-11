@@ -43,18 +43,16 @@
 .catalog-item { position:relative;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:14px; }
 .catalog-item:has(details[open]) { border-color:color-mix(in srgb,var(--accent) 45%,var(--line)); }
 .catalog-item.picked { border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent); }
-.catalog-item summary { display:flex;align-items:flex-start;gap:14px;padding:16px 18px 16px 64px;cursor:pointer;list-style:none; }
-/* 番号の丸が「演習に選ぶ」チェック。押しやすいよう44pxの範囲を取る。 */
-.catalog-pick { position:absolute;left:12px;top:10px;z-index:1;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;cursor:pointer; }
+.catalog-item summary { display:flex;align-items:flex-start;gap:14px;padding:16px 64px 16px 18px;cursor:pointer;list-style:none; }
+/* 右端の四角が「演習に選ぶ」チェック。押しやすいよう44pxの範囲を取る。 */
+.catalog-pick { position:absolute;right:10px;top:10px;z-index:1;display:grid;place-items:center;width:44px;height:44px;border-radius:10px;cursor:pointer; }
 .catalog-pick input { position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;opacity:0;cursor:inherit; }
-.catalog-pick .catalog-no { border:1.5px dashed color-mix(in srgb,var(--muted) 55%,transparent);transition:background-color .15s,border-color .15s,color .15s; }
-.catalog-pick:hover .catalog-no { border-color:var(--accent);color:var(--text); }
+.catalog-pick-box { display:grid;place-items:center;width:26px;height:26px;border:2px solid color-mix(in srgb,var(--muted) 70%,transparent);border-radius:7px;background:var(--surface);color:transparent;transition:background-color .15s,border-color .15s,color .15s; }
+.catalog-pick-box .icon { width:17px;height:17px; }
+.catalog-pick:hover .catalog-pick-box { border-color:var(--accent); }
 .catalog-pick:has(input:focus-visible) { outline:2px solid var(--accent);outline-offset:-2px; }
-.catalog-pick:has(input:disabled) { cursor:default;opacity:.5; }
-.catalog-pick-mark { position:absolute;right:2px;top:2px;display:none;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--accent);color:var(--accent-text);box-shadow:0 0 0 2px var(--surface); }
-.catalog-pick-mark .icon { width:11px;height:11px; }
-.catalog-item.picked .catalog-no { border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--text); }
-.catalog-item.picked .catalog-pick-mark { display:grid; }
+.catalog-pick:has(input:disabled) { cursor:default;opacity:.45; }
+.catalog-item.picked .catalog-pick-box { border-color:var(--accent);background:var(--accent);color:var(--accent-text); }
 .catalog-practice-one { display:flex;justify-content:flex-end;margin-top:14px; }
 /* 選んだ問題を演習するバー。下のタブの上に留まる。 */
 .catalog-pickbar { position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:10;display:grid;gap:10px;margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface) 92%,transparent);box-shadow:0 14px 34px -18px #000a;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px); }
@@ -102,12 +100,12 @@
   .catalog-pager .catalog-step, .catalog-pager .catalog-step:last-child { justify-self:stretch; }
   .catalog-tools { grid-template-columns:1fr; }
   .catalog-entry { padding:18px 16px;gap:12px; }
-  .catalog-item summary { padding:14px 14px 14px 56px;gap:10px; }.catalog-body { padding:0 14px 14px; }
-  .catalog-pick { left:8px;top:8px; }
+  .catalog-item summary { padding:14px 56px 14px 14px;gap:10px; }.catalog-body { padding:0 14px 14px; }
+  .catalog-pick { right:6px;top:8px; }
   .catalog-pickbar { bottom:calc(86px + env(safe-area-inset-bottom));padding:10px 12px; }
   .catalog-pickbar-actions .btn.primary { flex-basis:100%;margin-left:0; }
   .catalog-pickbar-actions .btn.ghost { flex:1;min-height:36px;padding:6px 8px;font-size:12px;white-space:nowrap; }
   .catalog-pickbar { gap:8px; }
   .catalog-pickbar.active .catalog-pickbar-head small { display:none; }
 }
-@media (prefers-reduced-motion: reduce) { .catalog-toggle .icon, .catalog-pick .catalog-no { transition:none; } }
+@media (prefers-reduced-motion: reduce) { .catalog-toggle .icon, .catalog-pick-box { transition:none; } }

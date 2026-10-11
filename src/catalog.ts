@@ -75,7 +75,7 @@ const body = (q: Question): string => {
 export function renderCatalog(questions: Map<string, Question>, m: Mastery | null, busy = false, error = ''): string {
   const list = [...questions.values()];
   const fields = [...new Set(list.map(q => q.field))];
-  return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、番号の丸を押すと演習する問題に選べます。</p></header>
+  return `<header class="hero small"><p class="eyebrow">QUESTION LIST</p><h1>過去問・問題と解説</h1><p class="lead">アプリに収録している全${list.length}問を、キーワード・分野・学習状態で絞り込んで閲覧できます。問題を押すと正解と解説を表示し、右端の四角を押すと演習する問題に選べます。</p></header>
     <div class="panel catalog-tools">
       <label class="field catalog-search"><span>キーワードで探す</span><span class="catalog-search-box">${icon('zoom')}<input id="catalog-search" type="search" value="${esc(catalogQuery)}" placeholder="例：PCR、塩基配列、12" enterkeyhint="search" autocomplete="off" aria-describedby="catalog-search-hint"/></span><small id="catalog-search-hint">問題文・選択肢・分野名から探します。スペースで区切ると、すべての語を含む問題に絞ります。数字は問題番号でも探せます。</small></label>
       <label class="field"><span>分野で絞り込む</span><select id="catalog-field" aria-label="分野で絞り込む"><option value="">すべての分野（${list.length}問）</option>${fields.map(f => `<option value="${esc(f)}" ${f === catalogField ? 'selected' : ''}>${esc(f)}（${list.filter(q => q.field === f).length}問）</option>`).join('')}</select></label></div>
@@ -112,8 +112,8 @@ function renderFiltered(questions: Map<string, Question>, m: Mastery | null, bus
   const items = shown.slice(start, start + PAGE_SIZE).map(({ q, no, state, missed }) => {
     const badges = `${state !== 'new' ? `<span class="catalog-state st-${state}">${STATE_LABELS[state]}</span>` : ''}${missed ? '<span class="catalog-state st-missed">誤答</span>' : ''}`;
     const on = picked.has(q.id);
-    const pick = `<label class="catalog-pick" title="${on ? '演習から外す' : '演習に選ぶ'}"><input type="checkbox" data-catalog-pick="${esc(q.id)}" aria-label="第${no}問を演習に選ぶ" ${on ? 'checked' : ''} ${busy || full && !on ? 'disabled' : ''}/><span class="catalog-no">${no}</span><span class="catalog-pick-mark" aria-hidden="true">${icon('check')}</span></label>`;
-    return `<div class="catalog-item${on ? ' picked' : ''}">${pick}<details class="catalog-detail" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-summary"><span class="catalog-meta"><span class="catalog-field">${highlight(q.field, terms)}</span>${renderDifficultyChip(q.id)}${badges}</span><span class="catalog-q">${highlight(q.question, terms)}</span>${choiceHits(q, terms)}</span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details></div>`;
+    const pick = `<label class="catalog-pick" title="${on ? '演習から外す' : '演習に選ぶ'}"><input type="checkbox" data-catalog-pick="${esc(q.id)}" aria-label="第${no}問を演習に選ぶ" ${on ? 'checked' : ''} ${busy || full && !on ? 'disabled' : ''}/><span class="catalog-pick-box" aria-hidden="true">${icon('check')}</span></label>`;
+    return `<div class="catalog-item${on ? ' picked' : ''}">${pick}<details class="catalog-detail" data-catalog-id="${esc(q.id)}" ${opened.has(q.id) ? 'open' : ''}><summary><span class="catalog-no">${no}</span><span class="catalog-summary"><span class="catalog-meta"><span class="catalog-field">${highlight(q.field, terms)}</span>${renderDifficultyChip(q.id)}${badges}</span><span class="catalog-q">${highlight(q.question, terms)}</span>${choiceHits(q, terms)}</span><span class="catalog-toggle" aria-hidden="true">${icon('arrow')}</span></summary><div class="catalog-body" data-catalog-body="${esc(q.id)}">${opened.has(q.id) ? body(q) : ''}</div></details></div>`;
   }).join('');
   const filtered = !!terms.length || !!catalogField || catalogStatus !== 'all';
   const status = `<p id="catalog-page-status" class="catalog-page-status" tabindex="-1" aria-live="polite">${shown.length ? `<b>${catalogPage + 1}</b> / ${pages}ページ<span>${shown.length}問中 ${start + 1}–${Math.min(start + PAGE_SIZE, shown.length)}問目</span>` : '<span class="catalog-none-count">該当 0問</span>'}</p>`;
@@ -126,7 +126,7 @@ function pickBar(shown: CatalogEntry[], busy: boolean, error: string): string {
   const n = picked.size;
   const addable = shown.filter(e => !picked.has(e.q.id)).length;
   const room = PICK_LIMIT - n;
-  const note = n >= PICK_LIMIT ? `1回の演習は${PICK_LIMIT}問までです。` : n ? '番号の丸を押して追加・解除できます。' : '番号の丸を押して、演習する問題を選びましょう。';
+  const note = n >= PICK_LIMIT ? `1回の演習は${PICK_LIMIT}問までです。` : n ? '右端の四角を押して追加・解除できます。' : '問題の右端の四角を押して、演習する問題を選びましょう。';
   return `<section class="catalog-pickbar${n ? ' active' : ''}" aria-label="選んだ問題の演習">
     <div class="catalog-pickbar-head"><p role="status"><b>${n}</b>問を選択中<small>${note}</small></p>
       <label class="catalog-shuffle"><input type="checkbox" id="catalog-shuffle" ${pickShuffle ? 'checked' : ''} ${busy ? 'disabled' : ''}/><span>ランダムな順で出題</span></label></div>
