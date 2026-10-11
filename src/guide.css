@@ -9,7 +9,7 @@
 .guide-toc {display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;}
 .guide-chip {font-size:12px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:30px;padding:8px 14px;min-height:38px;}
 .guide-chip:hover {border-color:var(--accent);}
-.guide-section {scroll-margin-top:16px;}
+.guide-section {scroll-margin-top:calc(76px + env(safe-area-inset-top));}
 .guide-section h2 {font-size:19px;margin:0;}
 .guide-section h2:focus {outline:none;}
 .guide-section .eyebrow {margin-bottom:0;}
@@ -96,3 +96,22 @@
 .guide-install .guide-intro b {color:var(--accent);}
 .guide-alert {display:flex;gap:10px;align-items:flex-start;margin:0;padding:12px 14px;border-radius:12px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);font-size:13px;line-height:1.8;}
 .guide-alert .icon {width:18px;height:18px;margin-top:3px;color:var(--accent);}
+
+/* 最近のアップデートと NEW の印。 */
+.guide-new {display:inline-block;padding:1px 7px;border-radius:99px;background:var(--ng);color:var(--bg);font-size:10px;font-weight:800;letter-spacing:.5px;line-height:1.6;}
+.guide-chip.is-new {display:inline-flex;align-items:center;gap:6px;border-color:color-mix(in srgb,var(--ng) 55%,var(--line));}
+.guide-updates {gap:10px;border-color:color-mix(in srgb,var(--ng) 40%,var(--line));}
+.guide-updates h2 {margin:0;font-size:17px;}
+.guide-updates .eyebrow {margin:0;}
+.guide-updates ul {margin:0;padding:0;list-style:none;display:grid;gap:8px;}
+.guide-updates li {display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;}
+.guide-updates li > span {font-size:13px;line-height:1.75;color:var(--muted);}
+.guide-updates li > span b {color:var(--text);}
+.guide-updates .btn {min-height:38px;padding:6px 12px;font-size:12px;white-space:nowrap;}
+.guide-inline-link {padding:0;border:0;background:none;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.guide-section .course-figure {margin:4px 0 2px;}
+:root[data-theme="light"] .guide-new {color:#fff;}
+@media (max-width:540px) {
+  .guide-updates li {grid-template-columns:auto 1fr;}
+  .guide-updates .btn {grid-column:1 / -1;justify-self:stretch;}
+}

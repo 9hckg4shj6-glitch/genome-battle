@@ -1,5 +1,6 @@
 import { icon, readStore, writeStore } from "./ui";
 import { inLineApp } from "./install";
+import { renderCatalogFigure } from "./course-guide";
 
 // 初めて開いた人向けの使い方ガイド。各説明から、その画面へ直接移動できる。
 const SEEN_KEY = "gb.guide-seen";
@@ -11,16 +12,18 @@ const sections = [
   { id: "install", label: "おすすめ：ホーム画面に追加", recommended: true },
   { id: "choose", label: "モードの選び方" },
   { id: "study", label: "学ぶ（一人で学習）" },
+  { id: "catalog", label: "過去問から選んで演習", isNew: true },
   { id: "battle", label: "対戦モード" },
   { id: "rules", label: "対戦のルール" },
   { id: "review", label: "復習と記録" },
   { id: "tools", label: "便利な機能" },
   { id: "faq", label: "よくある質問" },
-] as { id: string; label: string; recommended?: boolean }[];
+] as { id: string; label: string; recommended?: boolean; isNew?: boolean }[];
 
 const steps = (items: string[]): string => `<ol class="guide-steps">${items.map((s) => `<li><span>${s}</span></li>`).join("")}</ol>`;
 const tips = (items: string[]): string => `<ul class="guide-tips">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 const openMode = (mode: string, label: string): string => `<button class="btn" data-mode="${mode}">${label}${icon("arrow")}</button>`;
+const openCourse = (course: string, label: string): string => `<button class="btn" data-course-guide="${course}">${icon("help")}${label}</button>`;
 const openPractice = (label: string, primary = false): string => `<button class="btn ${primary ? "primary" : ""}" data-act="practice">${icon("book")}${label}${icon("arrow")}</button>`;
 
 interface ModeGuide { mode: string; icon: string; title: string; who: string; steps: string[]; tips: string[]; }
@@ -72,7 +75,13 @@ const battles: ModeGuide[] = [
 
 export function renderGuide(): string {
   return `<header class="hero small guide-hero"><p class="eyebrow">HOW TO USE</p><h1>使い方ガイド</h1><p class="lead">はじめての人向けに、このアプリでできることと使い方をまとめました。気になる項目から読めます。</p></header>
-  <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}</button>`).join("")}</nav>
+  <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
+  <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
+    <ul>
+      <li><b class="guide-new">NEW</b><span><b>過去問から選んで演習</b>：「過去問・問題と解説」で、問題の右端の四角を押して選んだ問題だけを、そのまま演習できるようになりました。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
+      <li><b class="guide-new">NEW</b><span><b>各コーナーの「使い方はこちら」</b>：問題演習コーナ・復習ノート・過去問・問題と解説の各ページの一番上から、そのコーナーだけの使い方を図解で開けます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
+    </ul>
+  </section>
 
   <section id="guide-start" class="panel guide-section"><p class="eyebrow">STEP BY STEP</p><h2 tabindex="-1">はじめに：3ステップで始める</h2>
     <div class="guide-quick">
@@ -82,7 +91,7 @@ export function renderGuide(): string {
     </div>
     <dl class="guide-defs guide-map">
       <div><dt>${icon("home")}ホーム</dt><dd>「続きから」と、<b>学ぶ</b>・<b>対戦する</b>の2つの入口、この<b>使い方ガイド</b>。上のプレイヤーカードを押すと記録が開きます。</dd></div>
-      <div><dt>${icon("book")}学ぶ</dt><dd>問題演習コーナ・復習ノート・過去問・保存した学習の続き。</dd></div>
+      <div><dt>${icon("book")}学ぶ</dt><dd>問題演習コーナ・復習ノート・過去問・問題と解説（選んだ問題の演習も）・保存した学習の続き。</dd></div>
       <div><dt>${icon("swords")}対戦する</dt><dd>マッチング対戦・AI対戦・対戦室の3つから選びます。</dd></div>
       <div><dt>${icon("chart")}記録</dt><dd>学習レベル・試験準備度・分野マスタリー・学習と対戦の成績。</dd></div>
       <div><dt>${icon("menu")}メニュー</dt><dd>右上から。画面の明るさ・文字サイズ・プレイヤー名・このガイド。</dd></div>
@@ -133,8 +142,28 @@ export function renderGuide(): string {
       <div><dt>${icon("check")}正解したけど迷った</dt><dd>正解した後の解説で押すと「迷った問題」に記録され、後で解き直せます。</dd></div>
       <div><dt>${icon("target")}みんなの正答率</dt><dd>解説と一緒に、初めて解いた人のうち何%が正解したかと難しさ（基本・標準・やや難・難問）が出ます。みんなが正解している基本問題を落としたら、優先して復習しましょう。</dd></div>
     </dl>
-    <p class="guide-note">${icon("book")}<span>「学ぶ」の画面にある<b>過去問・問題と解説</b>では、全100問の問題文を5問ずつのページで読めます。分野で絞り込め、問題を押すと正解と解説が開きます。</span></p>
-    <div class="guide-actions">${openPractice("問題演習コーナを開く", true)}<button class="btn" data-act="catalog">過去問・問題と解説を見る${icon("arrow")}</button></div>
+    <h3 class="guide-subhead">「学ぶ」の3つのコーナー</h3>
+    <dl class="guide-defs">
+      <div><dt>${icon("book")}問題演習コーナ</dt><dd>分野・問題数・出題配分を選んで演習します（このセクションの手順）。</dd></div>
+      <div><dt>${icon("bookmark")}復習ノート</dt><dd>間違えた・わからなかった・迷った・保存した問題を見直し、まとめて解き直します。</dd></div>
+      <div><dt>${icon("zoom")}過去問・問題と解説</dt><dd>全問題を探して読み、選んだ問題だけを演習できます（<button class="guide-inline-link" data-guide-jump="guide-catalog">詳しくは次のセクション</button>）。</dd></div>
+    </dl>
+    <p class="guide-note">${icon("help")}<span>各コーナーのページの一番上にある「<b>使い方はこちら</b>」を押すと、そのコーナーだけの使い方を画面の図つきで確認できます。下のボタンからも開けます。</span></p>
+    <div class="guide-actions">${openCourse("practice", "問題演習コーナの使い方（図解）")}${openCourse("notebook", "復習ノートの使い方（図解）")}${openCourse("catalog", "過去問・問題と解説の使い方（図解）")}</div>
+    <div class="guide-actions">${openPractice("問題演習コーナを開く", true)}</div>
+  </section>
+
+  <section id="guide-catalog" class="panel guide-section mode-study"><p class="eyebrow">QUESTION LIST · NEW</p><h2 tabindex="-1">過去問から選んで演習する</h2>
+    <p class="guide-intro">「学ぶ」の<b>過去問・問題と解説</b>では、アプリに収録している全問題を5問ずつのページで読めます。キーワード・分野・学習状態で絞り込み、問題を押すと正解と解説が開きます。さらに、<b>気になる問題だけを選んで、そのまま演習</b>できます。</p>
+    ${renderCatalogFigure()}
+    ${tips([
+      "選んだ問題は、ページや絞り込みを切り替えても残ります。いろいろな条件から少しずつ集められます",
+      "出題は問題番号の順です。バーの「<b>ランダムな順で出題</b>」をオンにすると順番を混ぜます",
+      "1回の演習で選べるのは<b>100問まで</b>です",
+      "学習状態の「<b>誤答</b>」で絞り込んで「この条件の○問を選ぶ」を押すと、苦手な問題だけの演習がすぐに作れます",
+      "演習の進め方（回答を見る・後で解く・中断して保存など）は、問題演習コーナと同じです",
+    ])}
+    <div class="guide-actions"><button class="btn primary" data-act="catalog">${icon("book")}過去問・問題と解説を開く${icon("arrow")}</button>${openCourse("catalog", "図解ガイドを開く")}</div>
   </section>
 
   <section id="guide-battle" class="guide-section"><div class="guide-section-head"><p class="eyebrow">BATTLE MODES</p><h2 tabindex="-1">対戦モードの使い方</h2></div>
@@ -170,7 +199,7 @@ export function renderGuide(): string {
       <div><dt>${icon("zoom")}図の拡大</dt><dd>図のある問題は、図をタップすると拡大表示できます。＋／−で拡大し、指で動かせます。対戦中は拡大している間も時間が進みます。</dd></div>
       <div><dt>${icon("user")}フレンド</dt><dd>画面右上の「フレンド」で、10文字のフレンドコードを交換して申請・承認します。フレンドは対戦室に招待できます。</dd></div>
       <div><dt>${icon("globe")}通信状態・オンライン人数</dt><dd>オンライン人数は「対戦する」とメニューに、通信状態は対戦・学習中の画面上部とメニューに出ます。ほかの画面でも、通信エラーのときは上部に「再接続」が出ます。</dd></div>
-      <div><dt>${icon("help")}このガイド</dt><dd>ホーム・スタート画面・右上の「メニュー」から、いつでも開き直せます。</dd></div>
+      <div><dt>${icon("help")}このガイド</dt><dd>ホーム・スタート画面・右上の「メニュー」から、いつでも開き直せます。「学ぶ」の各コーナーでは、ページの一番上の「使い方はこちら」から、そのコーナーだけの図解ガイドも開けます。</dd></div>
     </dl>
   </section>
 
@@ -178,7 +207,9 @@ export function renderGuide(): string {
     <div class="guide-faq">
       <details><summary>苦手な分野だけを解きたい</summary><p>問題演習コーナの「学習する分野」で、解きたい分野だけにチェックを入れてください。いくつでも組み合わせられ、選んだ分野はこの端末に保存されるので、次回も同じ選択から始められます。</p></details>
       <details><summary>「出題配分」が選べません</summary><p>出題配分は、2つ以上の分野を選んだときに選べます。1つの分野だけのときは、その分野の問題だけを出題します。</p></details>
-      <details><summary>間違えた問題だけを解き直したい</summary><p>画面下の「復習」タブを開き、「誤答・わからない」タブで「この○問を演習する」を押してください。学習や対戦の直後なら、振り返り画面の復習コースからも解き直せます。</p></details>
+      <details><summary>間違えた問題だけを解き直したい</summary><p>画面下の「復習」タブを開き、「誤答・わからない」タブで「この○問を演習する」を押してください。学習や対戦の直後なら、振り返り画面の復習コースからも解き直せます。「過去問・問題と解説」で学習状態を「誤答」に絞り込み、まとめて選んで演習することもできます。</p></details>
+      <details><summary>特定の問題だけを選んで解きたい</summary><p>「学ぶ」の「過去問・問題と解説」を開き、解きたい問題の右端の四角を押して選びます。画面下のバーの「選んだ○問を演習する」で、その問題だけの演習が始まります。1問だけなら、問題を開いて「この問題を演習する」を押してもかまいません。</p><button class="btn" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></details>
+      <details><summary>各コーナーの使い方を図で見たい</summary><p>問題演習コーナ・復習ノート・過去問・問題と解説のページの一番上にある「使い方はこちら」を押してください。そのコーナーの画面を図にして、どこを押せばよいかを番号つきで説明しています。</p></details>
       <details><summary>対戦が始まりません</summary><p>全員が「準備完了」を押すと始まります。マッチング対戦は、選んだ人数がそろうまで待ちます。対戦室は、部屋を作った人が「開始」を押します。</p></details>
       <details><summary>記録や復習ノートが消えました</summary><p>記録はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。</p></details>
       <details><summary>通信が切れました</summary><p>画面上部の「再接続」を押すか、ページを再読み込みしてください。同じタブで再読み込みすれば、進行中の対戦や学習に戻れます。タブを閉じてしまった場合、学習は「中断して保存」したものだけホームの「続きから」で再開できます。</p></details>

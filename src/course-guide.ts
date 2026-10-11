@@ -73,6 +73,16 @@ const tips = (items: string[]): string => `<ul class="course-tips">${items.map(s
 const section = (eyebrow: string, title: string, body: string): string => `<section class="course-section"><p class="eyebrow">${eyebrow}</p><h3>${title}</h3>${body}</section>`;
 
 interface Guide { eyebrow: string; title: string; lead: string; body: string; start: string; }
+// 過去問一覧の図と番号つき説明。全体の使い方ガイドでも使う。
+export const renderCatalogFigure = (): string => figure(catalogFigure(), [
+  "<b>キーワード</b>で探す。問題文・選択肢・分野名が対象です。スペースで区切るとすべての語を含む問題に、数字だけなら問題番号でも探せます",
+  "<b>分野</b>で絞り込む",
+  "<b>学習状態</b>（未着手・誤答・取り組み中・習得）で絞り込む",
+  "<b>問題を押す</b>と、正解と解説が開きます。開いた問題の下の「この問題を演習する」で1問だけ解くこともできます",
+  "<b>右端の四角</b>を押すと、演習する問題に選ばれます（もう一度押すと外れます）",
+  "画面下のバーの<b>選んだN問を演習する</b>で開始。「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
+]);
+
 const GUIDES: Record<Course, Guide> = {
   practice: {
     eyebrow: "COURSE GUIDE", title: "問題演習コーナの使い方",
@@ -121,14 +131,7 @@ const GUIDES: Record<Course, Guide> = {
   catalog: {
     eyebrow: "COURSE GUIDE", title: "過去問・問題と解説の使い方",
     lead: "アプリに収録している全問題を、探して・読んで・選んで演習できる一覧です。気になる問題だけを集めて解くのにも使えます。",
-    body: section("HOW TO USE", "探して、選んで、演習する", figure(catalogFigure(), [
-      "<b>キーワード</b>で探す。問題文・選択肢・分野名が対象です。スペースで区切るとすべての語を含む問題に、数字だけなら問題番号でも探せます",
-      "<b>分野</b>で絞り込む",
-      "<b>学習状態</b>（未着手・誤答・取り組み中・習得）で絞り込む",
-      "<b>問題を押す</b>と、正解と解説が開きます。開いた問題の下の「この問題を演習する」で1問だけ解くこともできます",
-      "<b>右端の四角</b>を押すと、演習する問題に選ばれます（もう一度押すと外れます）",
-      "画面下のバーの<b>選んだN問を演習する</b>で開始。「この条件のM問を選ぶ」で、絞り込んだ問題をまとめて選べます",
-    ]))
+    body: section("HOW TO USE", "探して、選んで、演習する", renderCatalogFigure())
       + section("FLOW", "使い方の流れ", flow(["条件で絞り込む", "問題を開いて解説を確認", "右端の四角で選ぶ", "まとめて演習"]))
       + section("TIPS", "うまく使うコツ", tips([
         "選んだ問題は、ページや絞り込みを変えても残ります。いろいろな条件から少しずつ集められます",
