@@ -201,18 +201,29 @@ const guides: Record<Device, Guide> = {
 const figure = (fig: string, html: string): string => `<figure class="install-shot">${fig}<figcaption>${html}</figcaption></figure>`;
 const canPrompt = (): boolean => !!promptEvent;
 
-// ホームの「おすすめ」。LINEの中で開いているときは、ホームの一番上に出す。
-export function renderInstallEntry(): string {
+// ホームの上部に出す、ホーム画面への追加の大きな案内。まだ追加していない端末にだけ出す。
+// 使っている端末の押す場所を3つの手順で見せ、Android の Chrome ではボタン1つで追加できる。
+const QUICK_STEPS: Record<Device, string[]> = {
+  iphone: ["画面下の<b>「…」</b>", "<b>「共有」</b>", "<b>「ホーム画面に追加」</b>"],
+  ipad: ["右上の<b>共有ボタン</b>", "<b>「ホーム画面に追加」</b>", "<b>「追加」</b>"],
+  android: ["右上の<b>「︙」</b>", "<b>「ホーム画面に追加」</b>", "<b>「追加」</b>"],
+};
+export function renderInstallBanner(): string {
   if (standalone() || installed || (!inLineApp && readStore(DISMISS_KEY) === "1")) return "";
   const g = guides[device];
-  const lead = inLineApp
-    ? `いまは<b>LINEの中</b>で開いています。${g.browser}などのブラウザで開き直してから、ホーム画面に追加しておくのがおすすめです。`
-    : "ホーム画面に追加しておくと、次からはアイコンをタップするだけで開けます。";
-  const actions = inLineApp
-    ? `<button class="btn primary" data-act="install-browser">${icon("globe")}${g.browser}で開き直す</button><button class="btn" data-act="install">図で手順を見る${icon("arrow")}</button>`
-    : `<button class="btn primary" data-act="${canPrompt() ? "install-prompt" : "install"}">${canPrompt() ? `${icon("check")}ホーム画面に追加する` : `図で手順を見る${icon("arrow")}`}</button>${canPrompt() ? `<button class="btn" data-act="install">図で手順を見る</button>` : ""}<button class="btn ghost" data-act="install-dismiss">追加済みなので閉じる</button>`;
-  return `<section class="recommend${inLineApp ? " in-line" : ""}" aria-labelledby="recommend-title"><div class="section-heading"><div><p class="eyebrow">RECOMMENDED</p><h2 id="recommend-title">おすすめ</h2></div><span class="section-note">最初に1回だけ・約1分</span></div>
-    <div class="panel recommend-card"><div class="recommend-art" aria-hidden="true">${homeFigure("rec-home", device === "android")}</div><div class="recommend-copy"><p class="eyebrow">ADD TO HOME SCREEN</p><h3>ホーム画面に追加して、<wbr>アプリのように使おう</h3><p>${lead}</p><ol class="recommend-flow"><li><b>1</b>${inLineApp ? `${g.browser}で開き直す` : "ブラウザで開く"}</li><li><b>2</b>ホーム画面に追加</li><li><b>3</b>アイコンから開く</li></ol><div class="recommend-actions">${actions}</div></div></div></section>`;
+  const steps = inLineApp ? [`<b>${g.browser}</b>で開き直す`, "<b>ホーム画面に追加</b>", "<b>アイコン</b>から開く"]
+    : detected ? QUICK_STEPS[device] : ["ブラウザのメニュー", "<b>「ホーム画面に追加」</b>", "<b>アイコン</b>から開く"];
+  const primary = inLineApp
+    ? `<button class="btn primary" data-act="install-browser">${icon("globe")}${g.browser}で開き直す</button>`
+    : canPrompt() ? `<button class="btn primary" data-act="install-prompt">${icon("plus")}ホーム画面に追加する</button>`
+    : `<button class="btn primary" data-act="install">${icon("plus")}追加のしかたを見る</button>`;
+  const more = inLineApp || canPrompt() ? `<button class="btn" data-act="install">図で手順を見る${icon("arrow")}</button>` : "";
+  return `<section class="install-banner${inLineApp ? " in-line" : ""}" aria-labelledby="install-banner-title"><span class="install-banner-glow" aria-hidden="true"></span>
+    <div class="install-banner-head"><span class="install-banner-icon" aria-hidden="true"><img src="${APP_ICON}" alt="" width="56" height="56"/><b>${icon("plus")}</b></span>
+      <div><p class="eyebrow">${inLineApp ? "まずはここから" : "おすすめ · 約1分"}</p><h2 id="install-banner-title">${inLineApp ? "LINEの外で開いて、<wbr>ホーム画面に追加しよう" : "ホーム画面に追加して、<wbr>アプリのように使おう"}</h2></div></div>
+    <ul class="install-banner-perks"><li>${icon("play")}アイコンからワンタップ</li><li>${icon("zoom")}全画面で広く表示</li><li>${icon("bookmark")}記録が分かれない</li></ul>
+    <ol class="install-banner-steps" aria-label="${inLineApp ? "手順" : `${detected ? DEVICES.find((d) => d.id === device)!.label : "この端末"}での追加のしかた`}">${steps.map((s, i) => `<li><b>${i + 1}</b><span>${s}</span></li>`).join("")}</ol>
+    <div class="install-banner-actions">${primary}${more}${inLineApp ? "" : `<button class="btn ghost" data-act="install-dismiss">追加済みなので閉じる</button>`}</div></section>`;
 }
 
 export function renderInstall(): string {
@@ -232,7 +243,7 @@ export function renderInstall(): string {
     <li class="panel install-step"><header><b>3</b><div><p class="eyebrow">STEP 3</p><h2>次からはアイコンから開く</h2></div></header><div class="install-shots one">${figure(g.home(`${device}-home`), `ホーム画面に<b>「ゲノム対戦」</b>のアイコン（図の${"①②③④⑤"[g.homeBadge - 1]}）が増えます。次からはLINEのリンクではなく、<b>このアイコンから</b>開いてください。`)}</div></li>
   </ol>
   <section class="panel install-notes"><h2>うまくいかないとき・知っておきたいこと</h2><dl class="guide-defs">
-    <div><dt>${icon("bookmark")}LINEで解いた記録は引き継がれません</dt><dd>記録は開いたブラウザごとに保存されるため、LINEの中で解いた分はブラウザを変えると表示されません。早めに切り替えておくのがおすすめです。</dd></div>
+    <div><dt>${icon("bookmark")}LINEで解いた記録を移すには</dt><dd>記録は開いたブラウザごとに保存されるため、LINEの中で解いた分はブラウザを変えると表示されません。LINEの中で「メニュー」→「端末の引き継ぎ」のコードを発行し、ホーム画面に追加したアイコンから開いて入力すると移せます。<button class="btn" data-act="transfer">端末の引き継ぎ${icon("arrow")}</button></dd></div>
     <div><dt>${icon("check")}いつも同じアイコンから</dt><dd>追加した後は、LINEのリンクや${g.browser}ではなく、ホーム画面のアイコンから開いてください。開く場所が変わると、記録が別々になることがあります。</dd></div>
     <div><dt>${icon("help")}「ホーム画面に追加」が見つからない</dt><dd>${device === "android" ? "Chrome以外のブラウザでは、メニューの名前が違うことがあります。Chromeで開き直してから試してください。" : "共有メニューの一番下の「アクションを編集」から「ホーム画面に追加」を表示できます。Chromeなど他のブラウザでも、共有ボタンから追加できます。"}</dd></div>
     <div><dt>${icon("globe")}ボタンを押してもブラウザが開かない</dt><dd>アドレスをコピーして、${g.browser}のアドレス欄に貼り付けて開いてください。<span class="install-copy"><button class="btn" data-act="install-copy">アドレスをコピー</button><span id="install-copy-status" role="status">${esc(appLink())}</span></span></dd></div>

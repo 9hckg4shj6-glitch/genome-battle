@@ -16,6 +16,7 @@ const sections = [
   { id: "battle", label: "対戦モード" },
   { id: "rules", label: "対戦のルール" },
   { id: "review", label: "復習と記録" },
+  { id: "transfer", label: "端末の引き継ぎ", isNew: true },
   { id: "tools", label: "便利な機能" },
   { id: "faq", label: "よくある質問" },
 ] as { id: string; label: string; recommended?: boolean; isNew?: boolean }[];
@@ -78,6 +79,7 @@ export function renderGuide(): string {
   <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
   <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
     <ul>
+      <li><b class="guide-new">NEW</b><span><b>端末の引き継ぎ</b>：機種変更や別の端末で続けるときに、学習レベル・解答記録・成績・保存した学習・復習ノート・フレンド・設定を、<b>12文字の引き継ぎコード</b>でまとめて新しい端末へ移せます。「メニュー」の「端末の引き継ぎ」から。</span><button class="btn ghost" data-guide-jump="guide-transfer">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>過去問を読んで学ぶ</b>：「過去問・問題と解説」が、解説を読むための「<b>読んで学ぶ</b>」と、問題を集めて解く「<b>選んで演習</b>」に分かれました。1問ずつ読み進める<b>解説リーダー</b>（答えを隠して読む・しおり）、<b>読んだ</b>の記録と「解説未読」の絞り込みが使えます。演習のバーは問題を選んだときだけ出ます。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>2024年度の過去問100問を追加</b>：2025年度と合わせて200問になりました。問題演習コーナの「<b>出題する年度</b>」と、過去問・問題と解説の「<b>年度で絞り込む</b>」のボタンで、年度ごとに分けて演習・閲覧できます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>各コーナーの「使い方はこちら」</b>：問題演習コーナ・復習ノート・過去問・問題と解説の各ページの一番上から、そのコーナーだけの使い方を図解で開けます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
@@ -95,11 +97,11 @@ export function renderGuide(): string {
       <div><dt>${icon("book")}学ぶ</dt><dd>問題演習コーナ・復習ノート・過去問・問題と解説（解説を読んで学ぶ・選んで演習）・保存した学習の続き。</dd></div>
       <div><dt>${icon("swords")}対戦する</dt><dd>マッチング対戦・AI対戦・対戦室の3つから選びます。</dd></div>
       <div><dt>${icon("chart")}記録</dt><dd>学習レベル・試験準備度・分野マスタリー・学習と対戦の成績。</dd></div>
-      <div><dt>${icon("menu")}メニュー</dt><dd>右上から。画面の明るさ・文字サイズ・プレイヤー名・このガイド。</dd></div>
+      <div><dt>${icon("menu")}メニュー</dt><dd>右上から。画面の明るさ・文字サイズ・プレイヤー名・端末の引き継ぎ・このガイド。</dd></div>
     </dl>
     <p class="guide-note">${icon("check")}<span>画面の下のタブ（ホーム・学ぶ・対戦・復習・記録）で、どこからでも1回で移動できます。</span></p>
     <p class="guide-note">${icon("back")}<span><b>前の画面に戻るには</b>、画面の左上にある「<b>← ○○に戻る</b>」を押します（下へスクロールしても上に残ります）。ページの一番下にも同じボタンがあります。スマートフォンの「戻る」操作（Androidの戻るボタン・iPhoneの画面左端からのスワイプ）でも戻れます。対戦・学習の途中は、画面上部の「← ホームへ」「← 中断してホームへ」を押してください。</span></p>
-    <p class="guide-note">${icon("check")}<span>記録は<b>このブラウザ</b>に保存されます。別の端末・別のブラウザには引き継がれないので、いつも同じ場所から開くのがおすすめです。<b>LINEから開いた方は、始める前に次の「ホーム画面に追加」を済ませておきましょう。</b></span></p>
+    <p class="guide-note">${icon("check")}<span>記録は<b>このブラウザ</b>に保存されます。いつも同じ場所から開くのがおすすめです。別の端末へ移すときは「<b>端末の引き継ぎ</b>」を使います。<b>LINEから開いた方は、始める前に次の「ホーム画面に追加」を済ませておきましょう。</b></span></p>
   </section>
 
   <section id="guide-install" class="panel guide-section guide-install"><p class="eyebrow">RECOMMENDED · まず最初に</p><h2 tabindex="-1">おすすめ：ホーム画面に追加する</h2>
@@ -110,7 +112,7 @@ export function renderGuide(): string {
       <div><b>2</b><strong>ホーム画面に追加</strong><p>iPhoneは「…」→「共有」、iPadは右上の共有ボタン、AndroidはChromeの「︙」から「ホーム画面に追加」を選びます。</p></div>
       <div><b>3</b><strong>アイコンから開く</strong><p>次からはLINEのリンクではなく、ホーム画面の「ゲノム対戦」のアイコンから開きます。</p></div>
     </div>
-    <p class="guide-note">${icon("bookmark")}<span>LINEの中で解いた記録（学習成績・復習ノート）は、ブラウザを変えると引き継がれません。早めに切り替えるほど安心です。</span></p>
+    <p class="guide-note">${icon("bookmark")}<span>LINEの中で解いた記録（学習成績・復習ノート）は、ブラウザを変えると別々になります。早めに切り替えるほど安心です。すでにLINEの中で解いた分は、LINEの中で「<b>端末の引き継ぎ</b>」のコードを発行し、ブラウザで入力すると移せます。</span></p>
     <div class="guide-actions">${inLineApp ? `<button class="btn primary" data-act="install-browser">${icon("globe")}ブラウザで開き直す</button>` : ""}<button class="btn ${inLineApp ? "" : "primary"}" data-act="install">${icon("help")}iPhone・iPad・Androidの手順を図で見る${icon("arrow")}</button></div>
   </section>
 
@@ -208,6 +210,24 @@ export function renderGuide(): string {
     </dl>
   </section>
 
+  <section id="guide-transfer" class="panel guide-section"><p class="eyebrow">DATA TRANSFER · NEW</p><h2 tabindex="-1">端末の引き継ぎ</h2>
+    <p class="guide-intro">機種変更したとき、別のスマートフォン・タブレット・パソコンで続けたいときに、<b>いままでの記録をすべて</b>新しい端末へ移せます。ログインや登録は要りません。</p>
+    <div class="guide-quick">
+      <div><b>1</b><strong>いままでの端末で発行</strong><p>「メニュー」→「端末の引き継ぎ」で「<b>引き継ぎコードを発行する</b>」を押します。12文字のコードが出ます。</p></div>
+      <div><b>2</b><strong>新しい端末で入力</strong><p>新しい端末でアプリを開き、スタート画面の「前の端末の記録を引き継ぐ」（またはメニューの「端末の引き継ぎ」）にコードを入力します。</p></div>
+      <div><b>3</b><strong>置き換えて引き継ぐ</strong><p>確認を押すと読み込み直し、前の端末の記録で続けられます。</p></div>
+    </div>
+    ${tips([
+      "引き継ぐもの：学習レベル・試験準備度・分野の★、問題ごとの解答記録と未着手、保存した学習の続き、学習・AI・対人の成績、復習ノート（間違えた・保存・迷った）、過去問の読んだ記録・しおり、フレンド、ニックネーム・表示の設定",
+      "コードは<b>15分間・1回だけ</b>使えます。期限が切れたら発行し直してください。発行し直すと前のコードは使えなくなります",
+      "コードを知っている人はあなたの記録を引き継げます。<b>他の人に見せたり送ったりしないでください</b>",
+      "新しい端末にあった記録は置き換わります。置き換える前の記録は保存され、「引き継ぐ前に戻す」で戻せます",
+      "引き継いだ後は、新しい端末をメインにしてください。学習レベル・成績などは両方の端末で同じ記録として続きますが、復習ノート・読んだ記録は端末ごとです",
+      "新しい端末では、LINEの中ではなく、ホーム画面に追加したアイコン（またはSafari・Chrome）から開いて入力してください",
+    ])}
+    <div class="guide-actions"><button class="btn primary" data-act="transfer">${icon("phone")}端末の引き継ぎを開く${icon("arrow")}</button></div>
+  </section>
+
   <section id="guide-tools" class="panel guide-section"><p class="eyebrow">TOOLS</p><h2 tabindex="-1">便利な機能</h2>
     <dl class="guide-defs">
       <div><dt>文字サイズ</dt><dd>「メニュー」の「標準・大・特大」で、問題文・選択肢・解説の文字を大きくできます。対戦・学習・復習ノート・過去問・解説リーダーでは画面上部からも変えられます。</dd></div>
@@ -231,7 +251,8 @@ export function renderGuide(): string {
       <details><summary>答えを見ずに、自分で考えてから解説を読みたい</summary><p>解説リーダーの「答えを隠して読む」をオンにしてください。選択肢を押すか「正解と解説を見る」を押すまで、正解と解説を伏せておきます。選んだ答えの正誤も出ますが、記録には残りません。</p></details>
       <details><summary>各コーナーの使い方を図で見たい</summary><p>問題演習コーナ・復習ノート・過去問・問題と解説のページの一番上にある「使い方はこちら」を押してください。そのコーナーの画面を図にして、どこを押せばよいかを番号つきで説明しています。</p></details>
       <details><summary>対戦が始まりません</summary><p>全員が「準備完了」を押すと始まります。マッチング対戦は、選んだ人数がそろうまで待ちます。対戦室は、部屋を作った人が「開始」を押します。</p></details>
-      <details><summary>記録や復習ノートが消えました</summary><p>記録（学習成績・復習ノート・解説を読んだ記録・しおり）はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。</p></details>
+      <details><summary>記録や復習ノートが消えました</summary><p>記録（学習成績・復習ノート・解説を読んだ記録・しおり）はブラウザごとに保存されます。別のブラウザ（LINE内のブラウザとSafariなど）で開いたり、ブラウザの履歴・データを削除したりすると、別の人として扱われます。前に使っていたブラウザが残っていれば、そこで引き継ぎコードを発行して、いまのブラウザに引き継げます。</p><button class="btn" data-guide-jump="guide-transfer">説明を見る${icon("arrow")}</button></details>
+      <details><summary>機種変更する・別の端末でも続けたい</summary><p>「メニュー」の「端末の引き継ぎ」で、いままでの端末で引き継ぎコードを発行し、新しい端末で入力してください。学習レベル・解答記録・成績・保存した学習・復習ノート・フレンド・設定をまとめて移せます。</p><button class="btn" data-guide-jump="guide-transfer">説明を見る${icon("arrow")}</button></details>
       <details><summary>通信が切れました</summary><p>画面上部の「再接続」を押すか、ページを再読み込みしてください。同じタブで再読み込みすれば、進行中の対戦や学習に戻れます。タブを閉じてしまった場合、学習は「中断して保存」したものだけホームの「続きから」で再開できます。</p></details>
       <details><summary>選択肢の番号が前と違います</summary><p>選択肢は問題ごとに並べ替えています。番号ではなく内容で答えを覚えましょう。</p></details>
       <details><summary>ホーム画面にアプリを置きたい・LINEから開いている</summary><p>ブラウザの共有メニューから「ホーム画面に追加」を選ぶと、アプリのように開けます。LINEから開いている場合は、先にSafari・Chromeなどで開き直してください。iPhone・iPad・Androidごとの手順を図で説明しています。</p><button class="btn" data-act="install">ホーム画面に追加する方法を見る${icon("arrow")}</button></details>

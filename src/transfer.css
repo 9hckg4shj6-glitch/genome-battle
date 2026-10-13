@@ -1,0 +1,67 @@
+/* 端末の引き継ぎ。発行（1）と入力（2）を左右に並べ、狭い画面では縦に積む。 */
+.transfer-title .lead b { color:var(--text); }
+.transfer-flow { gap:12px; }
+.transfer-flow ol { display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:8px;margin:0;padding:0;list-style:none;text-align:center; }
+.transfer-flow li:not(.transfer-arrow) { display:grid;justify-items:center;gap:4px;font-size:13px; }
+.transfer-flow li > span { display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:color-mix(in srgb,var(--accent) 14%,var(--surface-2));color:var(--accent); }
+.transfer-flow li > span .icon { width:22px;height:22px; }
+.transfer-flow small { color:var(--muted);font-size:11px; }
+.transfer-arrow .icon { width:18px;height:18px;color:var(--muted); }
+.transfer-items summary { cursor:pointer;font-size:13px;font-weight:700;color:var(--accent);padding:4px 0; }
+.transfer-items ul { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;margin:10px 0 0;padding:0;list-style:none; }
+.transfer-items li { display:flex;align-items:center;gap:8px;font-size:13px; }
+.transfer-items li .icon { flex:none;width:16px;height:16px;color:var(--ok); }
+
+.transfer-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;margin-bottom:20px; }
+.transfer-card { margin:0;gap:14px; }
+.transfer-card > header { display:flex;align-items:center;gap:12px; }
+.transfer-card > header > b { flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:17px; }
+.transfer-card > header .eyebrow { margin:0 0 2px; }
+.transfer-card h2 { margin:0;font-size:17px; }
+.transfer-card > p { margin:0;font-size:14px;line-height:1.8; }
+.transfer-main { justify-self:start; }
+.transfer-card.is-issued, .transfer-card.is-confirm { border-color:color-mix(in srgb,var(--accent) 55%,var(--line)); }
+.transfer-code { display:grid;justify-items:center;gap:6px;padding:18px 12px;border-radius:14px;border:2px dashed color-mix(in srgb,var(--accent) 60%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface-2)); }
+.transfer-code output { font:800 clamp(22px,6vw,30px)/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:var(--text);user-select:all;-webkit-user-select:all;overflow-wrap:anywhere;text-align:center; }
+.transfer-code span { font-size:12px;color:var(--muted); }
+.transfer-code span b { color:var(--text);font-variant-numeric:tabular-nums; }
+.transfer-actions { display:flex;flex-wrap:wrap;gap:10px; }
+.transfer-notice { margin:0;padding:10px 12px;border-radius:10px;background:var(--ok-bg);font-size:13px; }
+.transfer-warn { display:flex;gap:8px;align-items:flex-start;margin:0;font-size:12px;line-height:1.75;color:var(--muted); }
+.transfer-warn .icon { flex:none;width:16px;height:16px;margin-top:3px;color:var(--warn); }
+.transfer-warn b { color:var(--text); }
+.transfer-warn.is-strong { padding:12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warn) 50%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface));font-size:13px; }
+.transfer-confirm-code { font-size:14px; }
+.transfer-confirm-code b { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em; }
+.transfer-input { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end; }
+.transfer-input input { font:700 18px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase; }
+.transfer-backup h2 { display:flex;align-items:center;gap:8px;margin:0;font-size:16px; }
+.transfer-backup h2 .icon { width:18px;height:18px;color:var(--muted); }
+.transfer-backup p { margin:0;font-size:13px;line-height:1.8; }
+
+/* メニュー・スタート画面・記録からの入口 */
+.title-transfer { justify-self:center;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px; }
+.title-transfer .icon { width:16px;height:16px; }
+.records-transfer { display:flex;align-items:center;gap:12px;margin-top:4px;padding:14px 16px;border:1px dashed var(--line);border-radius:16px;font-size:13px;line-height:1.7;color:var(--muted); }
+.records-transfer > .icon { flex:none;width:22px;height:22px;color:var(--accent); }
+.records-transfer span { flex:1;min-width:0; }
+.records-transfer b { color:var(--text); }
+.records-transfer .btn { flex:none; }
+.home-notice { display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:12px 14px;border-radius:14px;background:var(--ok-bg);font-size:14px;font-weight:600; }
+.home-notice .icon { flex:none;width:20px;height:20px;color:var(--ok); }
+
+@media (max-width:750px) {
+  .transfer-grid { grid-template-columns:1fr; }
+}
+@media (max-width:540px) {
+  .transfer-flow ol { grid-template-columns:1fr auto 1fr auto 1fr;gap:4px; }
+  .transfer-flow li > span { width:38px;height:38px; }
+  .transfer-flow li:not(.transfer-arrow) { font-size:11px; }
+  .transfer-items ul { grid-template-columns:1fr; }
+  .transfer-input { grid-template-columns:1fr; }
+  .transfer-actions { flex-direction:column; }
+  .transfer-actions .btn, .transfer-input .btn, .transfer-main { width:100%; }
+  .records-transfer { flex-wrap:wrap; }
+  .records-transfer .btn { width:100%; }
+}
+.install-notes dd > .btn[data-act="transfer"] { display:flex;width:max-content;max-width:100%;margin-top:8px; }

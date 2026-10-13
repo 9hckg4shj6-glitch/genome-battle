@@ -5,7 +5,7 @@ import { renderThemeSwitch } from "./theme";
 import { renderReadingControls } from "./readability";
 import { renderConnection } from "./connection";
 import { guideSeen } from "./guide";
-import { inLineApp, renderInstallEntry } from "./install";
+import { inLineApp } from "./install";
 
 // 画面の階層：スタート画面 → ホーム（学ぶ／対戦する）→ 各ハブ → 各モードの設定。
 // ホームには「次にすること」だけを置き、記録・表示の設定などは専用のページへ分ける。
@@ -30,7 +30,8 @@ export function renderTitle(name: string, error = ""): string {
   const form = `<div class="title-form"><label class="title-label" for="title-name">ニックネーム<small>対戦で相手に表示されます（12文字まで）</small></label>
       <input id="title-name" maxlength="12" autocomplete="nickname" placeholder="例：ゲノム太郎" value="${esc(name)}" ${error ? 'aria-invalid="true" aria-describedby="title-error"' : ""}/>
       ${error ? `<p class="error" id="title-error" role="alert">${esc(error)}</p>` : ""}
-      <button class="btn primary title-start" data-act="title-start">${icon("play")}スタート</button></div>`;
+      <button class="btn primary title-start" data-act="title-start">${icon("play")}スタート</button>
+      <button class="title-transfer" data-act="transfer">${icon("phone")}前の端末の記録を引き継ぐ</button></div>`;
   const guide = renderGuideEntry("title-guide");
   return `<section class="title-screen">
     <div class="title-model" aria-hidden="true"><canvas class="genome-model"></canvas></div>
@@ -75,14 +76,12 @@ export function renderStudyEntry(e: StudyEntry): string {
     <small>${e.text}</small><span class="entry-foot"><span class="entry-meta">${e.meta}</span><span class="entry-go">開く${icon("arrow")}</span></span></span></button>`;
 }
 
-// 「次の一歩」は1つだけ出す。LINE内での利用 → 復習待ち → ホーム画面への追加 の順。使い方ガイドはホームに常に置く。
+// 「次の一歩」は復習待ちがあるときだけ出す。LINE内での利用・ホーム画面への追加は、ホーム上部の案内（renderInstallBanner）で目立たせる。
 export function renderSuggestion(): string {
   const tip = (cls: string, ic: string, title: string, text: string, act: string, label: string): string =>
     `<section class="home-tip ${cls}"><span class="mode-icon">${icon(ic)}</span><div><p class="eyebrow">NEXT STEP</p><h2>${title}</h2><p>${text}</p></div><button class="btn" data-act="${act}">${label}${icon("arrow")}</button></section>`;
-  if (inLineApp) return tip("is-alert", "globe", "ブラウザで開き直そう", "LINEの中では記録が分かれてしまいます。ホーム画面に追加しておくと安心です。", "install", "手順");
   const waiting = waitingReview();
   if (waiting) return tip("", "bookmark", `復習待ちが ${waiting}問 あります`, "間違えた・迷った問題を解き直して、得点源に変えよう。", "notebook", "復習");
-  if (renderInstallEntry()) return tip("", "check", "ホーム画面に追加しよう", "アイコンからワンタップで開けて、記録もまとまります。", "install", "手順");
   return "";
 }
 
@@ -101,18 +100,21 @@ export function renderBattleHub(): string {
 
 export function renderRecords(masteryHtml: string, performanceHtml: string): string {
   return `<header class="setup-title records-title"><span class="mode-icon">${icon("chart")}</span><div><p class="eyebrow">RECORDS</p><h1>記録</h1><p class="lead">学習レベル・試験準備度・学習と対戦の成績。</p></div></header>
-    <div id="mastery-region">${masteryHtml}</div><section id="performance-panels">${performanceHtml}</section>`;
+    <div id="mastery-region">${masteryHtml}</div><section id="performance-panels">${performanceHtml}</section>
+    <p class="records-transfer">${icon("phone")}<span><b>機種変更・別の端末で続けるときは</b><br>この記録はすべて、引き継ぎコードで新しい端末へ移せます。</span><button class="btn" data-act="transfer">端末の引き継ぎ${icon("arrow")}</button></p>`;
 }
 
 export function renderSettings(name: string): string {
   const row = (act: string, ic: string, title: string, text: string): string =>
     `<button class="menu-row" data-act="${act}"><span class="mode-icon">${icon(ic)}</span><span><strong>${title}</strong><small>${text}</small></span>${icon("arrow")}</button>`;
-  return `<header class="setup-title menu-title"><span class="mode-icon">${icon("menu")}</span><div><p class="eyebrow">MENU</p><h1>メニュー</h1><p class="lead">表示の設定・プレイヤー名・ヘルプ。</p></div></header>
+  return `<header class="setup-title menu-title"><span class="mode-icon">${icon("menu")}</span><div><p class="eyebrow">MENU</p><h1>メニュー</h1><p class="lead">表示の設定・プレイヤー名・端末の引き継ぎ・ヘルプ。</p></div></header>
     <section class="panel menu-section" aria-labelledby="menu-display"><h2 id="menu-display">表示</h2>
       <div class="menu-setting"><span>画面の明るさ</span>${renderThemeSwitch()}</div>
       <div class="menu-setting">${renderReadingControls()}</div><p class="menu-note">文字サイズは問題文・選択肢・解説に効きます。対戦や学習の途中でも画面上部から変えられます。</p></section>
     <section class="panel menu-section" aria-labelledby="menu-player"><h2 id="menu-player">プレイヤー</h2>
       <label class="field"><span>プレイヤー名（対戦で表示）</span><input id="menu-name" maxlength="12" autocomplete="nickname" placeholder="名前を入力（12文字まで）" value="${esc(name)}"/></label></section>
+    <section class="panel menu-section" aria-labelledby="menu-data"><h2 id="menu-data">データ</h2>
+      ${row("transfer", "phone", "端末の引き継ぎ", "機種変更・別の端末へ、記録をすべて移す")}</section>
     <section class="panel menu-section" aria-labelledby="menu-help"><h2 id="menu-help">ヘルプ</h2>
       ${row("guide", "help", "使い方ガイド", "モードの選び方・対戦のルール・復習のしかた")}
       ${row("install", "check", "ホーム画面に追加する", "iPhone・iPad・Androidの手順を図で説明")}

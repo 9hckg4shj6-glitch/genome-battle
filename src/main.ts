@@ -15,6 +15,7 @@ import "./celebrate.css";
 import "./stats.css";
 import "./years.css";
 import "./reader.css";
+import "./transfer.css";
 import { ImageViewer, renderReadingControls, setReadSize } from "./readability";
 import { choiceOrder } from "./choices";
 import { renderConnection, realtimeState } from "./connection";
@@ -44,7 +45,8 @@ import { applyQuestionStats, renderRateInline } from "./stats";
 import { mountModel } from "./model";
 import { cue, plusOne, reach, renderSoundToggle, revealMoment, since, stamp, streakNote, toggleSound, unlockAudio, type Moment } from "./celebrate";
 import { clearUpdateMark, reloadIfUpdated } from "./update";
-import { copyAppLink, dismissInstall, openInBrowser, promptInstall, renderInstall, setInstallDevice, watchInstall } from "./install";
+import { copyAppLink, dismissInstall, openInBrowser, promptInstall, renderInstall, renderInstallBanner, setInstallDevice, watchInstall } from "./install";
+import { TransferController, takeTransferNotice } from "./transfer";
 
 const BASE = import.meta.env.BASE_URL;
 const PHASE_SECONDS = { countdown: 3, reveal: 7, waiting: 10 } as const;
@@ -80,6 +82,7 @@ const app = document.querySelector<HTMLElement>("#app")!;
 const deviceId = readStore("gb.device") ?? crypto.randomUUID();
 writeStore("gb.device", deviceId);
 startPresence(deviceId);
+const transfer = new TransferController(deviceId, () => {if (view === "transfer" && !solo.active) render();});
 
 let playerName = readStore("gb.name") ?? "";
 // 対戦室の定員。null は「8人まで」
@@ -96,11 +99,14 @@ let mySeat: number | null = null;
 let channel: RealtimeChannel | null = null;
 let live = false;
 // 階層：title（スタート）→ home → study（setup の study）/ battle → 各モードの setup。records・settings はホームから開く。
-type View = "title" | "home" | "battle" | "records" | "settings" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "reader" | "guide" | "install";
+type View = "title" | "home" | "battle" | "records" | "settings" | "setup" | "practice" | "match" | "review" | "notebook" | "catalog" | "reader" | "guide" | "install" | "transfer";
 let view: View = roomCodeDraft ? "setup" : "home";
-// 使い方ガイド・ホーム画面に追加の手順は、開いた画面へ戻る（スタート画面・ホーム・メニュー・ガイド）。
+// 使い方ガイド・ホーム画面に追加の手順・端末の引き継ぎは、開いた画面へ戻る（スタート画面・ホーム・メニュー・記録・ガイド）。
 let guideFrom: View = "home";
 let installFrom: View = "home";
+let transferFrom: View = "home";
+// 引き継ぎ・元に戻した直後に、ホームで1回だけ知らせる。
+let homeNotice = takeTransferNotice();
 let notebookTab: "missed" | "saved" | "uncertain" = "missed";
 type Mode = "matchmaking" | "study" | "ai" | "room";
 let selectedMode: Mode = roomCodeDraft ? "room" : "matchmaking";
@@ -619,6 +625,7 @@ function render(): void {
   else if (view === "reader") {syncReader(updateReaderCard);body = renderReader(questions);}
   else if (view === "guide") body = renderGuide();
   else if (view === "install") body = renderInstall();
+  else if (view === "transfer") body = transfer.render();
   else if (!match || view === "home") body = renderHome();
   else if (match.status === "waiting") body = renderWaiting(match);
   else if (match.status === "playing") body = renderPlay(match);
@@ -649,7 +656,7 @@ function renderHeader(): string {
 // ひとつ上の階層。戻るボタン（上・下）と、端末の「戻る」操作の行き先。
 const RETURNS: Partial<Record<View, {act:string;label:string}>> = {
   title:{act:"title",label:"スタート画面"}, home:{act:"leave",label:"ホーム"},
-  settings:{act:"settings",label:"メニュー"}, guide:{act:"guide",label:"使い方ガイド"},
+  settings:{act:"settings",label:"メニュー"}, guide:{act:"guide",label:"使い方ガイド"}, records:{act:"records",label:"記録"},
 };
 function parentView(): {act:string;label:string}|null {
   if (view === "home" || view === "title") return null;
@@ -658,6 +665,7 @@ function parentView(): {act:string;label:string}|null {
   if (view === "setup" && selectedMode !== "study") return {act:"back-battle",label:"「対戦する」"};
   if (view === "guide") return RETURNS[guideFrom] ?? RETURNS.home!;
   if (view === "install") return RETURNS[installFrom] ?? RETURNS.home!;
+  if (view === "transfer") return RETURNS[transferFrom] ?? RETURNS.home!;
   return RETURNS.home!;
 }
 
@@ -686,8 +694,8 @@ function renderMenuHeader(): string {
 }
 
 function renderHome(): string {
-  return `<div id="home-player">${renderHomePlayer(playerName,questions,mastery)}</div>
-  <div id="saved-study-region">${renderContinue(savedStudies,savedStudyNotice)}</div>
+  return `${homeNotice ? `<p class="home-notice" role="status">${icon("check")}${esc(homeNotice)}</p>` : ""}<div id="home-player">${renderHomePlayer(playerName,questions,mastery)}</div>
+  ${renderInstallBanner()}<div id="saved-study-region">${renderContinue(savedStudies,savedStudyNotice)}</div>
   ${renderHomeMenu()}
   ${renderSuggestion()}${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
@@ -1010,6 +1018,7 @@ app.addEventListener("input", (e) => {
   const input = e.target as HTMLInputElement;
   if (input.id === "name" || input.id === "menu-name" || input.id === "title-name") playerName = input.value;
   if (input.id === "code") roomCodeDraft = input.value;
+  if (input.id === "transfer-code") transfer.input(input.value);
   if (input.id === "invite-key") roomInviteDraft = input.value;
   if (input.id === "catalog-search") {setCatalogQuery(input.value);updateCatalogResults(questions,mastery,busy,error);}
   if (input.id === "seconds") answerSeconds = Number(input.value);
@@ -1124,6 +1133,8 @@ app.addEventListener("click", (e) => {
   const guideJump = target.closest<HTMLElement>("[data-guide-jump]")?.dataset.guideJump;
   if (guideJump) {const section=document.getElementById(guideJump);section?.scrollIntoView({block:"start"});section?.querySelector<HTMLElement>("h2")?.focus({preventScroll:true});return;}
   const act = target.closest<HTMLElement>("[data-act]")?.dataset.act;
+  if (act && homeNotice) homeNotice = "";
+  if (transfer.act(act)) return;
   const uncertainId=target.closest<HTMLElement>("[data-uncertain]")?.dataset.uncertain;
   if (uncertainId) {
     const current=solo.active?solo.currentReviewItem():currentBattleItem();
@@ -1226,6 +1237,11 @@ app.addEventListener("click", (e) => {
     markGuideSeen();goTo("guide");
   }
   else if (act === "install") {if (view !== "install") installFrom=RETURNS[view]?view:"home";goTo("install");}
+  else if (act === "transfer") {
+    if (view === "title") {const name=(document.querySelector<HTMLInputElement>("#title-name")?.value??"").trim().slice(0,12);if(name){playerName=name;writeStore("gb.name",name);}}
+    if (view !== "transfer") transferFrom=RETURNS[view]?view:"home";
+    transfer.open();goTo("transfer");
+  }
   else if (act === "install-browser") openInBrowser();
   else if (act === "install-prompt") void promptInstall();
   else if (act === "install-copy") void copyAppLink();
@@ -1277,6 +1293,7 @@ app.addEventListener("click", (e) => {
 app.addEventListener("keydown", (e) => {
   const id = (e.target as HTMLElement).id;
   if (e.key === "Enter" && id === "title-name") document.querySelector<HTMLElement>('[data-act="title-start"]')?.click();
+  if (e.key === "Enter" && id === "transfer-code") document.querySelector<HTMLElement>('[data-act="transfer-ask"]')?.click();
   if (e.key === "Enter" && id === "name" && !busy) {
     if (selectedMode === "study" || selectedMode === "ai") void startSolo();
     else void enter(selectedMode === "room" ? "create_room" : "find_match");
