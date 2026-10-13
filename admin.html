@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+    <script>
+      // アプリと同じ保存済みテーマを初回描画前に当てる（未設定なら端末の設定に従う）。
+      try { const t = localStorage.getItem('gb.theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch {}
+    </script>
+    <title>ゲノム対戦 管理</title>
+  </head>
+  <body>
+    <main id="admin"></main>
+    <script type="module" src="/src/admin.ts"></script>
+  </body>
+</html>
