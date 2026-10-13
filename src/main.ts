@@ -438,7 +438,8 @@ async function refreshMastery(session?:string):Promise<void> {
     else if (view==="practice" && !solo.active || solo.state?.phase==="finished" && !solo.reviewing) render();
   }
 }
-// みんなの正答率。発表・振り返り・一覧に添えるだけなので取得は1分に1回まで。失敗したら前回の値を使う。
+// みんなの正答率。発表・振り返り・一覧に添えるだけなので取得は1分に1回まで。失敗したら前回の値を使い、
+// 混み合った時間帯の一時的な失敗で1分待たないよう、15秒後から取り直せるようにする。
 let questionStatsAt=0;
 async function refreshQuestionStats():Promise<void> {
   if(Date.now()-questionStatsAt<60000)return;
@@ -449,7 +450,7 @@ async function refreshQuestionStats():Promise<void> {
     // 過去問一覧は検索欄を保つため、絞り込み結果だけを描き直す。
     if(view==="catalog"&&!solo.active)updateCatalogResults(questions,mastery,busy,error);
     else if(solo.active||view==="review"||view==="notebook"||view==="match")render();
-  } catch { /* 正答率が出なくても学習は続けられる */ }
+  } catch {questionStatsAt=Date.now()-45000; /* 正答率が出なくても学習は続けられる */}
 }
 
 async function prepareBattleReview():Promise<void> {
