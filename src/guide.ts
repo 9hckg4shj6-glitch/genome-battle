@@ -79,7 +79,7 @@ export function renderGuide(): string {
   <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
   <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
     <ul>
-      <li><b class="guide-new">NEW</b><span><b>復習ノートが自動で片づく</b>：「誤答・わからない」の問題は、その後<b>2回続けて正解</b>すると自動でノートから外れます。「迷った問題」は次に正解したときに外れます（また迷ったら記録し直せます）。たまった問題は<b>10問・20問・全部</b>、<b>ランダム・間違えた回数が多い順</b>を選んで演習できます。</span><button class="btn ghost" data-guide-jump="guide-review">説明を見る${icon("arrow")}</button></li>
+      <li><b class="guide-new">NEW</b><span><b>復習ノートが「今日の復習」に</b>：試験までの1週間で仕上げられるよう、日ごとに回すようにしました。間違えた問題は、その日に正解すれば今日の分は完了、<b>翌日以降にもう一度正解すると自動でノートから外れます</b>。「迷った問題」も翌日以降の正解で外れます。対戦で時間切れになった問題もノートに入ります。たまった問題は<b>10問・20問・全部</b>、<b>ランダム・間違えた回数が多い順</b>で、今日の分から演習できます。</span><button class="btn ghost" data-guide-jump="guide-review">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>端末の引き継ぎ</b>：機種変更や別の端末で続けるときに、学習レベル・解答記録・成績・保存した学習・復習ノート・フレンド・設定を、<b>12文字の引き継ぎコード</b>でまとめて新しい端末へ移せます。「メニュー」の「端末の引き継ぎ」から。</span><button class="btn ghost" data-guide-jump="guide-transfer">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>過去問を読んで学ぶ</b>：「過去問・問題と解説」が、解説を読むための「<b>読んで学ぶ</b>」と、問題を集めて解く「<b>選んで演習</b>」に分かれました。1問ずつ読み進める<b>解説リーダー</b>（答えを隠して読む・しおり）、<b>読んだ</b>の記録と「解説未読」の絞り込みが使えます。演習のバーは問題を選んだときだけ出ます。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>2024年度の過去問100問を追加</b>：2025年度と合わせて200問になりました。問題演習コーナの「<b>出題する年度</b>」と、過去問・問題と解説の「<b>年度で絞り込む</b>」のボタンで、年度ごとに分けて演習・閲覧できます。</span><button class="btn ghost" data-guide-jump="guide-study">説明を見る${icon("arrow")}</button></li>
@@ -201,7 +201,7 @@ export function renderGuide(): string {
 
   <section id="guide-review" class="panel guide-section"><p class="eyebrow">REVIEW</p><h2 tabindex="-1">復習と記録</h2>
     <dl class="guide-defs">
-      <div><dt>${icon("bookmark")}復習ノート</dt><dd>画面下のタブの「復習」か、「学ぶ」の「復習ノート」から開きます。「誤答・わからない」「迷った問題」「保存した問題」の3つのタブがあり、「この○問を演習する」でまとめて解き直せます（10問より多いときは問題数と選び方を選べます）。「誤答・わからない」の問題はその後2回続けて正解すると、「迷った問題」は次に正解すると自動で外れます。</dd></div>
+      <div><dt>${icon("bookmark")}復習ノート</dt><dd>画面下のタブの「復習」か、「学ぶ」の「復習ノート」から開きます。「誤答・わからない」「迷った問題」「保存した問題」の3つのタブがあり、「この○問を演習する」でまとめて解き直せます（10問より多いときは問題数と選び方を選べます）。間違えた問題は、その日に正解すれば今日の分は完了、翌日以降にもう一度正解すると自動で外れます（数えるのは学習・復習の正解だけ）。「迷った問題」も翌日以降の正解で外れます。「復習」タブの数字は<b>今日の復習</b>（今日まだ正解していない問題）です。</dd></div>
       <div><dt>${icon("target")}終わった後の復習コース</dt><dd>学習や対戦の後の振り返りで、間違えた・わからなかった・迷った問題だけをまとめてすぐ解き直せます。</dd></div>
       <div><dt>${icon("check")}問題の保存</dt><dd>振り返り画面の「この問題を保存」や、解説リーダーの「あとで解く」で、覚えておきたい問題を「保存した問題」に残せます。</dd></div>
       <div><dt>${icon("clock")}保存した学習の続き</dt><dd>「中断して保存」した学習は、ホームの「続きから」で戻れます。2件以上あるときは「学ぶ」の「保存した学習の続き」に並びます。</dd></div>

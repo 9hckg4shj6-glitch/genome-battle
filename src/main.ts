@@ -28,7 +28,7 @@ import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
-import { esc, richText, readStore, writeStore, icon, notebook, recordMiss, recordCorrect, noteFeedback, waitingReview, CLEAR_STREAK, pickNotes, noteTake, noteCount, noteOrder, setNoteCount, setNoteOrder, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
+import { esc, richText, readStore, writeStore, icon, notebook, recordMiss, waitingReview, isDue, studyDay, pickNotes, noteTake, noteCount, noteOrder, setNoteCount, setNoteOrder, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
 import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
@@ -211,9 +211,10 @@ function applyState(s: MatchState | null): void {
   if (s.status === "finished" && match?.id === s.id && match.status === "playing" && view === "match" && isMatchmaking(s)) {view = "review";window.scrollTo(0, 0);}
   match = s;
   const mine = myChoices.get(s.q_index);
-  if (s.phase === "reveal" && s.reveal && s.q_id && mine !== undefined && mine !== s.reveal.answer)
-    recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine,choice_order:choiceOrder(s.id,s.q_index,s.q_id,questions.get(s.q_id)?.choices.length??5) });
-  else if (s.phase === "reveal" && s.reveal && s.q_id && mine === s.reveal.answer) recordCorrect(`${s.id}:${s.q_index}`, s.q_id);
+  // 誤答と時間切れ（席があって印が付かないまま発表）を復習ノートへ。対戦の正解ではノートを減らさない。
+  const timedOut = mine === undefined && mySeat !== null && s.players.find((p) => p.seat === mySeat)?.mark === null;
+  if (s.phase === "reveal" && s.reveal && s.q_id && (mine !== undefined && mine !== s.reveal.answer || timedOut))
+    recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine ?? null,choice_order:choiceOrder(s.id,s.q_index,s.q_id,questions.get(s.q_id)?.choices.length??5) });
   if (newlyFinished) {void refreshPerformance();void prepareBattleReview();void refreshQuestionStats();}
   render();
 }
@@ -902,7 +903,6 @@ function renderPlay(m: MatchState): string {
         ${moment ? streakNote(moment) : ""}
         <p class="note">${correct.length ? `正解者：${correct.join("、")}` : "正解者なし"}</p>
         ${renderRateInline(q.id)}
-        ${noteFeedback(`${m.id}:${m.q_index}`, q.id)}
         <div class="expl">${richText(head)}${body[0] ? richText(body[0]) : ""}</div>
         <div class="confidence-actions">${currentBattleItem()?uncertainButton(currentBattleItem()!):""}</div>
         <p class="next">次へ <span data-count></span>秒（解説の全文は試合後に読めます）</p>
@@ -983,11 +983,12 @@ function renderReview(): string {
 function renderNotebookEntry(): string {
   const waiting = waitingReview();
   return renderStudyEntry({no:"02",en:"NOTEBOOK",title:"復習ノート",text:"間違えた問題・回答を見た問題・迷った問題・保存した問題を解き直します。",icon:"bookmark",attr:'data-act="notebook"',cls:"notebook-link entry-notebook",
-    meta:waiting?`<span class="entry-chip is-due">復習待ち ${waiting}問</span>`:`<span class="entry-chip">復習待ちなし</span>`});
+    meta:waiting?`<span class="entry-chip is-due">今日の復習 ${waiting}問</span>`:`<span class="entry-chip">今日の復習なし</span>`});
 }
 
-// 10問より多くたまったら、演習する問題数と選び方を選べるようにする。
-function renderNotePractice(total: number): string {
+// 誤答・迷ったは今日の復習（今日まだ正解していない問題）の数を出し、演習ではそれを先に出す。
+// 10問より多くたまったら、演習する問題数と選び方を選べるようにする。due は保存した問題では -1（日ごとの区切りなし）。
+function renderNotePractice(total: number, due: number): string {
   const count = noteCount(), order = noteOrder(), take = noteTake(total, count);
   const chip = (attr: string, value: string, label: string, on: boolean): string =>
     `<button type="button" class="practice-preset ${on ? "on" : ""}" data-${attr}="${value}" aria-pressed="${on}" ${busy ? "disabled" : ""}>${label}</button>`;
@@ -997,7 +998,8 @@ function renderNotePractice(total: number): string {
       <div class="note-option"><span>問題数</span><div class="practice-presets" role="group" aria-label="演習する問題数">${counts}</div></div>
       ${take < total ? `<div class="note-option"><span>選び方</span><div class="practice-presets" role="group" aria-label="問題の選び方">${chip("note-order", "random", "ランダム", order === "random")}${chip("note-order", "priority", notebookTab === "missed" ? "間違えた回数が多い順" : "記録が古い順", order === "priority")}</div></div>` : ""}
     </div>` : "";
-  return `<div class="panel note-practice">${options}<button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${take}問を演習する${icon("arrow")}</button></div>`;
+  const today = due < 0 ? "" : `<p class="note-today ${due ? "is-due" : ""}">${due ? `今日の復習 <b>${due}問</b>${due < total ? `（今日正解した${total - due}問は明日もう一度）` : ""}。今日の分から先に出します。` : `${icon("check")}今日の復習は完了です。ここで解いても、ノートから外れるのは明日以降の正解です。`}</p>`;
+  return `<div class="panel note-practice">${today}${options}<button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${take}問を演習する${icon("arrow")}</button></div>`;
 }
 
 function renderNotebook(): string {
@@ -1008,15 +1010,17 @@ function renderNotebook(): string {
   const items = notes
     .map((r) => {
       const q = questions.get(r.id)!;
-      const label = notebookTab === "missed" ? `${esc(q.field)} · 間違えた回数 ${r.misses}回${r.streak ? ` · あと${CLEAR_STREAK - r.streak}回正解で外れます` : ""}` : notebookTab === "uncertain" ? `${esc(q.field)} · 正解したけど迷った` : esc(q.field);
+      const today = r.okDay === studyDay();
+      const label = notebookTab === "missed" ? `${esc(q.field)} · 間違えた回数 ${r.misses}回${today ? " · 今日は正解済み（明日もう一度）" : r.streak ? " · 次に正解すると外れます" : ""}`
+        : notebookTab === "uncertain" ? `${esc(q.field)} · 正解したけど迷った${today ? "（明日以降に正解すると外れます）" : ""}` : esc(q.field);
       const remove = notebookTab === "missed" ? `<button class="btn ghost" data-note-remove="${esc(r.id)}">リストから外す</button>` : "";
       return reviewCard(q, r, label, !!n.saved[r.id], remove);
     })
     .join("");
-  return `${renderCourseGuideButton("notebook")}<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題と「わからないので回答を見る」で確認した問題は自動で追加され、その後${CLEAR_STREAK}回続けて正解すると自動で外れます。正解後の「正解したけど迷った」は、次に正解したときに外れます。振り返り画面の「保存」も使えます。</p></header>
+  return `${renderCourseGuideButton("notebook")}<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題と「わからないので回答を見る」で確認した問題は自動で追加され、正解したら今日の分は完了、<b>翌日以降にもう一度正解すると自動で外れます</b>。「正解したけど迷った」も、翌日以降に正解すると外れます。振り返り画面の「保存」も使えます。</p></header>
     <div class="notebook-tabs">${tab("missed", "誤答・わからない")}${tab("uncertain", "迷った問題")}${tab("saved", "保存した問題")}</div>
     ${notes.length
-      ? `${renderNotePractice(notes.length)}${items}`
+      ? `${renderNotePractice(notes.length, notebookTab === "saved" ? -1 : notes.filter(isDue).length)}${items}`
       : `<div class="rooms-empty"><span>${icon("bookmark")}</span><p>${notebookTab === "missed" ? "誤答・わからなかった問題はありません。" : notebookTab === "uncertain" ? "まだ迷った問題はありません。" : "まだ保存した問題はありません。"}</p><small>${notebookTab === "missed" ? "対戦・学習で間違えた問題と、回答を見た問題がここに集まります。" : notebookTab === "uncertain" ? "正解後や解説画面の「正解したけど迷った」から記録できます。" : "振り返り画面の「この問題を保存」から追加できます。"}</small></div>`}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }

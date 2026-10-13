@@ -85,7 +85,10 @@ export class SoloController {
     this.state=s;
     if (s.phase==='reveal' && s.reveal && (s.answer_viewed || s.my_choice!==null && s.my_choice!==s.reveal.answer))
       recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:s.my_choice,answer_viewed:s.answer_viewed,choice_order:choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,this.questions.get(s.q_id)?.choices.length??5)});
-    else if (s.phase==='reveal' && s.reveal && s.my_choice===s.reveal.answer) recordCorrect(`${s.id}:${s.q_index}`,s.q_id);
+    // 復習ノートを減らすのは時間制限のない学習の正解だけ。AI対戦は時間切れ（誰も正解せず、自分も答えていない）をノートに入れる。
+    else if (s.phase==='reveal' && s.reveal && s.mode==='study' && s.my_choice===s.reveal.answer) recordCorrect(`${s.id}:${s.q_index}`,s.q_id);
+    else if (s.phase==='reveal' && s.reveal && s.mode==='ai' && s.my_choice===null && s.winner===null && !(this.late?.key===`${s.id}:${s.q_index}` && this.late.choice===s.reveal.answer))
+      recordMiss(`${s.id}:${s.q_index}`,{id:s.q_id,answer:s.reveal.answer,explanation:s.reveal.explanation,my_choice:null,choice_order:choiceOrder(s.id,s.choice_index??s.q_index,s.q_id,this.questions.get(s.q_id)?.choices.length??5)});
     if (s.phase==='finished') {
       if (s.mode==='study') {writeStore('gb.solo',null,sessionStorage);writeStore(`gb.study-course.${s.id}`,null);}
       if (!same) {this.finished(s);void this.loadReview();}

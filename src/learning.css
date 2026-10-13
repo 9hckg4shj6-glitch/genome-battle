@@ -68,3 +68,6 @@
 .note-option { display:grid;gap:4px; }
 .note-option > span { font-size:12px;font-weight:700;color:var(--muted); }
 .note-feedback .icon { width:16px;height:16px;margin-right:4px;vertical-align:-3px;color:var(--accent); }
+.note-today { margin:0 0 12px;font-size:13px;line-height:1.7;color:var(--muted); }
+.note-today.is-due b { color:var(--accent); }
+.note-today .icon { width:16px;height:16px;margin-right:4px;vertical-align:-3px;color:var(--accent); }

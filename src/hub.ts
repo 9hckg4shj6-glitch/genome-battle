@@ -74,12 +74,12 @@ export function renderStudyEntry(e: StudyEntry): string {
     <small>${e.text}</small><span class="entry-foot"><span class="entry-meta">${e.meta}</span><span class="entry-go">開く${icon("arrow")}</span></span></span></button>`;
 }
 
-// 「次の一歩」は復習待ちがあるときだけ出す。LINE内での利用・ホーム画面への追加は、ホーム上部の案内（renderInstallBanner）で目立たせる。
+// 「次の一歩」は今日の復習があるときだけ出す。LINE内での利用・ホーム画面への追加は、ホーム上部の案内（renderInstallBanner）で目立たせる。
 export function renderSuggestion(): string {
   const tip = (cls: string, ic: string, title: string, text: string, act: string, label: string): string =>
     `<section class="home-tip ${cls}"><span class="mode-icon">${icon(ic)}</span><div><p class="eyebrow">NEXT STEP</p><h2>${title}</h2><p>${text}</p></div><button class="btn" data-act="${act}">${label}${icon("arrow")}</button></section>`;
   const waiting = waitingReview();
-  if (waiting) return tip("", "bookmark", `復習待ちが ${waiting}問 あります`, "間違えた・迷った問題を解き直して、得点源に変えよう。", "notebook", "復習");
+  if (waiting) return tip("", "bookmark", `今日の復習が ${waiting}問 あります`, "間違えた・迷った問題を今日のうちに解き直し、明日もう一度確かめよう。", "notebook", "復習");
   return "";
 }
 
@@ -134,7 +134,7 @@ const TABS = [
 export function renderTabBar(current: Tab | null): string {
   const waiting = waitingReview();
   const items = TABS.map((t) => {
-    const badge = t.tab === "notebook" && waiting ? `<b class="tab-badge" aria-label="復習待ち${waiting}問">${waiting > 99 ? "99+" : waiting}</b>` : "";
+    const badge = t.tab === "notebook" && waiting ? `<b class="tab-badge" aria-label="今日の復習${waiting}問">${waiting > 99 ? "99+" : waiting}</b>` : "";
     return `<li><button class="tab-item tab-${t.tab}" ${t.attr} ${t.tab === current ? 'aria-current="page"' : ""}><span class="tab-icon">${icon(t.icon)}${badge}</span><span class="tab-label">${t.label}</span></button></li>`;
   }).join("");
   return `<nav class="tab-bar" aria-label="メインメニュー"><ul>${items}</ul></nav>`;
