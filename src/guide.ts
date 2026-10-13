@@ -13,7 +13,7 @@ const sections = [
   { id: "choose", label: "モードの選び方" },
   { id: "study", label: "学ぶ（一人で学習）" },
   { id: "catalog", label: "過去問を読む・選んで演習", isNew: true },
-  { id: "battle", label: "対戦モード" },
+  { id: "battle", label: "対戦モード", isNew: true },
   { id: "rules", label: "対戦のルール" },
   { id: "review", label: "復習と記録", isNew: true },
   { id: "transfer", label: "端末の引き継ぎ", isNew: true },
@@ -79,6 +79,7 @@ export function renderGuide(): string {
   <nav class="guide-toc" aria-label="ガイドの目次">${sections.map((s) => `<button class="guide-chip${s.recommended ? " recommended" : ""}${s.isNew ? " is-new" : ""}" data-guide-jump="guide-${s.id}">${s.recommended ? icon("check") : ""}${s.label}${s.isNew ? '<b class="guide-new">NEW</b>' : ""}</button>`).join("")}</nav>
   <section class="panel guide-updates" aria-labelledby="guide-updates-heading"><p class="eyebrow">WHAT'S NEW</p><h2 id="guide-updates-heading">最近のアップデート</h2>
     <ul>
+      <li><b class="guide-new">NEW</b><span><b>対戦モードにも「使い方はこちら」</b>：マッチング対戦・AI対戦・対戦室の各設定画面の一番上から、そのモードの遊び方（設定・待機・解答・試合のあと）を図解で開けます。</span><button class="btn ghost" data-guide-jump="guide-battle">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>復習ノートが「今日の復習」に</b>：試験までの1週間で仕上げられるよう、日ごとに回すようにしました。間違えた問題は、その日に正解すれば今日の分は完了、<b>翌日以降にもう一度正解すると自動でノートから外れます</b>。「迷った問題」も翌日以降の正解で外れます。対戦で時間切れになった問題もノートに入ります。たまった問題は<b>10問・20問・全部</b>、<b>ランダム・間違えた回数が多い順</b>で、今日の分から演習できます。</span><button class="btn ghost" data-guide-jump="guide-review">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>端末の引き継ぎ</b>：機種変更や別の端末で続けるときに、学習レベル・解答記録・成績・保存した学習・復習ノート・フレンド・設定を、<b>12文字の引き継ぎコード</b>でまとめて新しい端末へ移せます。「メニュー」の「端末の引き継ぎ」から。</span><button class="btn ghost" data-guide-jump="guide-transfer">説明を見る${icon("arrow")}</button></li>
       <li><b class="guide-new">NEW</b><span><b>過去問を読んで学ぶ</b>：「過去問・問題と解説」が、解説を読むための「<b>読んで学ぶ</b>」と、問題を集めて解く「<b>選んで演習</b>」に分かれました。1問ずつ読み進める<b>解説リーダー</b>（答えを隠して読む・しおり）、<b>読んだ</b>の記録と「解説未読」の絞り込みが使えます。演習のバーは問題を選んだときだけ出ます。</span><button class="btn ghost" data-guide-jump="guide-catalog">説明を見る${icon("arrow")}</button></li>
@@ -185,7 +186,7 @@ export function renderGuide(): string {
   </section>
 
   <section id="guide-battle" class="guide-section"><div class="guide-section-head"><p class="eyebrow">BATTLE MODES</p><h2 tabindex="-1">対戦モードの使い方</h2></div>
-    <div class="guide-modes">${battles.map((m) => `<article class="panel guide-mode mode-${m.mode}"><header><span class="mode-icon">${icon(m.icon)}</span><div><h3>${m.title}</h3><p>${m.who}</p></div></header>${steps(m.steps)}${tips(m.tips)}${openMode(m.mode, "このモードを開く")}</article>`).join("")}</div>
+    <div class="guide-modes">${battles.map((m) => `<article class="panel guide-mode mode-${m.mode}"><header><span class="mode-icon">${icon(m.icon)}</span><div><h3>${m.title}</h3><p>${m.who}</p></div></header>${steps(m.steps)}${tips(m.tips)}<div class="guide-actions">${openMode(m.mode, "このモードを開く")}${openCourse(m.mode, "図解ガイドを開く")}</div></article>`).join("")}</div>
   </section>
 
   <section id="guide-rules" class="panel guide-section"><p class="eyebrow">RULES</p><h2 tabindex="-1">対戦のルール</h2>

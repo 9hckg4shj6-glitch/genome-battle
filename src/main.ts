@@ -705,7 +705,8 @@ function renderHome(): string {
 function renderSetup(): string {
   const m = modeInfo[selectedMode];
   const ai = selectedMode === "ai";
-  const title = `<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
+  // 対戦モードは、学ぶの各コーナーと同じく最上部に「使い方はこちら」を置く。
+  const title = `${selectedMode === "study" ? "" : renderCourseGuideButton(selectedMode)}<header class="setup-title mode-${selectedMode}"><span class="mode-icon" data-morph="icon">${icon(m.icon)}</span><div><p class="eyebrow">${m.sub}</p><h1 data-morph="title">${m.title}</h1><p class="lead">${m.description}</p></div></header>`;
   // 一人で学習は入口だけを並べ、演習の設定は問題演習コーナのページで行う。
   if (selectedMode === "study") return `${title}<div id="saved-study-region">${renderSavedStudies(savedStudies,savedStudiesLoading,savedStudiesError,savedStudyNotice,savedStudiesExpanded)}</div>${renderPracticeEntry(questions)}${renderNotebookEntry()}${renderStudyEntry({no:"03",en:"QUESTION LIST",title:"過去問・問題と解説",text:"問題と解説を読んで学べます。1問ずつ読み進める解説リーダー・読んだ記録・しおりつき。選んだ問題をそのまま演習することもできます。",icon:"zoom",attr:'data-act="catalog"',cls:"entry-catalog",meta:catalogEntryMeta()})}${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}<p class="setup-footnote">${icon("check")}ログイン不要 · 記録はこの端末に保存 · 選択肢は問題ごとに並べ替えます</p>`;
   const fields = [...new Set([...questions.values()].map(q => q.field))];
