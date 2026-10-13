@@ -53,7 +53,8 @@ export function progress(): Progress {
 }
 
 // 復習ノート。正解と解説はサーバにしか無いので、解答確定時に受け取った内容ごと端末へ保存する。
-export interface Note extends ReviewItem { at: number; misses: number; key: string; }
+// streak は誤答の後に続けて正解した回数、okKey はその最後の正解の「セッションID:問番号」。
+export interface Note extends ReviewItem { at: number; misses: number; key: string; streak?: number; okKey?: string; }
 export interface Notebook { missed: Record<string,Note>; saved: Record<string,Note>; uncertain: Record<string,Note>; }
 export function notebook(): Notebook {
   try {
@@ -70,6 +71,48 @@ export function recordMiss(key: string, r: ReviewItem): void {
   n.missed[r.id]=note(r,(prev?.misses ?? 0)+1,key);
   saveNotebook(n);
 }
+// 誤答の問題は、その後2回続けて正解したら外す（学習レベルの「習得」と同じ基準）。途中で間違えると recordMiss で数え直す。
+// 迷った問題は、記録した解答とは別の解答で正解したら外す。今回も迷ったら、その解説でもう一度記録できる。
+export const CLEAR_STREAK = 2;
+export interface NoteResult { cleared?: boolean; left?: number; uncertainCleared?: boolean; }
+const results = new Map<string,NoteResult>();
+export function recordCorrect(key: string, id: string): void {
+  const n=notebook(), m=n.missed[id], u=n.uncertain[id], result: NoteResult={};
+  if (m && m.key!==key && m.okKey!==key) {
+    const streak=(m.streak ?? 0)+1;
+    if (streak>=CLEAR_STREAK) { delete n.missed[id]; result.cleared=true; }
+    else { n.missed[id]={...m,streak,okKey:key}; result.left=CLEAR_STREAK-streak; }
+  }
+  if (u && u.key!==key) { delete n.uncertain[id]; result.uncertainCleared=true; }
+  if (!Object.keys(result).length) return;
+  saveNotebook(n); results.set(key,result);
+}
+// 解説の欄に出す、復習ノートが変わったことの知らせ。迷ったを記録し直したら、外した知らせは消す。
+export function noteFeedback(key: string, id: string): string {
+  const r=results.get(key); if (!r) return '';
+  const lines=[
+    r.cleared?`${icon('check')}2回続けて正解したので、復習ノートの「誤答・わからない」から外しました。`:'',
+    r.left?`復習ノートの問題に正解しました。あと${r.left}回続けて正解すると、ノートから外れます。`:'',
+    r.uncertainCleared && !notebook().uncertain[id]?'正解したので「迷った問題」から外しました。今回も迷ったときは「正解したけど迷った」を押すと残せます。':'',
+  ].filter(Boolean);
+  return lines.map(l=>`<p class="answer-view-note note-feedback">${l}</p>`).join('');
+}
+export const waitingReview = (): number => { const n=notebook(); return new Set([...Object.keys(n.missed),...Object.keys(n.uncertain)]).size; };
+
+// 復習ノートからの演習で出す問題。多いときは問題数を絞り、ランダムか優先順（間違えた回数が多い順→記録が古い順）で選ぶ。
+export type NoteCount = '10' | '20' | 'all';
+export type NoteOrder = 'random' | 'priority';
+export const noteCount = (): NoteCount => { const v=readStore('gb.note-count'); return v==='20' || v==='all' ? v : '10'; };
+export const noteOrder = (): NoteOrder => readStore('gb.note-order')==='priority' ? 'priority' : 'random';
+export const setNoteCount = (v: string | undefined): boolean => v==='10' || v==='20' || v==='all' ? (writeStore('gb.note-count',v),true) : false;
+export const setNoteOrder = (v: string | undefined): boolean => v==='random' || v==='priority' ? (writeStore('gb.note-order',v),true) : false;
+export const noteTake = (total: number, count: NoteCount = noteCount()): number => count==='all' ? total : Math.min(total,Number(count));
+export function pickNotes(notes: Note[], count: NoteCount = noteCount(), order: NoteOrder = noteOrder()): string[] {
+  const list=[...notes];
+  if (order==='priority') list.sort((a,b)=>b.misses-a.misses || a.at-b.at);
+  else for (let i=list.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [list[i],list[j]]=[list[j],list[i]]; }
+  return list.slice(0,noteTake(list.length,count)).map(r=>r.id);
+}
 export function toggleSaved(r: ReviewItem): void {
   const n=notebook();
   if (n.saved[r.id]) delete n.saved[r.id]; else n.saved[r.id]=note(r,0,'');
@@ -79,10 +122,11 @@ export function removeMissed(id: string): void {
   const n=notebook(); delete n.missed[id]; saveNotebook(n);
 }
 // 正解した問題だけを「迷った問題」として記録。以前の誤答・保存問題は維持する。
-export function toggleUncertain(r:ReviewItem):void {
+// key は記録した解答の「セッションID:問番号」。その解答の再配信では recordCorrect が外さない。
+export function toggleUncertain(r:ReviewItem,key=''):void {
   if (r.my_choice!==r.answer) return;
   const n=notebook();
-  if (n.uncertain[r.id]) delete n.uncertain[r.id]; else n.uncertain[r.id]=note(r,0,'');
+  if (n.uncertain[r.id]) delete n.uncertain[r.id]; else n.uncertain[r.id]=note(r,0,key);
   saveNotebook(n);
 }
 export function uncertainButton(r:ReviewItem):string {

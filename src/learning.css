@@ -61,3 +61,10 @@
   .result-fields li { grid-template-columns:minmax(0,1fr) 64px auto;gap:8px;font-size:12px; }
   .result-retry .btn, .next-step .btn { gap:7px;padding:12px 9px;font-size:12px; }
 }
+
+/* 復習ノートの演習：問題数と選び方 */
+.note-practice { --mode-color:var(--accent); }
+.note-options { display:grid;gap:10px;margin-bottom:12px; }
+.note-option { display:grid;gap:4px; }
+.note-option > span { font-size:12px;font-weight:700;color:var(--muted); }
+.note-feedback .icon { width:16px;height:16px;margin-right:4px;vertical-align:-3px;color:var(--accent); }

@@ -1,4 +1,4 @@
-import { esc, icon, notebook, readStore, writeStore, type Question } from "./ui";
+import { esc, icon, readStore, writeStore, waitingReview, type Question } from "./ui";
 import { levelOf, readiness, type Mastery } from "./mastery";
 import { renderOnlineCount } from "./presence";
 import { renderThemeSwitch } from "./theme";
@@ -14,8 +14,6 @@ import { inLineApp } from "./install";
 const TITLE_KEY = "gb.title-seen";
 export const titleSeen = (): boolean => readStore(TITLE_KEY, sessionStorage) === "1";
 export const markTitleSeen = (): void => writeStore(TITLE_KEY, "1", sessionStorage);
-
-const waitingReview = (): number => { const n = notebook(); return new Set([...Object.keys(n.missed), ...Object.keys(n.uncertain)]).size; };
 
 // 使い方ガイドの入口。初めての人（ガイド未読）には「はじめての方へ」を付けて目立たせる。
 export function renderGuideEntry(cls: string): string {

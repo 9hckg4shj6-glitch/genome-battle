@@ -28,7 +28,7 @@ import { renderThemeSwitch, setTheme } from "./theme";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { call, listen, serverNow, supabase, type MatchState, type Player, type ReviewItem } from "./api";
 
-import { esc, richText, readStore, writeStore, icon, notebook, recordMiss, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
+import { esc, richText, readStore, writeStore, icon, notebook, recordMiss, recordCorrect, noteFeedback, waitingReview, CLEAR_STREAK, pickNotes, noteTake, noteCount, noteOrder, setNoteCount, setNoteOrder, toggleSaved, toggleUncertain, uncertainButton, removeMissed, reviewCard, questionImage, type Question } from "./ui";
 import { studyDistribution } from './study-distribution';
 import { getSavedStudies, renderContinue, renderSavedStudies, type SavedStudy } from './study-resume';
 import { SoloController, difficultyName, type Difficulty, type SoloMode } from "./solo";
@@ -213,6 +213,7 @@ function applyState(s: MatchState | null): void {
   const mine = myChoices.get(s.q_index);
   if (s.phase === "reveal" && s.reveal && s.q_id && mine !== undefined && mine !== s.reveal.answer)
     recordMiss(`${s.id}:${s.q_index}`, { id: s.q_id, answer: s.reveal.answer, explanation: s.reveal.explanation, my_choice: mine,choice_order:choiceOrder(s.id,s.q_index,s.q_id,questions.get(s.q_id)?.choices.length??5) });
+  else if (s.phase === "reveal" && s.reveal && s.q_id && mine === s.reveal.answer) recordCorrect(`${s.id}:${s.q_index}`, s.q_id);
   if (newlyFinished) {void refreshPerformance();void prepareBattleReview();void refreshQuestionStats();}
   render();
 }
@@ -901,6 +902,7 @@ function renderPlay(m: MatchState): string {
         ${moment ? streakNote(moment) : ""}
         <p class="note">${correct.length ? `正解者：${correct.join("、")}` : "正解者なし"}</p>
         ${renderRateInline(q.id)}
+        ${noteFeedback(`${m.id}:${m.q_index}`, q.id)}
         <div class="expl">${richText(head)}${body[0] ? richText(body[0]) : ""}</div>
         <div class="confidence-actions">${currentBattleItem()?uncertainButton(currentBattleItem()!):""}</div>
         <p class="next">次へ <span data-count></span>秒（解説の全文は試合後に読めます）</p>
@@ -979,10 +981,23 @@ function renderReview(): string {
 }
 
 function renderNotebookEntry(): string {
-  const n = notebook();
-  const waiting = new Set([...Object.keys(n.missed),...Object.keys(n.uncertain)]).size;
+  const waiting = waitingReview();
   return renderStudyEntry({no:"02",en:"NOTEBOOK",title:"復習ノート",text:"間違えた問題・回答を見た問題・迷った問題・保存した問題を解き直します。",icon:"bookmark",attr:'data-act="notebook"',cls:"notebook-link entry-notebook",
     meta:waiting?`<span class="entry-chip is-due">復習待ち ${waiting}問</span>`:`<span class="entry-chip">復習待ちなし</span>`});
+}
+
+// 10問より多くたまったら、演習する問題数と選び方を選べるようにする。
+function renderNotePractice(total: number): string {
+  const count = noteCount(), order = noteOrder(), take = noteTake(total, count);
+  const chip = (attr: string, value: string, label: string, on: boolean): string =>
+    `<button type="button" class="practice-preset ${on ? "on" : ""}" data-${attr}="${value}" aria-pressed="${on}" ${busy ? "disabled" : ""}>${label}</button>`;
+  const counts = (["10", "20", "all"] as const).filter((c) => c === "all" || Number(c) < total)
+    .map((c) => chip("note-count", c, c === "all" ? `全部（${total}問）` : `${c}問`, take === noteTake(total, c))).join("");
+  const options = total > 10 ? `<div class="note-options">
+      <div class="note-option"><span>問題数</span><div class="practice-presets" role="group" aria-label="演習する問題数">${counts}</div></div>
+      ${take < total ? `<div class="note-option"><span>選び方</span><div class="practice-presets" role="group" aria-label="問題の選び方">${chip("note-order", "random", "ランダム", order === "random")}${chip("note-order", "priority", notebookTab === "missed" ? "間違えた回数が多い順" : "記録が古い順", order === "priority")}</div></div>` : ""}
+    </div>` : "";
+  return `<div class="panel note-practice">${options}<button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${take}問を演習する${icon("arrow")}</button></div>`;
 }
 
 function renderNotebook(): string {
@@ -993,15 +1008,15 @@ function renderNotebook(): string {
   const items = notes
     .map((r) => {
       const q = questions.get(r.id)!;
-      const label = notebookTab === "missed" ? `${esc(q.field)} · ${r.misses}回要復習に記録` : notebookTab === "uncertain" ? `${esc(q.field)} · 正解したけど迷った` : esc(q.field);
+      const label = notebookTab === "missed" ? `${esc(q.field)} · 間違えた回数 ${r.misses}回${r.streak ? ` · あと${CLEAR_STREAK - r.streak}回正解で外れます` : ""}` : notebookTab === "uncertain" ? `${esc(q.field)} · 正解したけど迷った` : esc(q.field);
       const remove = notebookTab === "missed" ? `<button class="btn ghost" data-note-remove="${esc(r.id)}">リストから外す</button>` : "";
       return reviewCard(q, r, label, !!n.saved[r.id], remove);
     })
     .join("");
-  return `${renderCourseGuideButton("notebook")}<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題と「わからないので回答を見る」で確認した問題は自動で追加されます。正解後の「正解したけど迷った」と、振り返り画面の「保存」も使えます。</p></header>
+  return `${renderCourseGuideButton("notebook")}<header class="hero small"><p class="eyebrow">REVIEW NOTEBOOK</p><h1>復習ノート</h1><p class="lead">間違えた問題と「わからないので回答を見る」で確認した問題は自動で追加され、その後${CLEAR_STREAK}回続けて正解すると自動で外れます。正解後の「正解したけど迷った」は、次に正解したときに外れます。振り返り画面の「保存」も使えます。</p></header>
     <div class="notebook-tabs">${tab("missed", "誤答・わからない")}${tab("uncertain", "迷った問題")}${tab("saved", "保存した問題")}</div>
     ${notes.length
-      ? `<div class="panel"><button class="btn primary" data-act="note-practice" ${busy ? "disabled" : ""}>${icon("book")}この${notes.length}問を演習する${icon("arrow")}</button></div>${items}`
+      ? `${renderNotePractice(notes.length)}${items}`
       : `<div class="rooms-empty"><span>${icon("bookmark")}</span><p>${notebookTab === "missed" ? "誤答・わからなかった問題はありません。" : notebookTab === "uncertain" ? "まだ迷った問題はありません。" : "まだ保存した問題はありません。"}</p><small>${notebookTab === "missed" ? "対戦・学習で間違えた問題と、回答を見た問題がここに集まります。" : notebookTab === "uncertain" ? "正解後や解説画面の「正解したけど迷った」から記録できます。" : "振り返り画面の「この問題を保存」から追加できます。"}</small></div>`}
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}`;
 }
@@ -1140,7 +1155,9 @@ app.addEventListener("click", (e) => {
     const current=solo.active?solo.currentReviewItem():currentBattleItem();
     const pool=solo.active?[...(current?[current]:[]),...solo.review]:view==="review" || view==="match"?[...(current?[current]:[]),...review]:Object.values(notebook()[notebookTab]);
     const item=pool.find(r=>r.id===uncertainId);
-    if (item) toggleUncertain(item);
+    // いま解説を出している解答で記録したときは、その解答のキーを残す（同じ解答の再配信で外さないため）。
+    const key=item&&item===current?(solo.active&&solo.state?`${solo.state.id}:${solo.state.q_index}`:match?`${match.id}:${match.q_index}`:""):"";
+    if (item) toggleUncertain(item,key);
     render();return;
   }
   const saveId = target.closest<HTMLElement>("[data-save]")?.dataset.save;
@@ -1155,6 +1172,8 @@ app.addEventListener("click", (e) => {
   if (tab === "missed" || tab === "saved" || tab === "uncertain") {notebookTab = tab; return render();}
   const removeId = target.closest<HTMLElement>("[data-note-remove]")?.dataset.noteRemove;
   if (removeId) {removeMissed(removeId); return render();}
+  const noteEl = target.closest<HTMLElement>("[data-note-count],[data-note-order]");
+  if (noteEl && (setNoteCount(noteEl.dataset.noteCount) || setNoteOrder(noteEl.dataset.noteOrder))) return render();
   const readerChoice=target.closest<HTMLElement>("[data-reader-choice]")?.dataset.readerChoice;
   if (readerChoice!==undefined) {revealReader(Number(readerChoice));render();return;}
   const readerFrom=target.closest<HTMLElement>("[data-reader-from]")?.dataset.readerFrom;
@@ -1273,7 +1292,7 @@ app.addEventListener("click", (e) => {
   else if (act === "catalog-pick-shown") {pickShown(questions,mastery);updateCatalogResults(questions,mastery,busy,error);}
   else if (act === "catalog-pick-clear") {clearPicks();updateCatalogResults(questions,mastery,busy,error);}
   else if (act === "catalog-practice") void startSolo("study",pickedIds(questions),false,studyOrder,pickShuffled());
-  else if (act === "note-practice") void startSolo("study", Object.keys(notebook()[notebookTab]));
+  else if (act === "note-practice") void startSolo("study", pickNotes(Object.values(notebook()[notebookTab]).filter((r) => questions.has(r.id))));
   else if (act === "solo-start") void startSolo();
   else if (act === "solo-view-answer") {void solo.act("view-answer").then(()=>{if(solo.state?.phase==="reveal"){const heading=document.getElementById("solo-reveal-heading");heading?.scrollIntoView({block:"start"});heading?.focus({preventScroll:true});}});}
   else if (act === "solo-defer") {void solo.act("defer");window.scrollTo(0,0);}
