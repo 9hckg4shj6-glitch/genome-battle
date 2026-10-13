@@ -143,7 +143,7 @@ function renderFiltered(questions: Map<string, Question>, m: Mastery | null, bus
     const n = base.filter(e => matchesStatus(e, s.id)).length;
     const off = !m && s.id !== 'all' && s.id !== 'missed' && s.id !== 'unread';
     return `<label class="catalog-status-option${s.id === catalogStatus ? ' on' : ''}${off ? ' off' : ''}"><input type="radio" name="catalog-status" value="${s.id}"${s.id === catalogStatus ? ' checked' : ''}${off ? ' disabled' : ''}/><span>${s.label}</span><b>${off ? '–' : n}</b></label>`;
-  }).join('')}</div><small>${m ? '解説未読＝まだ解説を開いていない問題 · 習得＝直近2回連続で正解（定着も含む）· 誤答＝復習ノートの誤答・わからなかった問題' : '学習記録を読み込むと、未着手・取り組み中・習得でも絞り込めます。'}</small></fieldset>`;
+  }).join('')}</div><small>${m ? '解説未読＝まだ解説を開いていない問題 · 習得＝初めて解いて正解、または間違えた後に2回連続で正解（定着も含む）· 誤答＝復習ノートの誤答・わからなかった問題' : '学習記録を読み込むと、未着手・取り組み中・習得でも絞り込めます。'}</small></fieldset>`;
   const full = picked.size >= PICK_LIMIT;
   const choosing = catalogMode() === 'pick';
   const items = shown.slice(start, start + PAGE_SIZE).map(({ q, no, state, missed, read }) => {

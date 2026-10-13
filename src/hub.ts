@@ -48,7 +48,7 @@ export function renderHomePlayer(name: string, questions: Map<string, Question>,
   const shown = name.trim() || "ゲストプレイヤー";
   return `<button class="home-player" data-act="records" aria-label="${esc(shown)}の記録を見る"><span class="home-avatar" aria-hidden="true">${esc([...shown][0])}</span>
     <span class="home-player-copy"><small>PLAYER</small><strong>${esc(shown)}</strong><span class="home-xp"><b>Lv ${lv ? lv.level : "—"}</b><span class="home-xp-bar"><i style="width:${lv ? 100 * lv.into / lv.need : 0}%"></i></span></span></span>
-    <span class="home-ready"><small>試験準備度</small><strong>${r ? r.ready : "—"}<small> / ${r ? r.total : questions.size}</small></strong></span>${icon("arrow")}</button>`;
+    <span class="home-ready"><small>試験準備度</small><strong>${r ? r.ready : "—"}<small> / ${r ? r.total : questions.size}</small></strong>${r?.today ? `<small class="home-ready-today">今日 +${r.today}</small>` : ""}</span>${icon("arrow")}</button>`;
 }
 
 const HUBS = [

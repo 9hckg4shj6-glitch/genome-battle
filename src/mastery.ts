@@ -4,14 +4,16 @@ import { esc, icon, readStore, writeStore, notebook, type Question } from './ui'
 // 一人学習・復習の記録から計算する。「迷った」は端末保存なので、ここで習得から外す。
 export type ServerState = 'learning' | 'mastered' | 'settled';
 export type QuestionState = 'new' | ServerState;
-export interface Mastery { xp: number; xp_today: number; session_xp?: number | null; states: Record<string, ServerState>; }
+// ready_today：今日の解答で新たに習得以上になった問題（023以降のサーバー）。日付で変わるので端末には保存しない。
+export interface Mastery { xp: number; xp_today: number; session_xp?: number | null; states: Record<string, ServerState>; ready_today?: string[]; }
 
 const STATES: ServerState[] = ['learning', 'mastered', 'settled'];
 const count = (n: unknown): boolean => Number.isInteger(n) && (n as number) >= 0;
 export function validMastery(m: unknown): m is Mastery {
   const v = m as Mastery | null;
   return !!v && count(v.xp) && count(v.xp_today) && typeof v.states === 'object' && v.states !== null
-    && Object.values(v.states).every(s => STATES.includes(s));
+    && Object.values(v.states).every(s => STATES.includes(s))
+    && (v.ready_today === undefined || Array.isArray(v.ready_today) && v.ready_today.every(id => typeof id === 'string'));
 }
 export function cachedMastery(device: string): Mastery | null {
   try { const m: unknown = JSON.parse(readStore(`gb.mastery.${device}`) ?? 'null'); return validMastery(m) ? m : null; }
@@ -48,11 +50,14 @@ export function fieldMastery(questions: Map<string, Question>, m: Mastery | null
   }
   return [...by.values()];
 }
-export function readiness(questions: Map<string, Question>, m: Mastery | null, uncertain: Record<string, unknown> = notebook().uncertain): { ready: number; total: number; counts: Record<QuestionState, number> } {
+// 試験準備度：習得以上の問題数。today は今日の解答で新たに習得以上になった数（「迷った」に記録中は除く）。
+export function readiness(questions: Map<string, Question>, m: Mastery | null, uncertain: Record<string, unknown> = notebook().uncertain): { ready: number; total: number; today: number; counts: Record<QuestionState, number> } {
   const counts = empty();
   for (const id of questions.keys()) counts[stateOf(m, id, uncertain)]++;
-  return { ready: counts.mastered + counts.settled, total: questions.size, counts };
+  const today = (m?.ready_today ?? []).filter(id => questions.has(id) && stateOf(m, id, uncertain) !== 'learning').length;
+  return { ready: counts.mastered + counts.settled, total: questions.size, today, counts };
 }
+export const readyPercent = (r: { ready: number; total: number }): number => r.total ? Math.floor(100 * r.ready / r.total) : 0;
 
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9l-5.4 2.9 1.1-6.1-4.5-4.3 6.1-.8L12 3Z"/></svg>';
 const STAR_NAMES = ['', '全問に取り組んだ', '全問を習得', '全問が定着'];
@@ -82,9 +87,9 @@ export function renderMastery(questions: Map<string, Question>, m: Mastery | nul
   const starTotal = fields.reduce((n, f) => n + f.stars, 0);
   return `<section class="panel mastery-panel" aria-labelledby="mastery-heading">
     <div class="mastery-level"><span class="mastery-badge" aria-hidden="true"><small>Lv</small>${lv.level}</span><div class="mastery-level-copy"><p class="eyebrow">STUDY LEVEL</p><h2 id="mastery-heading">学習レベル <b>Lv ${lv.level}</b></h2><span class="mastery-xp-bar" role="progressbar" aria-label="次のレベルまでの経験値" aria-valuemin="0" aria-valuemax="${lv.need}" aria-valuenow="${lv.into}"><i style="width:${100 * lv.into / lv.need}%"></i></span><p class="mastery-xp-note">次のレベルまで <b>${lv.need - lv.into} XP</b> · 累計 ${m.xp} XP${m.xp_today ? ` · <span class="mastery-today">今日 +${m.xp_today} XP</span>` : ''}</p></div></div>
-    <div class="mastery-ready"><div class="mastery-ready-head"><h3>${icon('target')}試験準備度</h3><p><strong>${r.ready}</strong><span> / ${r.total}問</span></p></div>${stack(r.counts, r.total, 'mastery-bar')}<div class="mastery-legend">${legend}</div></div>
+    <div class="mastery-ready"><div class="mastery-ready-head"><h3>${icon('target')}試験準備度</h3><p><strong>${r.ready}</strong><span> / ${r.total}問 · ${readyPercent(r)}%</span></p></div>${r.today ? `<p class="mastery-ready-today">今日 <b>+${r.today}問</b> 習得</p>` : ''}${stack(r.counts, r.total, 'mastery-bar')}<div class="mastery-legend">${legend}</div></div>
     <details class="mastery-fields" ${fieldsOpen ? 'open' : ''}><summary><span>${icon('book')}分野マスタリー</span><span class="mastery-star-total">★ ${starTotal} / ${fields.length * 3}</span></summary><ul>${rows}</ul></details>
-    <p class="mastery-note">習得＝直近2回連続で正解 · 定着＝直近3回連続で正解 · 「迷った」に記録中の問題は習得に数えません。XPは一人で学習・復習コースの解答で増え、減ることはありません。</p>
+    <p class="mastery-note">習得＝初めて解いて正解（間違えた・回答を見たことのある問題は2回連続で正解）· 定着＝習得からもう1回続けて正解 · 「迷った」に記録中の問題は習得に数えません。XPは一人で学習・復習コースの解答で増え、減ることはありません。</p>
     ${error ? '<p class="error" role="status">最新のレベルを取得できませんでした。前回の記録を表示しています。</p>' : ''}</section>`;
 }
 

@@ -11,7 +11,7 @@ export const studyOrderName: Record<StudyOrder, string> = { unattempted: '未着
 export const clientOrder = (o: StudyOrder): boolean => o === 'weak' || o === 'polish';
 
 // 苦手：取り組み中（「迷った」に記録中を含む）と、対戦などで間違えたまま学習で解いていない問題。
-// 仕上げ：習得（直近2回連続で正解）で、あと1回の正解で定着になる問題。
+// 仕上げ：習得で、あと1回の正解で定着になる問題。
 export function isWeak(id: string, m: Mastery | null, n = notebook()): boolean {
   const s = stateOf(m, id, n.uncertain);
   return s === 'learning' || (s === 'new' && !!n.missed[id]);

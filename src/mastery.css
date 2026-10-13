@@ -22,6 +22,8 @@
 .mastery-ready-head p { margin:0;font-variant-numeric:tabular-nums;white-space:nowrap; }
 .mastery-ready-head strong { font-size:28px;line-height:1; }
 .mastery-ready-head span { font-size:12px;color:var(--muted); }
+.mastery-ready-today { margin:-4px 0 0;font-size:12px;color:var(--muted); }
+.mastery-ready-today b { color:var(--ok);font-variant-numeric:tabular-nums; }
 .mastery-bar { display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--st-new); }
 .mastery-bar i { display:block;height:100%; }
 .mastery-bar.mini { height:7px;min-width:0; }

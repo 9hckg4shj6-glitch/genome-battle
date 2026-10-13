@@ -30,9 +30,13 @@ assert.deepEqual(ui.fieldMastery(qs,{...m,states:{a1:'learning'}},{}).map(x=>x.s
 let r=ui.readiness(qs,m,{});assert.deepEqual([r.ready,r.total],[4,5]);assert.deepEqual(r.counts,{new:0,learning:1,mastered:2,settled:2});
 r=ui.readiness(qs,m,{c1:true});assert.equal(r.ready,3);
 assert.equal(ui.readiness(qs,null,{}).counts.new,5);
+// 今日増えた習得：「迷った」に記録中・収録外の問題は数えない。古いサーバー（ready_today なし）は0。
+assert.equal(ui.readiness(qs,{...m,ready_today:['b1','c1','zz']},{}).today,2);assert.equal(ui.readiness(qs,{...m,ready_today:['b1','c1']},{c1:true}).today,1);
+assert.equal(ui.readiness(qs,m,{}).today,0);assert.equal(ui.readyPercent({ready:1,total:3}),33);assert.equal(ui.readyPercent({ready:0,total:0}),0);
+assert.ok(ui.validMastery({...m,ready_today:['a1']}));assert.ok(!ui.validMastery({...m,ready_today:[1]}));
 // 端末キャッシュの検証。
 assert.ok(ui.validMastery(m));assert.ok(!ui.validMastery({...m,xp:-1}));assert.ok(!ui.validMastery({...m,states:{a1:'other'}}));assert.ok(!ui.validMastery(null));
-ui.cacheMastery('dev',{...m,session_xp:30});assert.deepEqual(ui.cachedMastery('dev'),m);assert.equal(ui.cachedMastery('other'),null);
+ui.cacheMastery('dev',{...m,session_xp:30,ready_today:['a1']});assert.deepEqual(ui.cachedMastery('dev'),m);assert.equal(ui.cachedMastery('other'),null);
 localStorage.setItem('gb.mastery.bad','broken');assert.equal(ui.cachedMastery('bad'),null);
 // 結果画面のレベルアップ表示。
 assert.match(ui.renderSessionXp({xp:25,xp_today:25,session_xp:25,states:{}},false),/Lv 1 → <b>Lv 2/);
@@ -55,9 +59,9 @@ const [q1,q2,q3,q4,q5,q6]=ids;
 // [問題, 日本時間の日時, 正解, 回答を見た]。セッションは行ごとに別。
 const d='2026-09-01';
 const rows=[
-  [q1,`${d} 10:00`,true,false],[q1,`${d} 11:00`,true,false],                                  // 20 + 5（同日2回目） → 習得
-  [q2,`${d} 10:00`,false,false],['q2b','2026-09-02 10:00',true,false],[q2,'2026-09-05 10:00',true,false], // 3 + 25（克服） + 10 → 習得（誤答の前は数えない）
-  [q3,`${d} 10:00`,true,false],[q3,`${d} 12:00`,true,false],[q3,`${d} 13:00`,true,false],  // 20 + 5 + 5 → 定着（3回連続、同じ日でも可）
+  [q1,`${d} 10:00`,true,false],[q1,`${d} 11:00`,true,false],                                  // 20 + 5（同日2回目） → 定着（間違えたことがなく2回連続）
+  [q2,`${d} 10:00`,false,false],['q2b','2026-09-02 10:00',true,false],[q2,'2026-09-05 10:00',true,false], // 3 + 25（克服） + 10 → 習得（間違えたことがあるので2回連続が必要）
+  [q3,`${d} 10:00`,true,false],[q3,`${d} 12:00`,true,false],[q3,`${d} 13:00`,true,false],  // 20 + 5 + 5 → 定着（同じ日でも可）
   [q4,`${d} 10:00`,true,false],[q4,'2026-09-02 10:00',false,true],                              // 20 + 1 → 取り組み中
   [q5,`${d} 10:00`,false,true],[q5,`${d} 10:30`,true,false],                                     // 1 + 5 + 15 → 取り組み中
 ].map(([q,at,correct,viewed])=>[q==='q2b'?q2:q,at,correct,viewed]);
@@ -67,12 +71,13 @@ try {
   await sql("insert into public.study_answer_records(session_id,question_id,device_id,correct,answer_viewed,answered_at) values(gen_random_uuid(),$1,$2::uuid,true,false,'2026-09-01 10:00+09')",[q6,other]);
   let p=await rpc('get_mastery',{p_device:device});
   assert.equal(p.xp,25+38+30+21+21);assert.equal(p.xp_today,0);assert.equal(p.session_xp,null);
-  assert.deepEqual(p.states,{[q1]:'mastered',[q2]:'mastered',[q3]:'settled',[q4]:'learning',[q5]:'learning'});
+  assert.deepEqual(p.states,{[q1]:'settled',[q2]:'mastered',[q3]:'settled',[q4]:'learning',[q5]:'learning'});assert.deepEqual(p.ready_today,[]);
   // 今日の解答と、セッション指定の獲得XP。他の端末の記録は混ざらない。
   await sql("insert into public.study_answer_records(session_id,question_id,device_id,correct,answer_viewed) values($1::uuid,$2,$3::uuid,true,false),($1::uuid,$4,$3::uuid,false,false)",[today,q6,device,q1]);
   p=await rpc('get_mastery',{p_device:device,p_session:today});
   assert.equal(p.xp,135+20+3);assert.equal(p.xp_today,23);assert.equal(p.session_xp,23);
-  assert.equal(p.states[q6],'learning');assert.equal(p.states[q1],'learning');
+  // 初めて解いて正解した問題はすぐ習得になり、今日増えた習得に入る。定着していた問題も1回の誤答で取り組み中に戻る。
+  assert.equal(p.states[q6],'mastered');assert.equal(p.states[q1],'learning');assert.deepEqual(p.ready_today,[q6]);
   assert.equal((await rpc('get_mastery',{p_device:device,p_session:randomUUID()})).session_xp,0);
   p=await rpc('get_mastery',{p_device:randomUUID()});assert.deepEqual([p.xp,p.xp_today,p.states],[0,0,{}]);
   // 公開クライアントから記録を直接読めない。
@@ -82,14 +87,19 @@ try {
   const [{answer}]=await sql('select answer from public.questions where id=$1',[s0.q_id]);
   await rpc('answer_solo',{p_session:s0.id,p_device:device,p_q_index:0,p_choice:answer,p_q_id:s0.q_id});
   p=await rpc('get_mastery',{p_device:device,p_session:s0.id});
-  assert.equal(p.session_xp,5);assert.equal(p.states[q6],'mastered');
-  // 3回目の連続正解で定着。誤答をはさむと数え直す。
-  const s1=await rpc('start_solo',{p_device:device,p_mode:'study',p_ids:[q6],p_seconds:20,p_difficulty:'normal'});
-  await rpc('answer_solo',{p_session:s1.id,p_device:device,p_q_index:0,p_choice:answer,p_q_id:s1.q_id});
-  p=await rpc('get_mastery',{p_device:device});assert.equal(p.states[q6],'settled');assert.equal(p.states[q1],'learning');
+  assert.equal(p.session_xp,5);assert.equal(p.states[q6],'settled');assert.deepEqual(p.ready_today,[q6]);
+  // 誤答の後は2回連続の正解で習得に戻る。1回目はまだ取り組み中で、今日増えた習得にも入らない。
+  const [{answer:a1}]=await sql('select answer from public.questions where id=$1',[q1]);
+  const s1=await rpc('start_solo',{p_device:device,p_mode:'study',p_ids:[q1],p_seconds:20,p_difficulty:'normal'});
+  await rpc('answer_solo',{p_session:s1.id,p_device:device,p_q_index:0,p_choice:a1,p_q_id:s1.q_id});
+  p=await rpc('get_mastery',{p_device:device});assert.equal(p.states[q1],'learning');assert.deepEqual(p.ready_today,[q6]);
+  // 昨日までに習得していた問題は、今日また正解しても（q2）、今日いったん間違えて習得し直しても（q1）、今日増えた数には入らない。
+  await sql("insert into public.study_answer_records(session_id,question_id,device_id,correct,answer_viewed) values(gen_random_uuid(),$1,$2::uuid,true,false)",[q2,device]);
+  await sql("insert into public.study_answer_records(session_id,question_id,device_id,correct,answer_viewed) values(gen_random_uuid(),$1,$2::uuid,true,false)",[q1,device]);
+  p=await rpc('get_mastery',{p_device:device});assert.equal(p.states[q2],'settled');assert.equal(p.states[q1],'mastered');assert.deepEqual(p.ready_today,[q6]);
   await sql('delete from public.solo_sessions where id=$1::uuid',[s1.id]);
   await sql('delete from public.solo_sessions where id=$1::uuid',[s0.id]);
-  console.log('PASS server mastery: XP rules, same-day halving, first-correct and recovery bonus, mastered/settled/learning, today and session XP, device isolation, RLS, live study answer');
+  console.log('PASS server mastery: XP rules, same-day halving, first-correct and recovery bonus, first-try mastery and 2-in-a-row after a miss, ready_today, today and session XP, device isolation, RLS, live study answer');
 } finally {
   // テストの解答を「みんなの正答率」に残さない（対戦・セッションを消す前に端末を割り出す）。
   await sql('delete from question_first_answers where device_id in (select device_id from solo_sessions where id=any($1::uuid[]) union select device_id from players where match_id=any($2::uuid[]) union select unnest($3::uuid[]))',[[],[],[device,other]]).catch(()=>{});
