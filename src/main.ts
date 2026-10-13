@@ -689,10 +689,10 @@ window.addEventListener("popstate", () => {
   if (crumb) crumb.click(); else syncHistory();
 });
 
-// ホーム・各ハブのヘッダー。設定類は「メニュー」に集め、ここにはフレンド・メニューだけを置く。
+// ホーム・各ハブのヘッダー。設定類は「メニュー」に集め、ここにはフレンド・明暗・メニューだけを置く。
 function renderMenuHeader(): string {
   const navigationBusy=busy||solo.busy;
-  return `<header class="app-header menu-header"><button class="brand" data-act="tab-home" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}<span class="header-label">フレンド</span> <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button><button class="btn ghost menu-open" data-act="settings" ${view==="settings"?'aria-current="page"':""} ${navigationBusy?"disabled":""}>${icon("menu")}<span class="header-label">メニュー</span></button></div></header>`;
+  return `<header class="app-header menu-header"><button class="brand" data-act="tab-home" aria-label="ゲノム対戦 ホーム" ${navigationBusy ? "disabled" : ""}><span class="brand-icon">${icon("dna")}</span><span>GENOME<span class="brand-light"> BATTLE</span><small>ゲノム対戦</small></span></button><div class="header-actions"><button class="btn ghost friends-open" data-act="friends" ${navigationBusy?"disabled":""}>${friendsIcon()}<span class="header-label">フレンド</span> <b id="friends-badge" ${friends.badge()?"":"hidden"}>${friends.badge()}</b></button>${renderThemeSwitch()}<button class="btn ghost menu-open" data-act="settings" ${view==="settings"?'aria-current="page"':""} ${navigationBusy?"disabled":""}>${icon("menu")}<span class="header-label">メニュー</span></button></div></header>`;
 }
 
 function renderHome(): string {

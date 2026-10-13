@@ -282,6 +282,9 @@
 .menu-header .header-actions .btn.ghost[aria-current="page"] { border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 11%,var(--surface));color:var(--text); }
 .menu-header .header-actions .btn.ghost:active:not(:disabled) { transform:translateY(2px);box-shadow:0 0 0 var(--edge-soft),inset 0 1px 0 #ffffff12; }
 @media (hover:hover) and (pointer:fine) { .menu-header .header-actions .btn.ghost:hover:not(:disabled) { border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--text); } }
+/* ホームのヘッダーでも明暗をすぐ選べるよう、フレンド・メニューと同じ高さで並べる */
+.menu-header .theme-switch { padding:3px; }
+.menu-header .theme-switch button { min-height:32px; }
 .menu-header #friends-badge { min-width:18px;padding:0 5px;line-height:18px;text-align:center;font-weight:800;font-size:10px;box-shadow:0 0 0 2px var(--surface); }
 /* タブ：内枠と、選んでいる項目の立体的な札・下の目印 */
 .tab-bar::before { content:"";position:absolute;inset:3px;border-radius:19px;border:1px solid color-mix(in srgb,var(--accent) 9%,transparent);pointer-events:none; }
@@ -298,6 +301,7 @@
   .menu-header .header-actions .btn.ghost { min-height:36px;padding:5px 8px 5px 7px;gap:4px;font-size:11px; }
   .menu-header .header-actions .btn.ghost .icon { width:16px;height:16px; }
   .menu-header .brand .brand-icon { border-radius:10px; }
+  .menu-header .theme-switch button { min-height:28px; }
 }
 @media (max-width:360px) { .menu-header .header-label { display:none; } }
 @media (max-width:440px) {
