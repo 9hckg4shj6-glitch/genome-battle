@@ -33,8 +33,6 @@ let session: Session | null = null;
 let data: Dashboard | null = null;
 let loadError = "";
 let loading = false;
-let loginMode: "login" | "signup" = "login";
-let loginNotice = "";
 let loginError = "";
 let busy = false;
 let filter: "all" | "online" | "today" | "d7" = "online";
@@ -58,51 +56,35 @@ function ago(iso: string): string {
 }
 
 // ---------- ログイン ----------
+// ログイン前は普通のログイン欄だけを出す（登録の入口や「管理」の表示は出さない）。管理者のアカウントは登録済み。
 function renderLogin(): void {
-  const signup = loginMode === "signup";
   root.innerHTML = `<section class="login card">
-    <p class="eyebrow">ADMIN</p><h1>ゲノム対戦 管理</h1>
-    <p class="muted">管理者として登録したメールアドレスでログインします。</p>
+    <h1>ログイン</h1>
     <form id="login-form" novalidate>
       <label class="field"><span>メールアドレス</span><input name="email" type="email" autocomplete="username" required /></label>
-      <label class="field"><span>パスワード${signup ? "（12文字以上）" : ""}</span><input name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 12 : 6}" required /></label>
-      ${signup ? '<label class="field"><span>パスワード（確認）</span><input name="confirm" type="password" autocomplete="new-password" required /></label>' : ""}
-      <div role="status" class="${loginError ? "error" : "notice"}">${esc(loginError || loginNotice)}</div>
-      <button class="btn primary" ${busy ? "disabled" : ""}>${signup ? "登録して確認メールを送る" : "ログイン"}</button>
+      <label class="field"><span>パスワード</span><input name="password" type="password" autocomplete="current-password" required /></label>
+      <div role="status" class="error">${esc(loginError)}</div>
+      <button class="btn primary" ${busy ? "disabled" : ""}>ログイン</button>
     </form>
-    <button class="link" data-act="toggle-mode">${signup ? "登録済みの方はログイン" : "初めての方：管理者アカウントを登録"}</button>
   </section>`;
 }
 
 const authMessage = (m: string): string =>
   /invalid login credentials/i.test(m) ? "メールアドレスかパスワードが違います。"
-  : /email not confirmed/i.test(m) ? "メールアドレスの確認がまだです。届いた確認メールのリンクを押してから、もう一度ログインしてください。"
-  : /already registered/i.test(m) ? "このメールアドレスは登録済みです。ログインしてください。"
+  : /email not confirmed/i.test(m) ? "メールアドレスの確認がまだです。"
   : /rate limit|too many/i.test(m) ? "試行が多すぎます。しばらく待ってからやり直してください。"
-  : /password/i.test(m) ? "パスワードが条件を満たしていません。12文字以上で、推測されにくいものにしてください。"
-  : "うまくいきませんでした。通信を確認して、もう一度お試しください。";
+  : "ログインできませんでした。通信を確認して、もう一度お試しください。";
 
 async function submitLogin(form: HTMLFormElement): Promise<void> {
   const f = new FormData(form);
   const email = String(f.get("email") ?? "").trim().toLowerCase(), password = String(f.get("password") ?? "");
-  loginError = ""; loginNotice = "";
+  loginError = "";
   if (!email || !password) { loginError = "メールアドレスとパスワードを入力してください。"; renderLogin(); return; }
-  if (loginMode === "signup") {
-    if (password.length < 12) { loginError = "パスワードは12文字以上にしてください。"; renderLogin(); return; }
-    if (password !== String(f.get("confirm") ?? "")) { loginError = "確認用のパスワードが一致しません。"; renderLogin(); return; }
-  }
   busy = true; renderLogin();
   try {
-    if (loginMode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: location.href.split("#")[0] } });
-      if (error) throw error;
-      loginMode = "login";
-      loginNotice = "確認メールを送りました。メールのリンクを押してから、このページでログインしてください（リンク先がエラー表示になっても、確認は完了しています）。";
-    } else {
-      const { data: d, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      session = d.session;
-    }
+    const { data: d, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    session = d.session;
   } catch (e) { loginError = authMessage(e instanceof Error ? e.message : String(e)); }
   finally { busy = false; }
   if (session) void load(); else renderLogin();
@@ -188,7 +170,7 @@ function renderUsers(d: Dashboard): string {
 function render(): void {
   if (!session) { renderLogin(); return; }
   if (loadError === "ADMIN_ONLY") {
-    root.innerHTML = `<section class="login card"><h1>権限がありません</h1><p class="muted">このアカウント（${esc(session.user.email)}）は管理者として登録されていないか、メールアドレスの確認がまだです。</p><button class="btn" data-act="logout">ログアウト</button></section>`;
+    root.innerHTML = `<section class="login card"><h1>表示できるページがありません</h1><p class="muted">このアカウントでは利用できません。</p><button class="btn" data-act="logout">ログアウト</button></section>`;
     return;
   }
   const d = data;
@@ -243,8 +225,7 @@ root.addEventListener("click", async e => {
   if (!el) return;
   if (el.dataset.filter) { filter = el.dataset.filter as typeof filter; render(); return; }
   const act = el.dataset.act;
-  if (act === "toggle-mode") { loginMode = loginMode === "login" ? "signup" : "login"; loginError = ""; loginNotice = ""; renderLogin(); }
-  else if (act === "refresh") void load();
+  if (act === "refresh") void load();
   else if (act === "logout") { await supabase.auth.signOut(); session = null; data = null; loadError = ""; renderLogin(); }
 });
 root.addEventListener("input", e => {

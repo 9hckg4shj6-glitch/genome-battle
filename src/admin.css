@@ -26,7 +26,6 @@ h1, h2, p { margin-top: 0; }
 .muted b { color: var(--text); }
 .loading { padding: 40px 0; text-align: center; color: var(--muted); }
 .error { color: var(--ng); font-size: 13px; }
-.notice { color: var(--ok); font-size: 13px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
 .card h2 { font-size: 15px; margin-bottom: 14px; }
 
@@ -34,7 +33,6 @@ h1, h2, p { margin-top: 0; }
 .btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
 .btn.ghost { background: none; }
 .btn:disabled { opacity: .55; cursor: default; }
-.link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 8px 0; font-size: 13px; }
 button:focus-visible, input:focus-visible, .col:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .login { max-width: 420px; margin: 8vh auto 0; }
