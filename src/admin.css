@@ -98,6 +98,8 @@ button:focus-visible, input:focus-visible, .col:focus-visible { outline: 2px sol
 .state i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
 .state.on { color: var(--text); }
 .state.on i { background: var(--ok); }
+.state.bg { color: var(--text); }
+.state.bg i { background: none; border: 2px solid var(--warn); }
 .empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
 
 @media (max-width: 720px) {

@@ -81,7 +81,7 @@ const app = document.querySelector<HTMLElement>("#app")!;
 
 const deviceId = readStore("gb.device") ?? crypto.randomUUID();
 writeStore("gb.device", deviceId);
-startPresence(deviceId);
+void startPresence(deviceId);
 const transfer = new TransferController(deviceId, () => {if (view === "transfer" && !solo.active) render();});
 
 let playerName = readStore("gb.name") ?? "";

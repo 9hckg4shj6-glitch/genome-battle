@@ -9,10 +9,12 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL as string, impor
 });
 
 type Activity = "study" | "ai" | "battle" | null;
-interface User { name: string; code: string; last_seen: string; first_seen: string | null; online: boolean; activity: Activity; answers: number; answers_today: number; questions: number; }
+interface User { name: string; code: string; last_seen: string; first_seen: string | null; online: boolean; present: boolean; activity: Activity; answers: number; answers_today: number; questions: number; }
 interface Counts { online: number; studying: number; ai: number; battle: number; }
 interface Dashboard {
   now: Counts;
+  // 管理画面が見ている Presence のうち、開いている端末数・端末と結びついた数・そのうち画面を裏に回している数。未接続なら null。
+  presence?: { open: number; matched: number; background: number } | null;
   active: { h1: number; today: number; d7: number; total: number; new_today: number; new_d7: number };
   today: { answers: number; studies: number; ai: number; battles: number };
   hourly: (Counts & { at: string })[];
@@ -27,6 +29,25 @@ interface Dashboard {
 // 無料プランのリアルタイム同時接続の上限（目安）。アプリは1端末につき1接続。
 const REALTIME_LIMIT = 200;
 const REFRESH_MS = 20000;
+
+// アプリの「いま N人がオンライン」と同じ Presence を読み取りだけで購読する（track しないので人数には数えられない）。
+// キーは端末IDのハッシュ（src/presence.ts）。サーバーが同じ計算で端末と結びつけ、画面を裏に回した端末も「開いている」と分かる。
+let presentKeys: string[] | null = null;
+let presenceStarted = false;
+let presenceTimer: ReturnType<typeof setTimeout> | undefined;
+function startPresenceWatch(): void {
+  if (presenceStarted) return;
+  presenceStarted = true;
+  const channel = supabase.channel("presence:app");
+  channel.on("presence", { event: "sync" }, () => {
+    presentKeys = Object.keys(channel.presenceState());
+    // 出入りが続いても取得は1.5秒に1回までにまとめる。
+    clearTimeout(presenceTimer);
+    presenceTimer = setTimeout(() => void load(), 1500);
+  }).subscribe(status => {
+    if (status !== "SUBSCRIBED") { presentKeys = null; }
+  });
+}
 
 const root = document.querySelector<HTMLElement>("#admin")!;
 let session: Session | null = null;
@@ -91,12 +112,16 @@ async function submitLogin(form: HTMLFormElement): Promise<void> {
 }
 
 // ---------- 集計の取得 ----------
+// 取得中に新しい依頼（開いている端末の出入りなど）が来たら、終わってからもう一度取る。
+let loadAgain = false;
 async function load(): Promise<void> {
-  if (loading || !session) return;
+  if (!session) return;
+  if (loading) { loadAgain = true; return; }
+  startPresenceWatch();
   loading = true;
   if (!data) root.innerHTML = '<p class="loading">読み込み中…</p>';
   try {
-    const { data: d, error } = await supabase.rpc("get_admin_dashboard");
+    const { data: d, error } = await supabase.rpc("get_admin_dashboard", { p_present: presentKeys });
     if (error) throw new Error(error.message);
     data = d as Dashboard; loadError = "";
   } catch (e) {
@@ -104,6 +129,7 @@ async function load(): Promise<void> {
     loadError = /ADMIN_ONLY/.test(m) ? "ADMIN_ONLY" : "最新の状況を取得できませんでした。前回の値を表示しています。";
   } finally { loading = false; }
   render();
+  if (loadAgain) { loadAgain = false; void load(); }
 }
 
 // ---------- 描画 ----------
@@ -148,7 +174,7 @@ function filteredUsers(d: Dashboard): User[] {
   const today = Date.parse(`${todayKey()}T00:00:00+09:00`), week = Date.now() - 7 * 86400000;
   const q = query.trim().toLowerCase();
   return d.users.filter(u =>
-    (filter === "all" || (filter === "online" ? u.online : filter === "today" ? Date.parse(u.last_seen) >= today : Date.parse(u.last_seen) >= week))
+    (filter === "all" || (filter === "online" ? u.online || u.present : filter === "today" ? Date.parse(u.last_seen) >= today : Date.parse(u.last_seen) >= week))
     && (!q || u.name.toLowerCase().includes(q) || u.code.toLowerCase().includes(q)));
 }
 function renderUsers(d: Dashboard): string {
@@ -156,7 +182,7 @@ function renderUsers(d: Dashboard): string {
   const shown = list.slice(0, 500);
   const rows = shown.map(u => `<tr>
       <td class="name"><strong>${esc(u.name)}</strong><small>${esc(u.code)}</small></td>
-      <td><span class="state ${u.online ? "on" : ""}"><i></i>${u.activity ? ACTIVITY[u.activity] : u.online ? "オンライン" : "オフライン"}</span></td>
+      <td><span class="state ${u.online || u.activity ? "on" : u.present ? "bg" : ""}"><i></i>${u.activity ? ACTIVITY[u.activity] : u.online ? "画面を表示中" : u.present ? "裏で開いている" : "オフライン"}</span></td>
       <td data-label="最終利用">${esc(ago(u.last_seen))}</td>
       <td data-label="初回">${u.first_seen ? esc(fmtTime.format(new Date(u.first_seen))) : "—"}</td>
       <td data-label="今日の解答" class="n">${num(u.answers_today)}</td>
@@ -176,14 +202,15 @@ function render(): void {
   const d = data;
   if (!d) { root.innerHTML = `<p class="loading">${esc(loadError || "読み込み中…")}</p>`; return; }
   const focused = document.activeElement?.id === "user-search";
-  const realtimePct = Math.round(100 * d.now.online / REALTIME_LIMIT), dbPct = Math.round(100 * d.db.connections / d.db.max);
+  const p = d.presence ?? null, open = p ? p.open : d.now.online;
+  const realtimePct = Math.round(100 * open / REALTIME_LIMIT), dbPct = Math.round(100 * d.db.connections / d.db.max);
   root.innerHTML = `<header class="top">
       <div><p class="eyebrow">ADMIN</p><h1>ゲノム対戦 管理</h1></div>
       <div class="top-actions"><small class="muted">${loading ? "更新中…" : `${esc(fmtTime.format(new Date(d.server_now)))} 時点 · 20秒ごとに更新`}</small><button class="btn" data-act="refresh">更新</button><button class="btn ghost" data-act="logout">ログアウト</button></div>
     </header>
     ${loadError ? `<p class="error" role="status">${esc(loadError)}</p>` : ""}
     <section class="tiles now">
-      ${tile("いまオンライン", d.now.online, "直近90秒にアプリを表示", true)}
+      ${tile("アプリを開いている", open, p ? `画面を表示中 ${num(d.now.online)} · 裏で開いている ${num(p.background)}${p.open > p.matched ? ` · 名前の分からない端末 ${num(p.open - p.matched)}` : ""}` : "接続中… いまは画面を表示中の端末だけ", true)}
       ${tile("学習中", d.now.studying)}${tile("AI対戦中", d.now.ai)}${tile("対人戦中", d.now.battle)}
     </section>
     <section class="card"><h2>利用した端末</h2><div class="tiles">
@@ -193,23 +220,23 @@ function render(): void {
       ${tile("学習の解答", d.today.answers, "", false, "問")}${tile("学習の開始", d.today.studies, "", false, "回")}${tile("AI対戦", d.today.ai, "", false, "試合")}${tile("対人戦", d.today.battles, "", false, "試合")}
     </div></section>
     <section class="card"><h2>最大同時人数</h2>
-      <p class="muted">${d.peak ? `記録上の最大：<b>${num(d.peak.online)}人</b>（${esc(fmtTime.format(new Date(d.peak.at)))}）` : "まだ記録がありません。"}${d.sampled_since ? ` · ${esc(fmtTime.format(new Date(d.sampled_since)))}から記録` : ""} · アプリを開いている端末が1分ごとに記録します</p>
+      <p class="muted">${d.peak ? `記録上の最大：<b>${num(d.peak.online)}人</b>（${esc(fmtTime.format(new Date(d.peak.at)))}）` : "まだ記録がありません。"}${d.sampled_since ? ` · ${esc(fmtTime.format(new Date(d.sampled_since)))}から記録` : ""} · 画面を表示していた端末を1分ごとに記録しています（裏に回していた端末は含みません）</p>
       <div class="charts">${bars("hourly", "過去24時間（1時間ごとの最大）", hourlyRows(d), "人")}${bars("daily", "過去14日（1日ごとの最大）", dailyRows(d), "人")}</div>
     </section>
     <section class="card"><h2>サーバーの余裕</h2>
       <div class="meters">
-        <div class="meter"><span>リアルタイム接続（無料プランの上限 約${REALTIME_LIMIT}）</span><strong>${num(d.now.online)} / ${REALTIME_LIMIT}</strong><span class="bar ${realtimePct >= 80 ? "warn" : ""}"><i style="width:${Math.min(100, realtimePct)}%"></i></span></div>
+        <div class="meter"><span>リアルタイム接続（無料プランの上限 約${REALTIME_LIMIT}）</span><strong>${num(open)} / ${REALTIME_LIMIT}</strong><span class="bar ${realtimePct >= 80 ? "warn" : ""}"><i style="width:${Math.min(100, realtimePct)}%"></i></span></div>
         <div class="meter"><span>データベース接続</span><strong>${num(d.db.connections)} / ${num(d.db.max)}</strong><span class="bar ${dbPct >= 80 ? "warn" : ""}"><i style="width:${Math.min(100, dbPct)}%"></i></span></div>
       </div>
       <p class="muted">2026年10月13日の負荷テストでは、120端末の同時利用で失敗0件でした。オンラインが160人を超えるようなら、上限への備えを検討してください。</p>
     </section>
     <section class="card"><h2>利用者一覧</h2>
       <div class="user-tools">
-        <div class="chips" role="group" aria-label="絞り込み">${(["online", "today", "d7", "all"] as const).map(f => `<button class="chip ${filter === f ? "on" : ""}" data-filter="${f}" aria-pressed="${filter === f}">${{ online: "オンライン", today: "今日", d7: "7日以内", all: "すべて" }[f]}</button>`).join("")}</div>
+        <div class="chips" role="group" aria-label="絞り込み">${(["online", "today", "d7", "all"] as const).map(f => `<button class="chip ${filter === f ? "on" : ""}" data-filter="${f}" aria-pressed="${filter === f}">${{ online: "開いている", today: "今日", d7: "7日以内", all: "すべて" }[f]}</button>`).join("")}</div>
         <input id="user-search" type="search" placeholder="名前・フレンドコードで検索" value="${esc(query)}" />
       </div>
       <div id="users">${renderUsers(d)}</div>
-      <p class="muted">名前はアプリで設定されたニックネーム（未設定は「ゲストプレイヤー」）です。1台の端末を1人として数えるため、スマホとPCを使い分ける人は2人と数えます。</p>
+      <p class="muted">名前はアプリで設定されたニックネーム（未設定は「ゲストプレイヤー」）です。「画面を表示中」は直近90秒にアプリを表示していた端末、「裏で開いている」はアプリを開いたまま別の画面に切り替えている端末です。1台の端末を1人として数えるため、スマホとPCを使い分ける人は2人と数えます。</p>
     </section>
     <div class="tip" id="tip" role="tooltip" hidden></div>`;
   if (focused) { const s = document.querySelector<HTMLInputElement>("#user-search"); s?.focus(); s?.setSelectionRange(s.value.length, s.value.length); }
